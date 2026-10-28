@@ -101,6 +101,6 @@ test("the exact-report API disables intermediary caching", async () => {
   );
   assert.match(
     worker,
-    /app\.get\("\/api\/reports\/:date"[\s\S]*?c\.header\("Cache-Control", "no-store"\)/,
+    /"\/api\/reports\/:date"[\s\S]*?c\.header\("Cache-Control", "no-store"\)/,
   );
 });

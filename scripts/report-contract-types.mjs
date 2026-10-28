@@ -28,7 +28,7 @@ const output = "// Generated from docs/report-contracts/*.schema.json. Do not ed
   + schemas.map((schema, index) => `\nexport type ${index ? "Weekly" : "Daily"}ReportPayload = ${type(schema)};\n`).join("");
 const target = new URL("../src/report-contracts.generated.ts", import.meta.url);
 if (process.argv.includes("--check")) {
-  if (await readFile(target, "utf8") !== output) throw new Error("Run npm run contracts:generate");
+  if ((await readFile(target, "utf8")).replaceAll("\r\n", "\n") !== output) throw new Error("Run npm run contracts:generate");
 } else {
   await writeFile(target, output);
 }

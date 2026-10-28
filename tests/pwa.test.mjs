@@ -12,8 +12,8 @@ test("web app manifest exposes installable square and maskable icons", async () 
   assert.equal(manifest.start_url, "/");
   assert.equal(manifest.scope, "/");
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.theme_color, "#123b34");
-  assert.equal(manifest.background_color, "#f5f0e6");
+  assert.equal(manifest.theme_color, "#7561b4");
+  assert.equal(manifest.background_color, "#faf9fc");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
   assert.ok(manifest.icons.some((icon) => icon.purpose === "maskable"));
@@ -21,7 +21,7 @@ test("web app manifest exposes installable square and maskable icons", async () 
 
 test("document includes iOS and standards-based installation metadata", async () => {
   const app = await readFile(new URL("src/App.tsx", root), "utf8");
-  assert.match(app, /rel="manifest" href="\/manifest\.webmanifest"/);
+  assert.match(app, /rel="manifest" href="\/manifest\.webmanifest\?v=4"/);
   assert.match(app, /apple-mobile-web-app-capable/);
   assert.match(app, /apple-mobile-web-app-status-bar-style/);
   assert.match(app, /rel="apple-touch-icon"/);

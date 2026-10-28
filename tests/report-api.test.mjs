@@ -215,17 +215,12 @@ test("the additive migration leaves historical payload and metadata unchanged an
   assert.equal((await put(env, "daily", daily, { "If-None-Match": "", "If-Match": read.headers.get("ETag") })).status, 200);
   assert.equal(adapter.sql.prepare("SELECT edition FROM daily_reports").get().edition, 1);
 });
-test("new reports render through the existing bilingual daily and weekly pages", async () => {
+test("daily and weekly report storage remains readable after retiring their pages", async () => {
   const env = environment();
   assert.equal((await put(env)).status, 200);
   assert.equal((await put(env, "weekly", weekly, {}, "weekly")).status, 200);
-  for (const [path, title] of [["/?market=CN&lang=zh", daily.marketViews.CN.headline], ["/?market=US&lang=en", daily.translations.en.marketViews.US.headline], ["/weekly?lang=zh", weekly.headline], ["/weekly?lang=en", weekly.translations.en.headline]]) {
-    const response = await app.request(`https://reports.example.com${path}`, {}, env);
-    assert.equal(response.status, 200, await response.clone().text());
-    const html = await response.text();
-    assert.ok(html.includes(title));
-    assert.doesNotMatch(html, /external-report-v1|external-agent|daily-v1|weekly-v1/);
-  }
+  assert.deepEqual((await (await get(env)).json()).data, daily);
+  assert.deepEqual((await (await get(env, "weekly")).json()).data, weekly);
 });
 
 test("a lost database acknowledgement recovers the committed receipt", async () => {
@@ -258,11 +253,6 @@ test("sourced industry, AI, news and recap modules round-trip without legacy res
   const view = await vite.ssrLoadModule("/src/server/reports.ts").then((module) => module.getDailyReport(env.DB, report.reportDate));
   assert.deepEqual(view.drivers, report.drivers);
   assert.deepEqual(view.recaps, report.recaps);
-  const page = await app.request("https://reports.example.com/?market=US&lang=en", {}, env);
-  assert.equal(page.status, 200);
-  const html = await page.text();
-  assert.ok(html.includes("Evidence remains incomplete."));
-  assert.doesNotMatch(html, /external-agent|daily-v1/);
   const afterCutoff = structuredClone(report);
   afterCutoff.drivers[0].evidence[0].publishedAt = "2026-10-18T12:01:00Z";
   assert.throws(() => contract.validateReportPayload("daily", afterCutoff), /later than cutoff/);
@@ -271,17 +261,15 @@ test("sourced industry, AI, news and recap modules round-trip without legacy res
   assert.throws(() => contract.validateReportPayload("daily", lateVerification), /later than generated/);
 });
 
-test("unknown persisted schema versions fail closed for readback and rendering", async () => {
+test("unknown persisted schema versions fail closed for readback", async () => {
   const env = environment();
   assert.equal((await put(env)).status, 200);
   const unknown = { ...daily, schemaVersion: "daily-v999" };
   env.DB.sql.prepare("UPDATE daily_reports SET content = ?").run(JSON.stringify(unknown));
   assert.equal((await get(env)).status, 503);
-  const response = await app.request("https://reports.example.com/?market=US", {}, env);
-  assert.equal(response.status, 503);
   assert.equal(env.DB.counts().receipts, 1);
 });
-test("report text cannot break out of HTML or hydration JSON, and source links reject unsafe schemes/credentials", async () => {
+test("report text round-trips as data, and source links reject unsafe schemes/credentials", async () => {
   const env = environment();
   const attack = '</script><img src=x onerror="globalThis.reportXss=1"><script>globalThis.reportXss=1</script>';
   const report = structuredClone(daily);
@@ -290,13 +278,7 @@ test("report text cannot break out of HTML or hydration JSON, and source links r
   report.marketViews.US.headline = attack;
   report.translations.en.marketViews.US.headline = attack;
   assert.equal((await put(env, "daily", report)).status, 200);
-  const response = await app.request("https://reports.example.com/?market=US&lang=en", {}, env);
-  const html = await response.text();
-  assert.equal(response.status, 200);
-  assert.doesNotMatch(html, /<img src=x|<script>globalThis\.reportXss/);
-  const serialized = html.match(/<script id="stock-daily-data" type="application\/json">([\s\S]*?)<\/script>/)?.[1];
-  assert.ok(serialized);
-  assert.equal(JSON.parse(serialized).report.marketViews.US.headline, attack);
+  assert.equal((await (await get(env)).json()).data.marketViews.US.headline, attack);
   for (const url of ["javascript:alert(1)", "data:text/html,test", "//evil.example.com/path", "https:" + "//name:pass@example.com/path", "https://name@example.com/path", "https://example.com/\nunsafe"]) {
     const bad = structuredClone(daily); bad.markets[0].source = url;
     assert.throws(() => contract.validateReportPayload("daily", bad));

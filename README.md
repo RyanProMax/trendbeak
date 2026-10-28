@@ -1,83 +1,84 @@
 # Stock Daily
 
-一个部署在 Cloudflare Pages、使用 Cloudflare D1 保存历史日报和周报的双语市场备忘录。页面以“市场快照 → 定价信号板 → 往期日报”组织核心信息。
+A 股与美股的每日信号看板。默认左侧沪深 300、右侧标普 500；手机按相同顺序纵向排列。
 
-线上地址：[stock-daily-8k4.pages.dev](https://stock-daily-8k4.pages.dev/)
+## 页面
 
-## 功能
+- 最近 365 天的涨跌热力图使用 `react-activity-calendar`，红涨绿跌，颜色随幅度加深。桌面分两行、手机分三行，窄屏进一步换行。年度范围在双市场上方共用一处，彩虹主题用于品牌及界面装饰。
+- 五个指标：贪恐指数、14 日 RSI、20 日均线偏离、20 日量能比、52 周位置。说明、前值和来源放在气泡里，支持悬停、键盘聚焦和手机点击。
+- 顶部居中搜索股票名称或代码，选中后替换对应市场，另一市场保持显示；可随时返回大盘。
+- 搜索记录仅保存在浏览器 localStorage，按最近使用排序、去重、最多 10 条，可清空。
+- 行情每分钟刷新一次，仅在页面可见时请求。日期使用交易所时区，明确标注盘中或收盘。
 
-- D1 按日期持久化精简日报
-- Hono + React 在 Pages 端完成 SSR，首屏 HTML 直接包含 D1 数据
-- `/api/reports` 返回日报归档
-- `/api/reports/:date` 返回指定日期完整日报
-- 首页使用单一日期入口切换期次，并通过归档列表回溯
-- 本地 SSR 与本地 API 直接读取线上只读数据，不创建本地 D1 或报告镜像
-- 本地隔离研究固定覆盖大盘、11 个行业、8 个 AI 环节，核实方向、传导及涨跌幅受限或放大；所有目标通过证据和独立复核后才发布
-- 采集 CN/US 各 11 个一级行业、代表股和各 8 个 AI 产业链环节的收盘行情
-- 日报顶部按格子展示本周关键事件；只有兑现结果、同一官方来源和核验时间齐全时才标绿打勾
-- 市场状态显示明确的本地化收盘日期，历史日报不会把旧行情称为今天
-- 每条新闻保留原始标题、最小核验事实、来源 URL 和发布时间
-- 外部 Agent 可通过带鉴权、幂等与版本保护的 API 更新日报/周报（旧本地调度待验收切换）
-- 中英文切换、深浅色主题、新闻渐进展开与摘要复制
-- 自托管中英文字体与无横向溢出的移动端布局
+## 数据口径
+
+A 股日线来自腾讯证券，美股日线来自 Yahoo Finance，名称和代码搜索来自东方财富。行情可能存在来源延迟，不承诺交易级实时性。A 股采用前复权日线，美股采用来源的拆股调整日线，热力图是价格涨跌而非含分红总收益。
+
+服务端先校验代码、交易所、日期、重复记录和 OHLC 数值，再由日线计算指标。交易日缺数显示空格，不用零涨跌或模拟行情补齐；接口不可用时显示错误并支持重试。已有行情刷新失败时保留上一份读数，明确提示更新失败。
+
+量能比使用前 20 个完整交易日均量作为分母，盘中不提供该读数。RSI 历史不足 15 个交易日、趋势不足 20 个交易日、区间不足 52 周或成交量缺失时显示空值。贪恐数据缺失时显示空值，不用其他指标代替。
+
+贪恐数据：A 股使用[百分位自编指数](https://baifenwei.com/indicator/fear-greed/)公开 CSV，保留来源署名，每小时刷新；美股使用 [Fear & Greed](https://fearandgreednow.com/about) 转引的 CNN 股票市场读数，每 5 分钟刷新。两者方法不同，都是市场情绪，不是个股评分。当前美股转引源只有有日期的当前读数，历史日期留空；不会将未带确切日期的周/月比较值冒充逐日历史。
+
+点击热力图交易日期后，价格、涨跌和指标一起回溯；仅使用截至该日的日线计算。数据基于目前可获得的复权日线重算，可能受来源复权修订影响，并非原日发布存档。日期、交易状态和当日涨跌合并在卡片右上角的固定宽度彩虹色区域，当前与历史日期样式一致；悬停日历可预览每日读数，移开后恢复所选日期，区域不会伸缩。左侧图标可返回最新，悬停提示“返回最新日期”。休市格子禁用点击，键盘导航跳过，悬停提示“休市”；缺失交易日不前向填充。切换股票时保留旧标的及其读数，加载完成后一起替换，不清空卡片，也不强制滚动已在视野内的市场。
+
+休市判断包含周末与已核实的交易所节假日：[上交所 2026 年安排](https://www.sse.com.cn/disclosure/announcement/general/c/c_20251222_10802507.shtml)、[NYSE 日历](https://ir.theice.com/press/news-details/2024/NYSE-Group-Announces-2025-2026-and-2027-Holiday-and-Early-Closings-Calendar/default.aspx)。当前日历覆盖 A 股 2026 年、美股 2025 年 10 月至 2027 年末，后续年份需按交易所公告更新。未知工作日的报价缺口保持“无交易数据”，不会据此推断休市；提前收盘日仍是交易日。
+
+指标设计参考：[TradingView 技术评级](https://www.tradingview.com/support/solutions/43000614331-technical-ratings/)区分均线和震荡指标；[Finviz 筛选说明](https://finviz.com/help/screener)分别展示 RSI、均线距离、相对量及高低点距离。本站量能比用前 20 个完整交易日，Finviz 用近三个月并做盘中调整，二者数值不能直接等同。[Schwab 报价说明](https://international.schwab.com/story/learn-how-to-read-stock-quotes)与[Morningstar 数据定义](https://admainnew.morningstar.com/WebHelp/glossary_definitions/quicktakes/STKStockPerformance.htm)将 52 周区间视为价格背景。因此本站将“52 周位置”放在末项，气泡提供低点、高点及其定义；它不是上涨概率、估值分位或独立买卖结论。
 
 ## 本地开发
 
-```bash
-npm install
-npm run pages:dev
+需要 Node.js 22.13+，推荐使用 pnpm。完整测试另需 Python 3.10+；可用 `PYTHON` 指定解释器路径。
+
+```sh
+pnpm install --frozen-lockfile
+pnpm dev
 ```
 
-`npm run dev` 会使用 `wrangler.jsonc` 中不含 D1 绑定的本地配置启动 Worker。本地 SSR 和 `/api/*` 均通过线上只读 API 获取生产数据，不创建、迁移或同步本地数据库；只有生产环境配置保留 D1 绑定。线上数据不可用时本地会返回明确错误。
+`dev` 先构建再运行 Cloudflare Pages 本地预览。修改代码后需要重新构建。新看板直接读取公开行情来源，无须本地 D1。字体自托管，首屏使用 Hono + React 服务端渲染。
 
-## 数据更新
+## 接口
 
-新的外部 Agent 路径：dot / Grokbot 在仓库外研究并生成最终日报/周报，通过受鉴权的 PUT 写入 D1，再从生产 GET 回读确认。服务端仅校验、存储和展示，不运行采集、模型或定时任务。
+| 路由 | 内容 |
+| --- | --- |
+| `GET /api/markets` | A 股与美股默认行情，分别返回可用或失败状态 |
+| `GET /api/markets/CN?symbol=600519.SS` | 指定沪深股票或沪深 300 |
+| `GET /api/markets/US?symbol=NVDA` | 指定美股或标普 500（`^GSPC`） |
+| `GET /api/search?q=英伟达` | 根据来源记录解析出的沪深、美股搜索结果 |
+| `GET /api/health` | 两个市场的可用状态与行情日期 |
 
-- 最终契约与合成例子：[docs/report-contracts/](docs/report-contracts/README.md)
-- 更新 Skill：[maintain-stock-daily](.agents/skill/maintain-stock-daily/SKILL.md)
-- 日报：`GET/PUT /api/reports/:date`；周报：`GET/PUT /api/weekly/:weekEnd`
-- PUT 需要应用级 Bearer 凭据、`Idempotency-Key` 及创建/更新版本条件；Agent 不需要 SQL 或 Cloudflare 管理权限。
-- JSON Schema 是校验与渲染适配的共同来源；修改契约后运行 `npm run contracts:generate`，构建会检查类型声明漂移。
-- 历史内容不批量重写，现有双语、中美、行业与 AI 页面继续使用。
+行情进程内缓存 60 秒，搜索缓存 5 分钟；并发相同请求合并，缓存条目有上限。每次来源请求超时 8 秒，美股支持备用域名重试。错误响应不缓存。
 
-这是本地第一阶段改造。现有 main 的 launchd 仍引用旧生成链路，因此本分支暂留原脚本、依赖与测试；尚未切换生产调度或创建真实凭据。部署迁移、验收、停用旧任务及后续删除顺序见[迁移说明](docs/report-contracts/MIGRATION.md)。GitHub Actions 仍负责构建测试与安全扫描。
+## 验证
 
-## 构建与测试
-
-```bash
-npm test
-npm run security:check
+```sh
+pnpm build
+pnpm test
+pnpm security:check
 ```
+
+启动本地预览后，运行浏览器验收（Windows 使用本机 Chrome；其他系统先安装 Playwright Chromium）：
+
+```sh
+pnpm test:visual
+```
+
+默认检查 `http://127.0.0.1:8788`，可用 `SIGNAL_PREVIEW_URL` 覆盖。`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 可指定浏览器。截图输出到忽略提交的 `artifacts/screenshots/signals/`，涵盖 1440 和 390 宽度、整页、所有指标气泡、股票搜索、十条历史记录、超长名称、刷新失败、重试、离线页、历史日期联动和延迟切换，并检查溢出、居中及逐日悬停位移。截图仍需人工视觉复核。
+
+## 原有报告存储
+
+日报、周报的读者页面已移除，`/weekly` 重定向到看板。现有 D1 数据、受鉴权的报告读写接口及外部写入契约保留兼容，不参与新看板的数据生成。旧采集和发布脚本也暂留，不要求重新运行旧报告工作流来更新看板。
+
+报告接口与部署迁移见 [docs/report-contracts/](docs/report-contracts/README.md)。本地 `REMOTE_DATA_ORIGIN` 仅用于旧报告接口只读透传；新行情接口在它之前注册，不经过旧站点。
+
+## 部署
+
+```sh
+pnpm deploy
+```
+
+Pages 项目为 `stock-daily`。生产 D1 绑定只服务兼容的报告接口；本次看板改造无数据库迁移。部署后应回读 `/api/health`，并复核实际生产的双市场页面。
 
 ## 公开仓库安全
 
-- `.env*`、`.dev.vars*`、Wrangler 本地状态、运行日志、密钥文件与扫描报告默认不进入 Git；
-- Cloudflare Account ID 不写入脚本，需要时通过本机环境变量 `CLOUDFLARE_ACCOUNT_ID` 注入；
-- `wrangler.jsonc` 中的 D1 `database_id` 是部署绑定标识，不是鉴权凭证；fork 后应替换为自己的数据库 ID；
-- GitHub Actions 会对每次 push 与 pull request 执行隐私规则检查和 Gitleaks 全历史密钥扫描；
-- 公开仓库应同时启用 GitHub Secret Scanning 与 Push Protection，漏洞通过私有 Security Advisory 报告。
-
-本地安装 Gitleaks 后，可在推送前补跑完整历史扫描：
-
-```bash
-gitleaks git --log-opts="--all" --redact --no-banner
-```
-
-## Cloudflare 部署
-
-- Pages 项目：`stock-daily`
-- D1 数据库：`stock-daily-db`
-
-```bash
-npm run db:migrate:remote
-npm run deploy
-```
-
-详细的数据最小化、容量和成本估算见 [docs/operations.md](docs/operations.md)。
-
-页面内容仅作信息整理与产品演示，不构成投资建议。
-
-## License
-
-本仓库源代码采用 [MIT License](LICENSE)。`data/` 中的第三方新闻、行情数据、商标及来源内容不在 MIT 授权范围内，其权利归相应权利人所有。
+环境文件、Wrangler 状态、日志及密钥默认忽略提交。运行 `pnpm security:check` 检查公开仓库规则；GitHub Actions 继续执行构建测试与密钥扫描。不要将行情供应商账号凭据或 Cloudflare 管理凭据写入代码。

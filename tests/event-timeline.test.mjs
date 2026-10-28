@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test, { after, before } from "node:test";
-import React from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { JSDOM } from "jsdom";
 import { createServer } from "vite";
 
 let vite;
@@ -264,16 +261,6 @@ test("market close labels name the actual session even when an old report is vie
   );
 });
 
-test("event dates render both calendar dates and ISO checkpoint timestamps", async () => {
-  const { eventDate } = await vite.ssrLoadModule(
-    "/src/components/HotspotBoard.tsx",
-  );
-
-  assert.match(eventDate("2026-07-29", "zh"), /7.*29/);
-  assert.match(eventDate("2026-08-03T13:00:00.000Z", "en"), /Aug 3/);
-  assert.equal(eventDate("not-a-date", "en"), "not-a-date");
-});
-
 test("weekly events turn green only after an official result is verified", async () => {
   const { buildWeeklyEventTimeline } = await vite.ssrLoadModule(
     "/src/server/reports.ts",
@@ -453,250 +440,7 @@ test("thesis ledger resolves only against timestamped first-party or wire follow
   assert.equal(pending.checkpoint.status, "pending");
 });
 
-test("daily SSR merges weekly events and analysis into the hotspot board", async () => {
-  const [{ default: Document }, { buildWeeklyEventTimeline }] =
-    await Promise.all([
-      vite.ssrLoadModule("/src/App.tsx"),
-      vite.ssrLoadModule("/src/server/reports.ts"),
-    ]);
-  const report = dailyFixture();
-  const ledgerStory = report.stories.find((story) =>
-    story.regions.includes("US"),
-  );
-  assert.ok(ledgerStory);
-  ledgerStory.signal = {
-    version: 2,
-    score: 88,
-    scoreReason: "该事件直接改变需求与现金流预期。",
-    rankByMarket: { US: 1 },
-    roleByMarket: { US: "core" },
-    thesis: "已核验事实改变了短期需求与现金流的定价基准。",
-    baselineKind: "company_guidance",
-    metrics: [],
-    reactions: [],
-    transmission: [
-      {
-        order: 1,
-        from: ledgerStory.title,
-        to: "现金流预期",
-        mechanism: "已核验变化影响收入与现金流基准。",
-        conditional: false,
-      },
-    ],
-    exposures: [
-      {
-        name: "相关公司",
-        direction: "mixed",
-        basis: "定价取决于后续收入与现金流验证。",
-      },
-    ],
-    horizon: "1-5d",
-    confidence: "medium",
-    checkpoint: {
-      metric: "后续收入与现金流披露",
-      dueAt: "2026-07-30T13:00:00.000Z",
-      confirmIf: "后续披露支持收入与现金流基准。",
-      invalidateIf: "后续披露否定收入与现金流基准。",
-      status: "pending",
-    },
-  };
-  const timeline = buildWeeklyEventTimeline(
-    weeklyFixture(),
-    "2026-07-30",
-    outcomeReports(),
-  );
-  const data = {
-    kind: "daily",
-    language: "zh",
-    market: "US",
-    requestUrl: "https://stock-daily.example/?date=2026-07-30&market=us",
-    report,
-    archive: [],
-    sectorHeat: {
-      current: report.sectorHeat,
-      streaks: [],
-      threshold: 70,
-    },
-    weekEvents: timeline,
-    thesisLedger: [
-      {
-        id: `${report.reportDate}:${ledgerStory.id}:US`,
-        reportDate: report.reportDate,
-        storyId: ledgerStory.id,
-        market: "US",
-        title: ledgerStory.title,
-        thesis: ledgerStory.signal.thesis,
-        horizon: ledgerStory.signal.horizon,
-        confidence: ledgerStory.signal.confidence,
-        checkpoint: {
-          ...ledgerStory.signal.checkpoint,
-          status: "confirmed",
-          observation: "后续一手结果与原定价逻辑一致。",
-          resultSource: {
-            url: ledgerStory.source,
-            label: ledgerStory.sourceLabel,
-            tier: "first_party",
-          },
-          verifiedAt: "2026-07-30T13:00:00.000Z",
-        },
-      },
-    ],
-    thesisHistory: [
-      {
-        id: `2026-07-29:${ledgerStory.id}:US`,
-        reportDate: "2026-07-29",
-        storyId: ledgerStory.id,
-        market: "US",
-        title: ledgerStory.title,
-        thesis: ledgerStory.signal.thesis,
-        horizon: ledgerStory.signal.horizon,
-        confidence: ledgerStory.signal.confidence,
-        checkpoint: {
-          ...ledgerStory.signal.checkpoint,
-          status: "confirmed",
-          observation: "后续一手结果与原定价逻辑一致。",
-        },
-      },
-    ],
-  };
-  const markup = renderToStaticMarkup(React.createElement(Document, { data }));
-  const dom = new JSDOM(`<!doctype html>${markup}`);
-  const { document, Node } = dom.window;
-  const eventSection = document.querySelector("[data-weekly-events]");
-  const hero = document.querySelector(".hero");
-  const hotspotBoard = document.querySelector(".hotspot-board");
-  const topGroup = document.querySelector(".hotspot-group-core");
-
-  assert.ok(eventSection);
-  assert.ok(hero);
-  assert.ok(hotspotBoard);
-  assert.ok(topGroup);
-  assert.equal(document.querySelectorAll(".thesis-ledger").length, 1);
-  assert.match(
-    document.querySelector(".thesis-ledger").textContent,
-    /观点验证.*已验证/s,
-  );
-  assert.equal(document.querySelectorAll("[data-signal-review]").length, 1);
-  assert.doesNotMatch(
-    document.querySelector("main").textContent,
-    /2026-07-30T13:00:00\.000Z|信号分/,
-  );
-  assert.ok(hotspotBoard.contains(eventSection));
-  assert.ok(
-    hero.compareDocumentPosition(hotspotBoard) &
-      Node.DOCUMENT_POSITION_FOLLOWING,
-  );
-  assert.ok(
-    eventSection.compareDocumentPosition(topGroup) &
-      Node.DOCUMENT_POSITION_FOLLOWING,
-  );
-  assert.doesNotMatch(
-    document.body.textContent,
-    /按公布日跟踪|先扫热点版图|全期热点按优先级|影响拆解/,
-  );
-  assert.equal(
-    document.querySelectorAll('[data-event-state="realized"]').length,
-    1,
-  );
-  assert.equal(
-    document.querySelectorAll('[data-event-state="awaiting"]').length,
-    1,
-  );
-  assert.equal(
-    document.querySelectorAll('[data-event-state="scheduled"]').length,
-    1,
-  );
-  assert.equal(document.querySelectorAll("[data-event-impact]").length, 1);
-  assert.match(
-    document.querySelector("[data-event-impact]").textContent,
-    /利好|利空|中性/,
-  );
-  assert.doesNotMatch(document.body.textContent, /已兑现/);
-  assert.equal(document.querySelectorAll("[data-event-result]").length, 1);
-  assert.equal(
-    document.querySelectorAll("[data-event-result] dl > div").length,
-    4,
-  );
-  assert.match(
-    document.querySelector("[data-event-result]").textContent,
-    /预期.*维持政策利率不变.*实际.*美联储维持政策利率不变.*判断.*偏鹰.*下一步.*通胀和就业/s,
-  );
-  assert.equal(document.querySelectorAll(".report-toolbar").length, 0);
-  assert.equal(document.querySelectorAll(".hero-date-nav").length, 0);
-  assert.equal(document.querySelectorAll(".market-snapshot").length, 1);
-  assert.equal(document.querySelectorAll(".snapshot-group").length, 2);
-  assert.ok(
-    document.querySelector(".snapshot-group-indices")
-      .compareDocumentPosition(document.querySelector(".snapshot-group-sectors")) &
-      Node.DOCUMENT_POSITION_FOLLOWING,
-  );
-  assert.equal(document.querySelectorAll(".pricing-thesis").length, 0);
-  assert.equal(document.querySelectorAll(".hero-summary").length, 0);
-  assert.equal(document.querySelectorAll(".copy-button").length, 0);
-  assert.equal(document.querySelectorAll(".edition-row").length, 0);
-  assert.equal(document.querySelectorAll(".archive-section").length, 0);
-
-  const marketStories = report.stories.filter((story) =>
-    story.regions.includes("US") && story.importance >= 3,
-  );
-  const renderedDetails = [
-    ...document.querySelectorAll(".hotspot-story"),
-  ];
-  assert.equal(renderedDetails.length, Math.min(3, marketStories.length));
-  assert.match(document.querySelector(".signal-window").textContent, /影响周期/);
-  assert.doesNotMatch(
-    document.querySelector(".hotspot-title").textContent,
-    /置信度/,
-  );
-  assert.equal(
-    document.querySelectorAll(".hotspot-group-core > ol > li").length,
-    Math.min(3, marketStories.length),
-  );
-  renderedDetails.forEach((details, index) => {
-    assert.equal(
-      details.querySelector(".hotspot-number").textContent,
-      String(index + 1).padStart(2, "0"),
-    );
-    assert.equal(details.open, index === 0);
-  });
-  const renderedStories = renderedDetails.map((details) => {
-    const analysis = details.querySelector(".hotspot-analysis");
-    return marketStories.find((story) => analysis?.id === `story-${story.id}`);
-  });
-  assert.ok(renderedStories.every(Boolean));
-  for (const story of renderedStories) {
-    const analysis = document.querySelector(`#story-${story.id}`);
-    const storyDetails = analysis?.closest(".hotspot-story");
-    assert.ok(analysis);
-    assert.ok(storyDetails);
-    assert.ok(
-      storyDetails.querySelector(
-        story.signal ? ".signal-analysis" : ".hotspot-analysis-copy",
-      ),
-    );
-  }
-  assert.equal(document.querySelectorAll(".signal-row").length, 0);
-
-  const malformed = structuredClone(timeline);
-  malformed.events[1].displayStatus = "realized";
-  const unsafeMarkup = renderToStaticMarkup(
-    React.createElement(Document, {
-      data: { ...data, weekEvents: malformed },
-    }),
-  );
-  const unsafeDocument = new JSDOM(`<!doctype html>${unsafeMarkup}`).window
-    .document;
-  assert.equal(
-    unsafeDocument.querySelectorAll('[data-event-state="realized"]').length,
-    1,
-  );
-  assert.equal(
-    unsafeDocument.querySelectorAll('[data-event-state="awaiting"]').length,
-    1,
-  );
-});
-
-test("local SSR and read APIs use production read-through without local D1", async () => {
+test("dashboard reads market sources while legacy report APIs retain production read-through", async () => {
   const [workerSource, reportSource, devConfig] = await Promise.all([
     readFile("src/worker.tsx", "utf8"),
     readFile("src/server/reports.ts", "utf8"),
@@ -708,7 +452,7 @@ test("local SSR and read APIs use production read-through without local D1", asy
   );
   assert.match(
     workerSource,
-    /fetchRemotePageData<DailyPageData>/,
+    /loadDashboard/,
   );
   assert.match(workerSource, /app\.use\("\/api\/\*"/);
   const wranglerConfig = JSON.parse(devConfig);

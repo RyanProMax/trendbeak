@@ -34,26 +34,28 @@
     "weekly:run": "scripts/run-codex-weekly.sh --force",
     "db:migrate:remote": "wrangler d1 migrations apply stock-daily-db --config wrangler.data.jsonc --remote",
     "deploy": "npm run build && wrangler pages deploy dist --project-name stock-daily --branch main --commit-dirty=true",
-    "test": "npm run build && python3 -m unittest tests/test_x_intelligence.py && node --test tests/*.test.mjs",
+    "test": "npm run build && node scripts/test-python.mjs && node --test --test-concurrency=4 tests/*.test.mjs",
     "contracts:generate": "node scripts/report-contract-types.mjs",
-    "contracts:check": "node scripts/report-contract-types.mjs --check"
+    "contracts:check": "node scripts/report-contract-types.mjs --check",
+    "test:visual": "node scripts/signal-visual-check.mjs && node scripts/signal-state-check.mjs && node scripts/signal-history-check.mjs"
   },
   "dependencies": {
     "@cfworker/json-schema": "4.1.1",
-    "@fontsource-variable/newsreader": "^5.3.0",
+    "@floating-ui/react": "0.27.19",
+    "@fontsource-variable/dm-sans": "5.3.0",
     "@fontsource-variable/noto-sans-sc": "^5.3.0",
-    "@fontsource-variable/noto-serif-sc": "^5.3.0",
     "hono": "^4.12.32",
     "jsdom": "^29.1.1",
     "lucide-react": "^1.26.0",
     "pdfjs-dist": "5.6.205",
     "react": "^19.2.6",
-    "react-aria-components": "^1.19.0",
+    "react-activity-calendar": "3.2.1",
     "react-dom": "^19.2.6"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20260723.1",
     "@hono/vite-build": "^1.11.1",
+    "@playwright/test": "1.64.1",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "^6.0.4",

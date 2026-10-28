@@ -1,12 +1,12 @@
-const CACHE_NAME = "stock-daily-shell-v2";
+const CACHE_NAME = "stock-daily-shell-v4";
 const PRECACHE = [
   "/offline",
-  "/manifest.webmanifest",
-  "/favicon.svg",
-  "/apple-touch-icon.png",
-  "/app-icon-192.png",
-  "/app-icon-512.png",
-  "/app-icon-maskable-512.png",
+  "/manifest.webmanifest?v=4",
+  "/favicon.svg?v=4",
+  "/apple-touch-icon.png?v=4",
+  "/app-icon-192.png?v=4",
+  "/app-icon-512.png?v=4",
+  "/app-icon-maskable-512.png?v=4",
 ];
 
 self.addEventListener("install", (event) => {
@@ -22,6 +22,8 @@ self.addEventListener("activate", (event) => {
       .then(() => self.clients.claim()),
   );
 });
+
+const PRECACHE_PATHS = new Set(PRECACHE.map((path) => path.split("?")[0]));
 
 async function cacheFirst(request) {
   const cached = await caches.match(request);
@@ -50,7 +52,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (PRECACHE.includes(url.pathname)) {
+  if (PRECACHE_PATHS.has(url.pathname)) {
     event.respondWith(cacheFirst(request));
   }
 });

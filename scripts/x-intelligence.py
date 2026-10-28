@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+from contextlib import closing
 import sqlite3
 import sys
 from typing import Any
@@ -138,7 +139,7 @@ def parse_arguments() -> argparse.Namespace:
 
 def search_queue_state(db_path: Path, now: datetime | None = None) -> dict[str, Any]:
     observed_at = now or datetime.now(timezone.utc)
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection:
         rows = connection.execute(
             "SELECT active, locks, error_msg, cookies FROM accounts"
         ).fetchall()

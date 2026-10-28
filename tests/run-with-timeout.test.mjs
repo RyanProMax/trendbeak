@@ -5,13 +5,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
 
 const execFileAsync = promisify(execFile);
 const runner = new URL("../scripts/run-with-timeout.mjs", import.meta.url);
 
 test("timeout runner preserves successful command output", async () => {
   const result = await execFileAsync(process.execPath, [
-    runner.pathname,
+    fileURLToPath(runner),
     "--timeout-ms",
     "2000",
     "--",
@@ -24,7 +25,7 @@ test("timeout runner preserves successful command output", async () => {
 
 test("timeout runner leaves child command flags opaque after the separator", async () => {
   const result = await execFileAsync(process.execPath, [
-    runner.pathname,
+    fileURLToPath(runner),
     "--timeout-ms",
     "2000",
     "--",
@@ -40,7 +41,7 @@ test("timeout runner leaves child command flags opaque after the separator", asy
 
 test("timeout runner accepts the two-market scheduler envelope", async () => {
   const result = await execFileAsync(process.execPath, [
-    runner.pathname,
+    fileURLToPath(runner),
     "--timeout-ms",
     "5700000",
     "--idle-timeout-ms",
@@ -57,7 +58,7 @@ test("timeout runner reports a command startup failure as exit 127", async () =>
   await assert.rejects(
     () =>
       execFileAsync(process.execPath, [
-        runner.pathname,
+        fileURLToPath(runner),
         "--timeout-ms",
         "1000",
         "--",
@@ -74,7 +75,7 @@ test("timeout runner persists stdout incrementally for recovery", async () => {
     await assert.rejects(
       () =>
         execFileAsync(process.execPath, [
-          runner.pathname,
+          fileURLToPath(runner),
           "--timeout-ms",
           "2000",
           "--idle-timeout-ms",
@@ -108,7 +109,7 @@ test("timeout runner terminates the whole spawned process group", async () => {
     await assert.rejects(
       () =>
         execFileAsync(process.execPath, [
-          runner.pathname,
+          fileURLToPath(runner),
           "--timeout-ms",
           "100",
           "--",
@@ -129,7 +130,7 @@ test("timeout runner terminates a command that stops producing output", async ()
   await assert.rejects(
     () =>
       execFileAsync(process.execPath, [
-        runner.pathname,
+        fileURLToPath(runner),
         "--timeout-ms",
         "2000",
         "--idle-timeout-ms",
@@ -147,7 +148,7 @@ test("timeout runner terminates a command that stops producing output", async ()
 
 test("timeout runner treats stderr progress as activity", async () => {
   const result = await execFileAsync(process.execPath, [
-    runner.pathname,
+    fileURLToPath(runner),
     "--timeout-ms",
     "1000",
     "--idle-timeout-ms",

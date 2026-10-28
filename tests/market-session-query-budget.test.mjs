@@ -174,7 +174,7 @@ test("standard unrelated run names scope corrupt manifests, but ambiguous ancest
   }
   const current = await marketSessionQueryConsumption(root, session);
   assert.equal(current.unverifiedAttempts.length, 2);
-  assert.ok(current.unverifiedAttempts.some(attempt => attempt.manifest.endsWith("ambiguous-child/manifest.json")));
+  assert.ok(current.unverifiedAttempts.some(attempt => attempt.manifest.replaceAll("\\", "/").endsWith("ambiguous-child/manifest.json")));
 });
 
 test("an empty or incomplete attempt list cannot erase declared paid queries", async t => {

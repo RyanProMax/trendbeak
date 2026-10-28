@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 import importlib.util
 from pathlib import Path
+from contextlib import closing
 import sqlite3
 import tempfile
 from types import SimpleNamespace
@@ -22,7 +23,7 @@ def create_account_db(path: Path, *, lock_until: datetime | None = None) -> None
         else '{"SearchTimeline":"%s"}'
         % lock_until.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     )
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection, connection:
         connection.execute(
             "CREATE TABLE accounts (active BOOLEAN, locks TEXT, error_msg TEXT, cookies TEXT)"
         )
@@ -172,7 +173,7 @@ class XIntelligenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             db_path = Path(directory) / "accounts.db"
             create_account_db(db_path)
-            with sqlite3.connect(db_path) as connection:
+            with closing(sqlite3.connect(db_path)) as connection, connection:
                 connection.execute("UPDATE accounts SET cookies = ?", ('{"auth_token":"verified"}',))
             state = x_intelligence.search_queue_state(db_path)
         self.assertEqual(state["authenticated_count"], 0)

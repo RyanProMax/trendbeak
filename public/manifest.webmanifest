@@ -2,31 +2,31 @@
   "id": "/",
   "name": "Stock Daily",
   "short_name": "Stock Daily",
-  "description": "中美市场、行业与 AI 产业链的每日收盘证据简报。",
+  "description": "A 股与美股每日行情、年度涨跌与关键技术指标。",
   "lang": "zh-CN",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone"],
-  "background_color": "#f5f0e6",
-  "theme_color": "#123b34",
+  "background_color": "#faf9fc",
+  "theme_color": "#7561b4",
   "orientation": "portrait-primary",
   "categories": ["finance", "news"],
   "icons": [
     {
-      "src": "/app-icon-192.png",
+      "src": "/app-icon-192.png?v=4",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/app-icon-512.png",
+      "src": "/app-icon-512.png?v=4",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/app-icon-maskable-512.png",
+      "src": "/app-icon-maskable-512.png?v=4",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

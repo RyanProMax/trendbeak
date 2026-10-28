@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
 import test, { after, before } from "node:test";
-import React from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import { createServer } from "vite";
 import {
   buildReportContent,
@@ -26,10 +24,8 @@ after(async () => {
   await vite?.close();
 });
 
-test("daily HTML and hydration data exclude internal attribution fields", async () => {
-  const { default: Document, publicPageData } = await vite.ssrLoadModule(
-    "/src/App.tsx",
-  );
+test("public report data excludes internal attribution fields", async () => {
+  const { publicDailyReport } = await vite.ssrLoadModule("/src/lib/public-data.ts");
   const input = validateInput(fixtureInput());
   const validatedReport = validateReport(fixtureReport(input), input);
   const report = {
@@ -65,7 +61,7 @@ test("daily HTML and hydration data exclude internal attribution fields", async 
     thesisLedger: [],
     thesisHistory: [],
   };
-  const readerData = publicPageData(data);
+  const readerData = { ...data, report: publicDailyReport(data.report) };
 
   assert.equal(Object.hasOwn(readerData.report, "agentModel"), false);
   assert.equal(Object.hasOwn(readerData.report, "contractVersion"), false);
@@ -89,11 +85,9 @@ test("daily HTML and hydration data exclude internal attribution fields", async 
     false,
   );
 
-  const html = renderToStaticMarkup(React.createElement(Document, { data }));
+  const html = JSON.stringify(readerData);
   assert.doesNotMatch(
     html,
     /该来源|不能据此|INTERNAL (?:DRIVER|AI|VIEW) COPY|openai\/codex-scheduled|researchAudit|contractVersion/,
   );
-  assert.match(html, /recap-content/);
-  assert.match(html, /stock-daily-data/);
 });
