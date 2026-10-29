@@ -14,6 +14,7 @@ import {
   validateBars,
 } from "../lib/market-signals";
 import { loadSentiment } from "./sentiment-data";
+import { SourceError, reportSourceFailure } from "./source-errors";
 
 type JsonObject = Record<string, any>;
 export type FetchJson = (url: URL) => Promise<JsonObject>;
@@ -23,18 +24,28 @@ const NUMBER = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value);
 
 async function fetchJson(url: URL): Promise<JsonObject> {
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      "User-Agent": "Mozilla/5.0 trendbeak/2.0",
-    },
-    signal: AbortSignal.timeout(8_000),
-  });
+  const started = Date.now();
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0 trendbeak/2.0" },
+      signal: AbortSignal.timeout(8_000),
+    });
+  } catch (error) {
+    const timeout = error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name);
+    throw new SourceError(timeout ? "Market source timed out" : "Market source network request failed", url.hostname, timeout ? "timeout" : "network", Date.now() - started);
+  }
   if (!response.ok)
-    throw new Error(`Market source returned ${response.status}`);
-  const payload = await response.json();
+    throw new SourceError(`Market source returned ${response.status}`, url.hostname, "http", Date.now() - started, response.status);
+  let payload: unknown;
+  try { payload = await response.json(); }
+  catch (error) {
+    const timeout = error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name);
+    const syntax = error instanceof SyntaxError;
+    throw new SourceError(timeout ? "Market source response body timed out" : syntax ? "Market source returned invalid JSON" : "Market source response body failed", url.hostname, timeout ? "timeout" : syntax ? "json" : "network", Date.now() - started, response.status);
+  }
   if (!payload || typeof payload !== "object" || Array.isArray(payload))
-    throw new Error("Invalid market response");
+    throw new SourceError("Invalid market response", url.hostname, "shape", Date.now() - started, response.status);
   return payload as JsonObject;
 }
 
@@ -123,7 +134,8 @@ export async function searchInstruments(
       type: "14",
       count: "15",
     }).toString();
-    return parseSearch(await read(url));
+    try { return parseSearch(await read(url)); }
+    catch (error) { reportSourceFailure("search", url.hostname, error); throw error; }
   };
   return read === fetchJson
     ? cached(`search:${text.toLowerCase()}`, 300_000, load)
@@ -299,7 +311,7 @@ export async function loadMarket(
   now = Date.now(),
 ): Promise<MarketSnapshot> {
   if (!validSymbol(market, symbol)) throw new Error("Invalid instrument");
-  const load = async () => {
+  const readSnapshot = async () => {
     if (market === "CN") {
       const key = `${symbol.endsWith(".SS") ? "sh" : "sz"}${symbol.slice(0, 6)}`;
       const url = new URL("https://web.ifzq.gtimg.cn/appstock/app/fqkline/get");
@@ -325,6 +337,10 @@ export async function loadMarket(
       }
     }
     throw lastError;
+  };
+  const load = async () => {
+    try { return await readSnapshot(); }
+    catch (error) { reportSourceFailure("market", market === "CN" ? "Tencent" : "Yahoo", error, { market, symbol }); throw error; }
   };
   return read === fetchJson
     ? cached(`market:${market}:${symbol}`, 60_000, async () => {

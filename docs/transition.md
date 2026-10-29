@@ -1,12 +1,12 @@
 # trendbeak 迁移与回退边界
 
-本轮移除旧报告产品的路由、API、生成发布链路、契约、迁移脚本、测试和文档。源码可从 Git 历史恢复；没有因此删除任何线上数据。
+本轮移除旧报告产品的路由、API、生成发布链路、契约、迁移脚本、测试和文档。源码可从 Git 历史恢复；D1 数据未删除。
 
 ## Cloudflare
 
 目标为新的 Git-integrated Pages 项目 `trendbeak`，继续使用已授权的同一个 GitHub 仓库 ID。使用既有 GitHub App 权限，不新增凭据或扩大授权。
 
-旧项目 `stock-daily` 的原网址为 `stock-daily-8k4.pages.dev`。Cloudflare 的项目名称与 `pages.dev` 子域名不是同一件事，子域名不能原地重命名。新 Pages 已正常发布；旧项目永久删除仍等待执行前确认，不再以自定义域名就绪作为额外前提。
+旧 Pages 项目 `stock-daily`（ID `cfd6826c-d8ac-4314-b233-d14a9bc88076`）已按执行前确认于 2026-10-29 删除；项目与部署接口均返回不存在。旧项目的构建、Git 来源、预览环境、`REMOTE_DATA_ORIGIN` 与 D1 binding 设置随项目移除。新项目 `trendbeak` 继续使用同一已授权 GitHub 仓库，未删除共享 App 授权或物理 D1 库。
 
 `trendbeak.com` 已位于现有账户的 active zone，nameserver 已指向 Cloudflare。当前 Wrangler 授权访问 DNS API 返回 403；未扩大权限或盲目覆盖 DNS。MX、TXT 及其他无关记录必须保留。
 
@@ -18,4 +18,4 @@
 
 ## 浏览器数据
 
-同源升级会读取旧搜索历史键并写入新的 `trendbeak:search-history:v1`；用户主动清空时清除新旧键。新域名是独立浏览器 origin，不自动跨域读取旧站搜索记录。旧离线缓存前缀只为迁移清理保留，活跃缓存与页面数据标识均使用 trendbeak。
+同源升级会读取旧搜索历史键并写入新的 `trendbeak:search-history:v1`；用户主动清空时清除新旧键。新域名是独立浏览器 origin，不自动跨域读取旧站搜索记录。旧搜索键与离线缓存前缀仅用于现有用户历史导入及缓存清理，不是旧产品发布或服务配置；旧离线缓存前缀只为清理保留，活跃缓存与页面数据标识均使用 trendbeak。
