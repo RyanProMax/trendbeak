@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { renderToReadableStream } from "react-dom/server.edge";
 import Document from "./App";
+import { isTransientSourceFailure } from "./server/source-errors";
 import { BENCHMARKS, type Market } from "./market-types";
 import {
   loadDashboard,
@@ -13,8 +14,9 @@ const app = new Hono();
 const productionOrigin = "https://trendbeak.com";
 
 app.get("/api/markets", async (c) => {
-  c.header("Cache-Control", "public, max-age=15, s-maxage=60");
-  return c.json({ data: await loadDashboard() });
+  const markets = await loadDashboard();
+  c.header("Cache-Control", markets.CN.snapshot && markets.US.snapshot ? "public, max-age=15, s-maxage=60" : "no-store");
+  return c.json({ data: markets });
 });
 app.get("/api/markets/:market", async (c) => {
   const market = c.req.param("market");
@@ -27,9 +29,9 @@ app.get("/api/markets/:market", async (c) => {
     const snapshot = await loadMarket(market, symbol);
     c.header("Cache-Control", "public, max-age=15, s-maxage=60");
     return c.json({ data: snapshot });
-  } catch {
+  } catch (error) {
     c.header("Cache-Control", "no-store");
-    return c.json({ error: "行情暂不可用" }, 503);
+    return c.json({ error: "行情暂不可用", retryable: isTransientSourceFailure(error) }, 503);
   }
 });
 app.get("/api/search", async (c) => {
@@ -72,7 +74,7 @@ app.get("/", async () => {
   return new Response(stream, {
     headers: {
       "Content-Type": "text/html; charset=UTF-8",
-      "Cache-Control": "public, max-age=0, s-maxage=60, must-revalidate",
+      "Cache-Control": markets.CN.snapshot && markets.US.snapshot ? "public, max-age=0, s-maxage=60, must-revalidate" : "no-store",
       "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
       "Referrer-Policy": "strict-origin-when-cross-origin",
       "X-Content-Type-Options": "nosniff",

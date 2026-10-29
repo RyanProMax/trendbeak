@@ -145,7 +145,7 @@ test("failed individual quotes return no fabricated price and do not poison the 
   const response = await request("/api/markets/US?symbol=NVDA");
   assert.equal(response.status, 503);
   assert.equal(response.headers.get("cache-control"), "no-store");
-  assert.deepEqual(await response.json(), { error: "行情暂不可用" });
+  assert.deepEqual(await response.json(), { error: "行情暂不可用", retryable: true });
   assert.equal((await request("/api/markets/CN")).status, 200);
   assert.equal((await request("/api/health")).status, 200);
 });

@@ -77,6 +77,7 @@ export interface MarketSnapshot {
 }
 
 export interface MarketState {
+  retryable?: boolean;
   instrument: Instrument;
   snapshot: MarketSnapshot | null;
   error: string | null;

@@ -14,7 +14,7 @@ import {
   validateBars,
 } from "../lib/market-signals";
 import { loadSentiment } from "./sentiment-data";
-import { SourceError, reportSourceFailure } from "./source-errors";
+import { SourceError, reportSourceFailure, isTransientSourceFailure } from "./source-errors";
 
 type JsonObject = Record<string, any>;
 export type FetchJson = (url: URL) => Promise<JsonObject>;
@@ -35,8 +35,11 @@ async function fetchJson(url: URL): Promise<JsonObject> {
     const timeout = error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name);
     throw new SourceError(timeout ? "Market source timed out" : "Market source network request failed", url.hostname, timeout ? "timeout" : "network", Date.now() - started);
   }
-  if (!response.ok)
-    throw new SourceError(`Market source returned ${response.status}`, url.hostname, "http", Date.now() - started, response.status);
+  if (!response.ok) {
+    const retryAfter = response.headers.get("Retry-After");
+    const retryAfterMs = retryAfter === null ? 0 : /^\d+$/.test(retryAfter) ? Number(retryAfter) * 1000 : Math.max(0, Date.parse(retryAfter) - Date.now()) || 0;
+    throw new SourceError(`Market source returned ${response.status}`, url.hostname, "http", Date.now() - started, response.status, retryAfterMs);
+  }
   let payload: unknown;
   try { payload = await response.json(); }
   catch (error) {
@@ -339,8 +342,20 @@ export async function loadMarket(
     throw lastError;
   };
   const load = async () => {
-    try { return await readSnapshot(); }
-    catch (error) { reportSourceFailure("market", market === "CN" ? "Tencent" : "Yahoo", error, { market, symbol }); throw error; }
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try { return await readSnapshot(); }
+      catch (error) {
+        reportSourceFailure("market", market === "CN" ? "Tencent" : "Yahoo", error, { market, symbol, attempt });
+        // One bounded retry for a quick transient CN transport failure. Never
+        // retry access denials, throttling, malformed data or a full timeout.
+        if (market === "CN" && attempt === 1 && isTransientSourceFailure(error) && error.elapsedMs < 2000) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw new Error("Market load did not complete");
   };
   return read === fetchJson
     ? cached(`market:${market}:${symbol}`, 60_000, async () => {
@@ -367,6 +382,7 @@ export async function loadDashboard(): Promise<Record<Market, MarketState>> {
           instrument: BENCHMARKS[market],
           snapshot: result.status === "fulfilled" ? result.value : null,
           error: result.status === "fulfilled" ? null : "行情暂不可用",
+          ...(result.status === "rejected" ? { retryable: isTransientSourceFailure(result.reason) } : {}),
         },
       ];
     }),

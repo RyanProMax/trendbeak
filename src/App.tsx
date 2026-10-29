@@ -79,12 +79,17 @@ function Dashboard({ data }: { data: PageData }) {
         loading: true,
       },
     }));
+    let retryable = false;
     try {
       const response = await fetch(
         `/api/markets/${market}?symbol=${encodeURIComponent(instrument.symbol)}`,
         { signal: controller.signal },
       );
-      if (!response.ok) throw new Error("Market unavailable");
+      if (!response.ok) {
+        const failure = await response.json() as { retryable?: boolean };
+        retryable = failure.retryable === true;
+        throw new Error("Market unavailable");
+      }
       const payload = (await response.json()) as { data: MarketSnapshot };
       if (controller.signal.aborted) return false;
       if (
@@ -130,12 +135,22 @@ function Dashboard({ data }: { data: PageData }) {
             error: "行情暂不可用",
             pendingInstrument: undefined,
             failedInstrument: instrument,
+            retryable,
           },
         }));
       return false;
     }
   };
   useEffect(() => {
+    // Recover a transient empty SSR state once, without waiting a full minute.
+    // A manual request or a successful quote supersedes this timer.
+    const recoveryTimers = (["CN", "US"] as Market[]).flatMap((market) =>
+      !data.markets[market].snapshot && data.markets[market].retryable === true
+        ? [window.setTimeout(() => {
+            const state = current.current[market];
+            if (!state.snapshot && !state.loading && !controllers.current[market]) void load(state.instrument);
+          }, 1500)] : [],
+    );
     const refresh = () => {
       if (document.visibilityState === "visible")
         for (const market of ["CN", "US"] as Market[]) {
@@ -156,6 +171,7 @@ function Dashboard({ data }: { data: PageData }) {
     document.addEventListener("visibilitychange", refresh);
     return () => {
       clearInterval(timer);
+      recoveryTimers.forEach(clearTimeout);
       document.removeEventListener("visibilitychange", refresh);
       Object.values(controllers.current).forEach((controller) =>
         controller.abort(),
