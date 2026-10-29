@@ -1,0 +1,55 @@
+import assert from 'node:assert/strict';
+import {writeFile} from 'node:fs/promises';
+import {createServer} from 'vite';
+import React from 'react';
+import {renderToString} from 'react-dom/server';
+import {launch,openPage,layout,out,base} from './signal-check-utils.mjs';
+const vite=await createServer({configFile:false,appType:'custom',server:{middlewareMode:true,hmr:false}}),Document=(await vite.ssrLoadModule('/src/App.tsx')).default;
+const browser=await launch(),report=[];
+try{
+ for(const width of [1440,390]){
+  const {page,context,initial,errors}=await openPage(browser,width),cn=initial.markets.CN.snapshot;
+  const original=cn.fetchedAt,storedAt=cn.freshness.storedAt;
+  await page.waitForFunction(()=>localStorage.getItem('trendbeak:last-good:v1'));
+  let failed=true,fresh=null;
+  await page.route('**/api/markets/CN*',route=>failed?route.fulfill({status:503,json:{error:'injected source failure',retryable:false}}):route.fulfill({json:{data:fresh}}));
+  await page.clock.install({time:Date.now()});await page.clock.fastForward(61001);
+  await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+  const warning=page.locator('[data-market=CN] .snapshot-stale');await warning.waitFor();
+  assert.equal(await warning.locator('time').getAttribute('datetime'),storedAt);
+  assert.match(await warning.innerText(),/暂未更新.*最近更新/);
+  assert.equal(await page.locator('[data-market=CN] .quote').innerText(),cn.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}));
+  await layout(page,'stale retained');await page.screenshot({path:`${out}/${width}-stale-full.png`,fullPage:true});
+  await page.locator('[data-market=CN]').screenshot({path:`${out}/${width}-stale-card.png`});
+  const missing=structuredClone(initial);missing.markets.CN.snapshot=null;missing.markets.CN.error='行情暂不可用';missing.markets.CN.retryable=false;
+  const html='<!DOCTYPE html>'+renderToString(React.createElement(Document,{data:missing}));
+  await page.route(base+'/',route=>route.fulfill({contentType:'text/html',body:html}));
+  await page.reload({waitUntil:'networkidle'});await warning.waitFor();
+  assert.equal((await page.locator('#trendbeak-data').textContent()).includes('"snapshot":null'),true);
+  assert.equal(await page.locator('[data-calendar-market=CN] rect[data-date]').count(),365);
+  assert.equal(await warning.locator('time').getAttribute('datetime'),storedAt);
+  await layout(page,'missing SSR restored');await page.screenshot({path:`${out}/${width}-cold-ssr-restored.png`,fullPage:true});
+  const failedInstrument={market:'CN',symbol:'600000.SS',code:'600000',kind:'stock',name:'无缓存测试股票'};
+  await page.route('**/api/search?*',route=>route.fulfill({json:{data:[failedInstrument]}}));
+  const search=page.getByRole('combobox');await search.fill('600000');await page.getByRole('option').waitFor();await page.getByRole('option').click();
+  await page.locator('[data-market=CN] .market-refresh-error').waitFor();
+  assert.match(await page.locator('[data-market=CN] .instrument-name').innerText(),/沪深 300/);
+  assert.match(await page.locator('[data-market=CN] .market-refresh-error').innerText(),/无缓存测试股票.*仍显示沪深 300/);
+  const fixture=structuredClone(cn);fixture.instrument={...failedInstrument,name:'有缓存测试股票'};fixture.price=123;fixture.history[fixture.asOf].price=123;
+  await page.evaluate(snapshot=>{const records=JSON.parse(localStorage.getItem('trendbeak:last-good:v1'));records.push({schema:1,storedAt:snapshot.freshness.storedAt,snapshot});localStorage.setItem('trendbeak:last-good:v1',JSON.stringify(records));},fixture);
+  await search.fill('600000');await page.getByRole('option').waitFor();await page.getByRole('option').click();await page.locator('[data-market=CN].stock-selected').waitFor();
+  assert.equal(await page.locator('[data-market=CN] .quote').innerText(),'123.00');await warning.waitFor();assert.match(await page.locator('[data-market=CN] .instrument-name').innerText(),/无缓存测试股票/);
+  await layout(page,'matching stock backup');
+  await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+  await page.waitForFunction(()=>document.querySelector('[data-analysis-market=CN] .trend-status')?.textContent.includes('大盘暂未更新'));
+  await layout(page,'stale benchmark while stock selected');
+  const now=await page.evaluate(()=>new Date().toISOString());fresh=structuredClone(cn);fresh.fetchedAt=now;fresh.freshness={...fresh.freshness,state:'fresh',storedAt:now,ageSeconds:0,via:'upstream'};failed=false;
+  await page.locator('[data-market=CN] .back-market').click();await warning.waitFor({state:'hidden'});
+  assert.equal(await page.locator('[data-market=CN].stock-selected').count(),0);
+  await page.screenshot({path:`${out}/${width}-recovered-full.png`,fullPage:true});
+  failed=true;await page.evaluate(()=>localStorage.setItem('trendbeak:last-good:v1','broken'));await page.reload({waitUntil:'networkidle'});
+  await page.locator('[data-market=CN] .market-empty').waitFor();assert.equal(await page.locator('[data-calendar-market=CN] rect[data-date]').count(),0);
+  assert.deepEqual(errors,[]);report.push({width,failedRefreshKeepsOriginalTime:original,cachedAt:storedAt,staleVisible:true,missingSSRRestoresBrowserBackup:true,exactSymbolSwitch:true,staleBenchmarkMarked:true,uncachedSwitchKeepsNamedPrior:true,recoveryClearsStale:true,corruptStorageIgnored:true,errors});await context.close();
+ }
+ await writeFile(`${out}/fallback-browser-results.json`,JSON.stringify(report,null,2));console.log(JSON.stringify(report));
+}finally{await browser.close();await vite.close();}

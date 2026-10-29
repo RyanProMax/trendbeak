@@ -25,3 +25,8 @@ export function number(
 export function tone(value: number | null): string {
   return value === null || value === 0 ? "neutral" : value > 0 ? "up" : "down";
 }
+
+export function displayUpdate(timestamp: string, market: "CN" | "US") {
+  const date = new Date(timestamp);
+  return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat("zh-CN",{ month:"long",day:"numeric",hour:"2-digit",minute:"2-digit",hour12:false,timeZone:market === "CN" ? "Asia/Shanghai" : "America/New_York" }).format(date) : "时间未知";
+}

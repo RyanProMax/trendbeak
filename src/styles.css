@@ -353,3 +353,10 @@ main { max-width: 1248px; margin: 22px auto 64px; }
 .global-selected-date { color: #7e877d; font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .chart-tooltip-note, .chart-tooltip-source { margin-top: 6px; color: #7e877d; font-size: 11px; line-height: 1.5; }
 @media (max-width:760px) { .global-selected-date { font-size: 12px; } .navigator-stops button { font-size: 11px; } }
+
+.snapshot-stale { display: flex; align-items: flex-start; gap: 4px; margin-top: 7px; color: #977c54; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.snapshot-stale button { display: grid; place-items: center; min-width: 24px; min-height: 24px; flex-shrink: 0; color: #698268; }
+.update-zone { white-space: nowrap; }
+@media(max-width:760px) { .snapshot-stale { grid-column: 1 / -1; margin-top: 8px; } }
+
+.snapshot-stale time { display: inline-block; white-space: nowrap; }

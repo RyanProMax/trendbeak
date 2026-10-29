@@ -16,6 +16,9 @@ import {
 import { loadSentiment } from "./sentiment-data";
 import { SourceError, reportSourceFailure, isTransientSourceFailure } from "./source-errors";
 
+import { createSnapshotCache, type SnapshotEdgeCache } from "./snapshot-cache";
+const snapshotCache = createSnapshotCache(() => Date.now());
+
 type JsonObject = Record<string, any>;
 export type FetchJson = (url: URL) => Promise<JsonObject>;
 const memoryCache = new Map<string, { until: number; value: unknown }>();
@@ -313,6 +316,7 @@ export async function loadMarket(
   symbol = BENCHMARKS[market].symbol,
   read: FetchJson = fetchJson,
   now = Date.now(),
+  origin = "https://trendbeak.com",
 ): Promise<MarketSnapshot> {
   if (!validSymbol(market, symbol)) throw new Error("Invalid instrument");
   const readSnapshot = async () => {
@@ -337,6 +341,7 @@ export async function loadMarket(
       try {
         return parseYahoo(await read(url), symbol, now);
       } catch (error) {
+        if (error instanceof SourceError && ([403,418,429].includes(error.status ?? 0) || error.retryAfterMs > 0 || error.elapsedMs >= 8_000)) throw error;
         lastError = error;
       }
     }
@@ -360,20 +365,20 @@ export async function loadMarket(
     throw new Error("Market load did not complete");
   };
   return read === fetchJson
-    ? cached(`market:${market}:${symbol}`, 60_000, async () => {
+    ? snapshotCache.get(market,symbol,async () => {
         const [snapshot, sentiment] = await Promise.all([
           load(),
           loadSentiment(market),
         ]);
         return { ...snapshot, sentiment };
-      })
+      }, origin, typeof caches === "undefined" ? undefined : (caches as unknown as { default?: SnapshotEdgeCache }).default)
     : load();
 }
 
-export async function loadDashboard(): Promise<Record<Market, MarketState>> {
+export async function loadDashboard(origin = "https://trendbeak.com"): Promise<Record<Market, MarketState>> {
   const results = await Promise.allSettled([
-    loadMarket("CN"),
-    loadMarket("US"),
+    loadMarket("CN",undefined,undefined,undefined,origin),
+    loadMarket("US",undefined,undefined,undefined,origin),
   ]);
   return Object.fromEntries(
     (["CN", "US"] as Market[]).map((market, index) => {

@@ -24,7 +24,7 @@ try{
   const quote=structuredClone(initial.markets.US.snapshot);quote.instrument=instrument;
   let failed=false,release;let gate=null;
   await page.route("**/api/search?*",r=>r.fulfill({json:{data:[instrument]}}));
-  await page.route("**/api/markets/US?*",async r=>{if(gate)await gate;return failed?r.fulfill({status:503,json:{error:"行情暂不可用"}}):r.fulfill({json:{data:quote}});});
+  await page.route("**/api/markets/US?*",async r=>{if(gate)await gate;if(failed)return r.fulfill({status:503,json:{error:"行情暂不可用"}});const stamp=new Date().toISOString();quote.fetchedAt=stamp;quote.freshness={...quote.freshness,state:"fresh",storedAt:stamp,ageSeconds:0,via:"upstream"};return r.fulfill({json:{data:quote}});});
   const original=await page.locator("[data-market=US] .quote").innerText();
   await search.fill("test");await page.getByRole("option").waitFor();await page.keyboard.press("Escape");await page.keyboard.press("Enter");
   assert.equal(await page.locator(".stock-selected").count(),0);
@@ -36,7 +36,7 @@ try{
   await page.locator("[data-market=US] .market-loading").waitFor({state:"hidden"});
   await layout(page,"long name");await page.screenshot({path:`${out}/${width}-long-name.png`,fullPage:true});
   failed=true;await page.evaluate(()=>document.dispatchEvent(new Event("visibilitychange")));
-  await page.locator("[data-market=US] .market-refresh-error").waitFor();assert.equal(await page.locator(".signals").count(),2);
+  await page.locator("[data-market=US] .snapshot-stale").waitFor();assert.equal(await page.locator(".signals").count(),2);
   await page.screenshot({path:`${out}/${width}-refresh-error.png`,fullPage:true});
   await page.locator("[data-market=US] .back-market").click();
   await page.getByRole("button",{name:"重试美股行情"}).waitFor();assert.equal(await page.locator(".signals").count(),2);

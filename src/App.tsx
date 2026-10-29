@@ -15,9 +15,12 @@ import MarketTrend from "./components/MarketTrend";
 import TrendRangeControl from "./components/TrendRange";
 import { signalsForDate } from "./lib/market-signals";
 import { calendarForRange, shiftDate } from "./lib/chart-series";
+import { rememberSnapshot, restoreSnapshot } from "./lib/browser-snapshots";
+import { recordFromSnapshot, readSnapshot, validRecord } from "./lib/snapshot-record";
 import { displayDate } from "./lib/market-format";
 
 export type { PageData } from "./market-types";
+function browserStorage() { try { return window.localStorage; } catch { return null; } }
 function Dashboard({ data }: { data: PageData }) {
   const [markets, setMarkets] = useState<Record<Market, ViewState>>(
     data.markets,
@@ -49,14 +52,18 @@ function Dashboard({ data }: { data: PageData }) {
   }, [selectable]);
   const globalDate = selectedDate ?? Object.values(markets).flatMap(({ snapshot }) => snapshot ? [snapshot.asOf] : []).sort().at(-1) ?? calendarEnd;
   const controllers = useRef<Partial<Record<Market, AbortController>>>({});
+  const requestedSymbols = useRef<Partial<Record<Market,string>>>({});
+  const benchmarkRequests = useRef<Partial<Record<Market,Promise<void>>>>({});
   const load = async (
     instrument: Instrument,
     scroll = false,
   ): Promise<boolean> => {
     const market = instrument.market;
+    if (controllers.current[market] && requestedSymbols.current[market] === instrument.symbol) return false;
     controllers.current[market]?.abort();
     const controller = new AbortController();
     controllers.current[market] = controller;
+    requestedSymbols.current[market] = instrument.symbol;
     setMarkets((previous) => ({
       ...previous,
       [market]: {
@@ -89,6 +96,10 @@ function Dashboard({ data }: { data: PageData }) {
         payload.data.instrument.market !== market
       )
         throw new Error("Instrument mismatch");
+      const record = recordFromSnapshot(payload.data);
+      if (!validRecord(record,market,instrument.symbol)) throw new Error("Invalid snapshot");
+      payload.data = readSnapshot(record,Date.now(),payload.data.freshness?.via ?? "upstream",payload.data.freshness?.state === "stale");
+      rememberSnapshot(payload.data,browserStorage());
       setMarkets((previous) => ({
         ...previous,
         [market]: {
@@ -118,21 +129,38 @@ function Dashboard({ data }: { data: PageData }) {
         });
       return true;
     } catch {
-      if (!controller.signal.aborted)
-        setMarkets((previous) => ({
-          ...previous,
-          [market]: {
-            ...previous[market],
-            loading: false,
-            error: "行情暂不可用",
-            pendingInstrument: undefined,
-            failedInstrument: instrument,
-            retryable,
-          },
-        }));
+      if (!controller.signal.aborted) {
+        const previous = current.current[market].snapshot;
+        const record = previous ? recordFromSnapshot(previous) : null;
+        const backup = validRecord(record,market,instrument.symbol) ? readSnapshot(record,Date.now(),"memory",true) : restoreSnapshot(market,instrument.symbol,browserStorage());
+        setMarkets((states) => {
+          const prior = states[market], old = prior.snapshot ? recordFromSnapshot(prior.snapshot) : null;
+          const retained = validRecord(old,market,prior.instrument.symbol) ? prior.snapshot : null;
+          return { ...states, [market]: backup ? { instrument, snapshot: backup, loading: false, error: null } : {
+            ...prior, instrument: retained ? prior.instrument : instrument, snapshot: retained,
+            loading: false, error: "行情暂不可用", pendingInstrument: undefined, failedInstrument: instrument, retryable,
+          } };
+        });
+        if (backup && instrument.kind === "index") setBenchmarks((states)=>({ ...states,[market]:backup }));
+        return !!backup;
+      }
       return false;
+    } finally {
+      if(controllers.current[market] === controller) { delete controllers.current[market]; delete requestedSymbols.current[market]; }
     }
   };
+  useEffect(() => {
+    const store = browserStorage();
+    for(const market of ["CN", "US"] as Market[]) {
+      const initial = data.markets[market].snapshot;
+      if(initial) rememberSnapshot(initial,store);
+      const backup = restoreSnapshot(market,data.markets[market].instrument.symbol,store);
+      if(backup && (!initial || Date.parse(backup.freshness!.storedAt) > Date.parse(initial.freshness?.storedAt ?? initial.fetchedAt))) {
+        setMarkets((states)=>({ ...states,[market]:{ ...states[market],snapshot:backup,error:null } }));
+        setBenchmarks((states)=>({ ...states,[market]:backup }));
+      }
+    }
+  }, []);
   useEffect(() => {
     // Recover a transient empty SSR state once, without waiting a full minute.
     // A manual request or a successful quote supersedes this timer.
@@ -148,13 +176,22 @@ function Dashboard({ data }: { data: PageData }) {
         for (const market of ["CN", "US"] as Market[]) {
           if (!current.current[market].loading) {
             void load(current.current[market].instrument);
-            if (current.current[market].instrument.kind === "stock") {
-              void fetch(`/api/markets/${market}`).then(async (response) => {
-                if (!response.ok) return;
+            if (current.current[market].instrument.kind === "stock" && !benchmarkRequests.current[market]) {
+              benchmarkRequests.current[market] = fetch(`/api/markets/${market}`).then(async (response) => {
+                if (!response.ok) throw new Error("Benchmark unavailable");
                 const payload = await response.json() as { data: MarketSnapshot };
-                if (payload.data.instrument.symbol === BENCHMARKS[market].symbol)
-                  setBenchmarks((previous) => ({ ...previous, [market]: payload.data }));
-              }).catch(() => {});
+                const record = recordFromSnapshot(payload.data);
+                if (!validRecord(record,market,BENCHMARKS[market].symbol)) throw new Error("Invalid benchmark");
+                const snapshot = readSnapshot(record,Date.now(),payload.data.freshness?.via ?? "upstream",payload.data.freshness?.state === "stale");
+                rememberSnapshot(snapshot,browserStorage());
+                setBenchmarks((previous) => ({ ...previous, [market]: snapshot }));
+              }).catch(() => {
+                setBenchmarks((previous) => {
+                  const old = previous[market] ? recordFromSnapshot(previous[market]!) : null;
+                  const backup = validRecord(old,market,BENCHMARKS[market].symbol) ? readSnapshot(old,Date.now(),"memory",true) : restoreSnapshot(market,BENCHMARKS[market].symbol,browserStorage());
+                  return { ...previous,[market]:backup };
+                });
+              }).finally(()=>{ delete benchmarkRequests.current[market]; });
             }
           }
         }

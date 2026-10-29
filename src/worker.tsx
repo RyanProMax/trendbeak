@@ -14,8 +14,8 @@ const app = new Hono();
 const productionOrigin = "https://trendbeak.com";
 
 app.get("/api/markets", async (c) => {
-  const markets = await loadDashboard();
-  c.header("Cache-Control", markets.CN.snapshot && markets.US.snapshot ? "public, max-age=15, s-maxage=60" : "no-store");
+  const markets = await loadDashboard(new URL(c.req.url).origin);
+  c.header("Cache-Control", markets.CN.snapshot && markets.US.snapshot ? "no-cache" : "no-store");
   return c.json({ data: markets });
 });
 app.get("/api/markets/:market", async (c) => {
@@ -26,8 +26,8 @@ app.get("/api/markets/:market", async (c) => {
   if (!validSymbol(market, symbol))
     return c.json({ error: "股票代码无效" }, 400);
   try {
-    const snapshot = await loadMarket(market, symbol);
-    c.header("Cache-Control", "public, max-age=15, s-maxage=60");
+    const snapshot = await loadMarket(market, symbol, undefined, undefined, new URL(c.req.url).origin);
+    c.header("Cache-Control", "no-cache");
     return c.json({ data: snapshot });
   } catch (error) {
     c.header("Cache-Control", "no-store");
@@ -48,17 +48,18 @@ app.get("/api/search", async (c) => {
   }
 });
 app.get("/api/health", async (c) => {
-  const markets = await loadDashboard();
+  const markets = await loadDashboard(new URL(c.req.url).origin);
   const availability = Object.fromEntries(
     (["CN", "US"] as Market[]).map((market) => [
       market,
       {
         available: !!markets[market].snapshot,
         asOf: markets[market].snapshot?.asOf ?? null,
+        freshness: markets[market].snapshot?.freshness ?? null,
       },
     ]),
   );
-  const healthy = !!markets.CN.snapshot && !!markets.US.snapshot;
+  const healthy = !!markets.CN.snapshot && !!markets.US.snapshot && markets.CN.snapshot.freshness?.state !== "stale" && markets.US.snapshot.freshness?.state !== "stale";
   c.header("Cache-Control", "no-store");
   return c.json(
     { data: { status: healthy ? "ok" : "degraded", markets: availability } },
@@ -66,15 +67,15 @@ app.get("/api/health", async (c) => {
   );
 });
 
-app.get("/", async () => {
-  const markets = await loadDashboard();
+app.get("/", async (c) => {
+  const markets = await loadDashboard(new URL(c.req.url).origin);
   const stream = await renderToReadableStream(
     <Document data={{ markets, requestUrl: `${productionOrigin}/` }} />,
   );
   return new Response(stream, {
     headers: {
       "Content-Type": "text/html; charset=UTF-8",
-      "Cache-Control": markets.CN.snapshot && markets.US.snapshot ? "public, max-age=0, s-maxage=60, must-revalidate" : "no-store",
+      "Cache-Control": markets.CN.snapshot && markets.US.snapshot ? "no-cache" : "no-store",
       "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
       "Referrer-Policy": "strict-origin-when-cross-origin",
       "X-Content-Type-Options": "nosniff",
@@ -84,6 +85,7 @@ app.get("/", async () => {
 });
 app.onError((error, c) => {
   console.error("Request failed", error);
+  c.header("Cache-Control", "no-store");
   return c.json({ error: "暂时无法读取数据" }, 503);
 });
 app.notFound((c) => c.json({ error: "未找到页面" }, 404));

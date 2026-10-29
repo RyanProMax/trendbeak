@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type PointerEvent } from "react";
 import { autoUpdate, FloatingPortal, offset, shift, useDismiss, useFloating, useInteractions } from "@floating-ui/react";
 import type { MarketSnapshot, TrendRange } from "../market-types";
-import { displayDate, number } from "../lib/market-format";
+import { displayDate, displayUpdate, number } from "../lib/market-format";
 import { sentimentState, shiftDate, trendReading, trendSeries } from "../lib/chart-series";
 import TrendScene from "./TrendScene";
 import { sentimentColor } from "../lib/brand-palette";
@@ -78,7 +78,7 @@ export default function MarketTrend({ snapshot, benchmark, windowEnd, selectedDa
         onKeyDown={(event) => { const current = activeDate ?? windowEnd; const jump = event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : 0; if (jump || event.key === "Home" || event.key === "End") { event.preventDefault(); inspect(event.key === "Home" ? start : event.key === "End" ? windowEnd : shiftDate(current, Math.max((Date.parse(start) - Date.parse(current)) / 86400000, Math.min((Date.parse(windowEnd) - Date.parse(current)) / 86400000, jump)))); } else if (event.key === "Enter" || event.key === " ") { event.preventDefault(); if (canSelectDate(current)) onSelectDate(current); } }} />
       <rect className="chart-focus-ring" x={left - 4} y={top - 4} width={right - left + 8} height={bottom - top + 8} rx="4" fill="none" stroke={`url(#${id}-focus)`} pointerEvents="none" />
     </svg>
-    <div className="trend-status" aria-live="polite">{!inWindow(selectedDate) ? `${displayDate(selectedDate)}不在当前 ${range} 日窗口` : mood.length < 2 && snapshot.sentiment?.historyUnavailable ? "情绪历史暂缺" : ""}</div>
+    <div className="trend-status" aria-live="polite">{[!inWindow(selectedDate) ? `${displayDate(selectedDate)}不在当前 ${range} 日窗口` : mood.length < 2 && snapshot.sentiment?.historyUnavailable ? "情绪历史暂缺" : "", benchmark?.freshness?.state === "stale" && benchmark.instrument.symbol !== snapshot.instrument.symbol ? `大盘暂未更新 · 最近更新${displayUpdate(benchmark.freshness.storedAt,benchmark.instrument.market)}（${benchmark.instrument.market === "CN" ? "北京时间" : "美东时间"}）` : ""].filter(Boolean).join(" · ")}</div>
     {open && active && <FloatingPortal><div className="chart-tooltip" ref={refs.setFloating} style={{ ...floatingStyles, width: tooltipWidth }} {...getFloatingProps({ role: "tooltip" })}><time dateTime={active.date}>{displayDate(active.date, true)}</time>{visible.mood && <div><span className="emotion-key">情绪</span><strong style={active.mood === null ? undefined : { color: sentimentColor(active.mood) }}>{active.mood === null ? "无观测" : number(active.mood, 1)}</strong></div>}{visible.index && <div><span>{benchmark?.instrument.name ?? "大盘"}</span><strong>{active.price === null ? active.closed ? "休市" : "无数据" : number(active.price)}</strong></div>}{active.mood === null && snapshot.sentiment?.historyUnavailable && <p className="chart-tooltip-note">情绪逐日历史暂缺</p>}<p className="chart-tooltip-source">{snapshot.sentiment?.source.name} · {benchmark?.source.name}</p></div></FloatingPortal>}
   </div>;
 }

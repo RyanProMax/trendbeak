@@ -39,9 +39,10 @@ test("a cold valid quote survives noncritical sentiment failure and coalesces co
  assert.equal(priceRequests,1);assert.ok(values.every(v=>v.price===101));assert.match(values[0].sentiment.error,/暂不可用/);
  await market.loadMarket("CN","600101.SS");assert.equal(priceRequests,1);
 });
-test("expired data is never returned as fresh; a rejected refresh clears pending and can recover",async()=>{
+test("expired data returns last-good as stale and a later successful refresh clears the warning",async()=>{
  clock+=61001;mode=503;priceRequests=0;
- await assert.rejects(market.loadMarket("CN","600101.SS"),/503/);assert.equal(priceRequests,2);
+ const fallback=await market.loadMarket("CN","600101.SS");assert.equal(fallback.freshness.state,"stale");assert.equal(fallback.fetchedAt,new Date(clock-61001).toISOString());assert.equal(priceRequests,2);
+ clock+=15001;
  mode="ok";const recovered=await market.loadMarket("CN","600101.SS");assert.equal(recovered.fetchedAt,new Date(clock).toISOString());assert.equal(priceRequests,3);
 });
 test("one quick transient 501, 503 or network failure is retried once and returns a validated fresh quote",async()=>{
@@ -54,6 +55,7 @@ test("denials, throttling, Retry-After and malformed responses are not retried",
  for(const scenario of [403,418,429,"backoff","backoff-zero","backoff-invalid","malformed"]){mode=scenario;priceRequests=0;await assert.rejects(market.loadMarket("CN",`${number++}.SS`));assert.equal(priceRequests,1);}
  const exhausted = new source.SourceError("already retried","test","http",100,503);exhausted.recoveryAttempted = true;assert.equal(source.isTransientSourceFailure(exhausted),false);
  assert.equal(source.isTransientSourceFailure(new source.SourceError("timeout","test","timeout",8000)),true);
+ let usDenials=0;await assert.rejects(market.loadMarket("US","AAPL",async()=>{usDenials++;throw new source.SourceError("denied","test","http",10,403);}));assert.equal(usDenials,1);
  let timeouts=0;await assert.rejects(market.loadMarket("CN","600129.SS",async()=>{timeouts++;throw new source.SourceError("full timeout","test","timeout",8000);}));assert.equal(timeouts,1);
 });
 test("partial dashboard and first-page failures are no-store and expose only a bounded recovery hint",async()=>{
@@ -62,6 +64,6 @@ test("partial dashboard and first-page failures are no-store and expose only a b
  const body=await html.text();assert.match(body,/行情暂不可用/);assert.match(body,/"retryable":false/);
  const dashboard=await app.request("https://example.test/api/markets");assert.equal(dashboard.headers.get("cache-control"),"no-store");const d=await dashboard.json();assert.equal(d.data.CN.snapshot,null);assert.ok(d.data.US.snapshot);
  const failed=await app.request("https://example.test/api/markets/CN");assert.equal(failed.status,503);assert.deepEqual(await failed.json(),{error:"行情暂不可用",retryable:false});
- mode="ok";const healthy=await app.request("https://example.test/api/markets");assert.equal(healthy.headers.get("cache-control"),"public, max-age=15, s-maxage=60");assert.ok((await healthy.json()).data.CN.snapshot);
+ clock+=15001;mode="ok";const healthy=await app.request("https://example.test/api/markets");assert.equal(healthy.headers.get("cache-control"),"no-cache");assert.ok((await healthy.json()).data.CN.snapshot);
  mode=403;const denied=await app.request("https://example.test/api/markets/CN?symbol=600199.SS");assert.equal(denied.status,503);assert.deepEqual(await denied.json(),{error:"行情暂不可用",retryable:false});
 });

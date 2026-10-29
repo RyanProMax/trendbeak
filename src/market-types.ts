@@ -62,6 +62,7 @@ export interface CalendarDay {
 }
 
 export interface MarketSnapshot {
+  freshness?: { state: "fresh" | "stale"; storedAt: string; ageSeconds: number; freshTtlSeconds: number; maxAgeSeconds: number; via: "upstream" | "memory" | "edge" | "browser" };
   instrument: Instrument;
   asOf: string;
   fetchedAt: string;
