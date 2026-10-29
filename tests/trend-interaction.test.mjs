@@ -21,17 +21,15 @@ function fixture() {
     sentiment: { observations: [{ date: "2026-10-29", value: 36.5 }] },
   };
 }
-test("range snapping exposes exactly four natural-day windows", () => {
-  const observed = new Set();
-  for (let days = -20; days < 420; days += .25) observed.add(series.snapTrendRange(days));
-  assert.deepEqual([...observed].sort((a,b) => a-b), [30,90,180,365]);
-  assert.equal(series.snapTrendRange(110), 90);
-  assert.equal(series.snapTrendRange(235), 180);
-  for (const range of series.TREND_RANGES) {
-    const result = series.trendSeries(fixture(), fixture(), "2026-10-29", range);
-    assert.equal((Date.parse(result.end) - Date.parse(result.start)) / 86400000, range - 1);
+test("quick presets remain natural-day windows without limiting arbitrary ranges", () => {
+  assert.deepEqual([...series.TREND_RANGES],[30,90,180,365]);
+  for (const range of [...series.TREND_RANGES,7,64,111,520]) {
+    const result=series.trendSeries(fixture(),fixture(),"2026-10-29",range);
+    assert.equal((Date.parse(result.end)-Date.parse(result.start))/86400000,range-1);
+    assert.equal(result.days.length,range);
   }
 });
+
 test("calendar inspection does not move the chart window or replace exact-date readings", () => {
   const snapshot = fixture(), before = series.trendSeries(snapshot, snapshot, snapshot.asOf, 30);
   assert.deepEqual(series.trendReading(snapshot, snapshot, "2026-10-28"), { date: "2026-10-28", mood: null, price: 101, closed: false });

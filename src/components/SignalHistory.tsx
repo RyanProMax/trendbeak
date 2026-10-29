@@ -7,12 +7,12 @@ export default function SignalHistory({ snapshot, signal, end, range }: { snapsh
   const start = shiftDate(end, 1 - range), id = signal.id;
   if (id === "sentiment") return null;
   const points = Object.entries(snapshot.history).filter(([date, row]) => date >= start && date <= end && row.values[id] !== null).sort(([a], [b]) => a.localeCompare(b)).map(([date, row]) => ({ date, value: row.values[id]! }));
-  const segments = chartSegments(calendarForRange(snapshot, end).filter((day) => day.date >= start), points);
+  const segments = chartSegments(calendarForRange(snapshot, end, range).filter((day) => day.date >= start), points);
   const values = points.map((point) => point.value), low = values.length ? Math.min(...values) : 0, high = values.length ? Math.max(...values) : 1, margin = Math.max((high - low) * .15, .01);
-  const min = low - margin, max = high + margin, x = (date: string) => 4 + (Date.parse(date) - Date.parse(start)) / 86400000 / (range - 1) * 252, y = (value: number) => 76 - (value - min) / (max - min) * 50;
+  const min = low - margin, max = high + margin, x = (date: string) => 4 + (Date.parse(date) - Date.parse(start)) / 86400000 / Math.max(1,range - 1) * 252, y = (value: number) => 76 - (value - min) / (max - min) * 50;
   const selected = points.find((point) => point.date === snapshot.asOf);
   return <div className="signal-history" data-history-signal={id} data-history-points={points.length}>
-    <div className="signal-history-heading"><span>近 {range} 日</span><span>{displayDate(snapshot.asOf)} · {selected ? `${number(selected.value, signal.digits, id === "trend")}${signal.unit}` : snapshot.asOf < start || snapshot.asOf > end ? "窗口外" : "无数据"}</span></div>
+    <div className="signal-history-heading"><span>{range} 日</span><span>{displayDate(snapshot.asOf)} · {selected ? `${number(selected.value, signal.digits, id === "trend")}${signal.unit}` : snapshot.asOf < start || snapshot.asOf > end ? "窗口外" : "无数据"}</span></div>
     <svg viewBox="0 0 260 102" role="img" aria-label={`${signal.name}真实历史，${range}自然日，单位${signal.unit || "指标值"}；缺失不补线`}>
       <line x1="4" x2="256" y1="79" y2="79" className="chart-grid" />
       {segments.map((points, index) => points.length > 1 ? <path key={index} d={chartPath(points, x, y)} className="technical-history-line" /> : <circle key={index} cx={x(points[0].date)} cy={y(points[0].value)} r="2" className="technical-history-dot" />)}

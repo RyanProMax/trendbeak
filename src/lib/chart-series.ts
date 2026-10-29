@@ -6,10 +6,10 @@ export const shiftDate = (date: string, days: number) =>
   new Date(Date.parse(date) + days * DAY).toISOString().slice(0, 10);
 
 /** Align the two calendars without inventing quotes on the padded dates. */
-export function calendarForRange(snapshot: MarketSnapshot, end: string): CalendarDay[] {
+export function calendarForRange(snapshot: MarketSnapshot, end: string, count = 365): CalendarDay[] {
   const known = new Map(snapshot.days.map((day) => [day.date, day]));
-  return Array.from({ length: 365 }, (_, index) => {
-    const date = shiftDate(end, index - 364);
+  return Array.from({ length: count }, (_, index) => {
+    const date = shiftDate(end, index + 1 - count);
     const reading = snapshot.history?.[date];
     return known.get(date) ?? (reading ? { date, change: reading.change, status: "trading" } : {
       date, change: null,
@@ -41,19 +41,16 @@ export function chartSegments(days: CalendarDay[], observations: ChartPoint[]): 
 }
 
 export const TREND_RANGES = [30, 90, 180, 365] as const;
-export function snapTrendRange(days: number) {
-  return TREND_RANGES.reduce((best, value) => Math.abs(value - days) < Math.abs(best - days) ? value : best, 30 as typeof TREND_RANGES[number]);
-}
 
 /** Window selection is independent of the inspected/calendar date. */
 export function trendSeries(snapshot: MarketSnapshot, benchmark: MarketSnapshot | null, end: string, range: number) {
   const start = shiftDate(end, 1 - range);
-  const days = calendarForRange(snapshot, end).filter((day) => day.date >= start);
+  const days = calendarForRange(snapshot, end, range).filter((day) => day.date >= start);
   const mood = (snapshot.sentiment?.observations ?? []).filter((point) => point.date >= start && point.date <= end).sort((a, b) => a.date.localeCompare(b.date));
   const prices = Object.entries(benchmark?.history ?? {}).filter(([date]) => date >= start && date <= end).sort(([a], [b]) => a.localeCompare(b)).map(([date, row]) => ({ date, value: row.price }));
   return { start, end, days, mood, prices,
     moodSegments: chartSegments(days, mood),
-    priceSegments: chartSegments(benchmark ? calendarForRange(benchmark, end).filter((day) => day.date >= start) : days, prices),
+    priceSegments: chartSegments(benchmark ? calendarForRange(benchmark, end, range).filter((day) => day.date >= start) : days, prices),
   };
 }
 

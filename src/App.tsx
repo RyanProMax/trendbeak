@@ -5,7 +5,6 @@ import {
   type Market,
   type MarketSnapshot,
   type PageData,
-  type TrendRange,
 } from "./market-types";
 import StockSearch from "./components/StockSearch";
 import MarketCard, { type ViewState } from "./components/MarketCard";
@@ -14,6 +13,8 @@ import SignalMeter from "./components/SignalMeter";
 import MarketTrend from "./components/MarketTrend";
 import TrendRangeControl from "./components/TrendRange";
 import { signalsForDate } from "./lib/market-signals";
+import { clampWindow, historyBounds, latestWindow, windowDays, type TrendWindow } from "./lib/trend-window";
+import { isExchangeClosed } from "./lib/exchange-calendar";
 import { calendarForRange, shiftDate } from "./lib/chart-series";
 import { rememberSnapshot, restoreSnapshot } from "./lib/browser-snapshots";
 import { recordFromSnapshot, readSnapshot, validRecord } from "./lib/snapshot-record";
@@ -29,24 +30,30 @@ function Dashboard({ data }: { data: PageData }) {
   current.current = markets;
   const [benchmarks, setBenchmarks] = useState<Record<Market, MarketSnapshot | null>>({ CN: data.markets.CN.snapshot, US: data.markets.US.snapshot });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [range, setRange] = useState<TrendRange>(365);
+  const [userWindow,setUserWindow] = useState<TrendWindow|null>(null);
+  const [navigating,setNavigating] = useState(false);
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [visibleSeries, setVisibleSeries] = useState({ mood: true, index: true });
   const calendarDates = Object.values(markets).flatMap(({ snapshot }) =>
     snapshot ? [snapshot.days[0].date, snapshot.days.at(-1)!.date] : [],
   ).sort();
   const calendarEnd = calendarDates.at(-1);
-  const calendarStart = calendarEnd ? shiftDate(calendarEnd, -364) : undefined;
   const alignedDays = useMemo(() => Object.fromEntries((["CN", "US"] as Market[]).map((market) => [market,
     markets[market].snapshot && calendarEnd ? calendarForRange(markets[market].snapshot!, calendarEnd) : [],
   ])), [markets, calendarEnd]);
-  const windowEnd = Object.values(benchmarks).flatMap((snapshot) => snapshot ? [snapshot.asOf] : []).sort().at(-1) ?? calendarEnd;
+  const bounds = useMemo(()=>historyBounds(Object.values(benchmarks)),[benchmarks]);
+  const trendWindow = bounds ? clampWindow(userWindow ?? latestWindow(bounds),bounds) : null;
+  const windowEnd = trendWindow?.end ?? calendarEnd;
+  const range = trendWindow ? windowDays(trendWindow) : 365;
   useEffect(() => {
     document.querySelectorAll("[data-trend-hover]").forEach((cell) => cell.removeAttribute("data-trend-hover"));
     if (hoveredDate) document.querySelectorAll(`.calendar-section rect[data-date="${hoveredDate}"]`).forEach((cell) => cell.setAttribute("data-trend-hover", "true"));
   }, [hoveredDate, alignedDays]);
-  const selectable = useCallback((date: string) => !!calendarStart && !!calendarEnd && date >= calendarStart && date <= calendarEnd &&
-    (["CN", "US"] as Market[]).some((market) => alignedDays[market].some((day) => day.date === date && day.status !== "closed")), [calendarStart, calendarEnd, alignedDays]);
+  const selectable = useCallback((date:string)=>(["CN","US"] as Market[]).some(market=>{
+    const snapshot=markets[market].snapshot;if(!snapshot||isExchangeClosed(date,market))return false;
+    // Annual missing-day inspection is independent of the chart's real-price extent.
+    return alignedDays[market].some(day=>day.date===date&&day.status!=="closed") || !!bounds && date>=bounds.start && date<=bounds.end && !!snapshot.history[date];
+  }),[bounds,markets,alignedDays]);
   const selectDate = useCallback((date: string) => {
     if (selectable(date)) setSelectedDate(date);
   }, [selectable]);
@@ -212,7 +219,7 @@ function Dashboard({ data }: { data: PageData }) {
       <header className="topbar">
         <div className="topbar-inner">
           <a className="brand" href="/" aria-label="trendbeak 首页">
-            <img className="brand-wordmark" src="/trendbeak-wordmark.svg?v=10" alt="trendbeak" width="339" height="68" />
+            <img className="brand-wordmark" src="/trendbeak-wordmark.svg?v=11" alt="trendbeak" width="480" height="120" />
           </a>
           <StockSearch onSelect={(instrument) => load(instrument, true)} />
         </div>
@@ -236,7 +243,7 @@ function Dashboard({ data }: { data: PageData }) {
           </div>
           {calendarEnd && <HeatLegend />}
         </section>
-        <section className="market-signals" aria-labelledby="signals-title">
+        <section className={`market-signals${navigating ? " is-navigating" : ""}`} aria-labelledby="signals-title">
           <div className="signals-heading"><h2 id="signals-title">市场信号</h2>
             <div className="chart-legend" aria-label="情绪按分值由绿经金到红，大盘为深灰实线"><button type="button" className="emotion-key" aria-pressed={visibleSeries.mood} onClick={() => setVisibleSeries((old) => ({ ...old, mood: !old.mood }))}>情绪</button><button type="button" className="index-key" aria-pressed={visibleSeries.index} onClick={() => setVisibleSeries((old) => ({ ...old, index: !old.index }))}>大盘</button></div>
           </div>
@@ -249,11 +256,11 @@ function Dashboard({ data }: { data: PageData }) {
             return <section className="market-analysis" data-analysis-market={market} key={market}>
               <div className="signals" data-date={date} aria-label={`${displayDate(date, true)}指标`}>
                 <div className="analysis-heading"><h3>{market === "CN" ? "A 股" : "美股"}</h3></div>
-                <MarketTrend snapshot={snapshot} benchmark={benchmarks[market]} windowEnd={windowEnd ?? snapshot.asOf} selectedDate={date} hoveredDate={hoveredDate} range={range} visible={visibleSeries} onHoverDate={setHoveredDate} onSelectDate={selectDate} canSelectDate={selectable} />
+                <MarketTrend snapshot={snapshot} benchmark={benchmarks[market]} bounds={bounds ?? {start:shiftDate(windowEnd ?? snapshot.asOf,-364),end:windowEnd ?? snapshot.asOf}} windowEnd={windowEnd ?? snapshot.asOf} selectedDate={date} hoveredDate={hoveredDate} range={range} visible={visibleSeries} onHoverDate={setHoveredDate} onSelectDate={selectDate} canSelectDate={selectable} />
                 <div className="technical-signals">{signals.slice(1).map((signal) => <SignalMeter key={signal.id} signal={signal} snapshot={datedSnapshot} range={range} windowEnd={windowEnd ?? snapshot.asOf} />)}</div>
               </div>
             </section>;
-          })}{windowEnd && <TrendRangeControl end={windowEnd} range={range} benchmarks={benchmarks} onChange={setRange} />}</div>
+          })}{bounds && trendWindow && <TrendRangeControl bounds={bounds} value={trendWindow} benchmarks={benchmarks} onChange={setUserWindow} onDragging={setNavigating} />}</div>
         </section>
       </main>
     </>
@@ -273,7 +280,7 @@ export default function Document({ data }: { data: PageData }) {
           name="viewport"
           content="width=device-width, initial-scale=1.0, viewport-fit=cover"
         />
-        <meta name="theme-color" content="#7561b4" />
+        <meta name="theme-color" content="#59685f" />
         <meta name="application-name" content="trendbeak" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -290,16 +297,19 @@ export default function Document({ data }: { data: PageData }) {
           content="A 股与美股每日行情、年度涨跌与关键技术指标。"
         />
         <meta property="og:url" content={data.requestUrl} />
-        <meta property="og:image" content={new URL("/og.png?v=10", data.requestUrl).href} />
+        <meta property="og:image" content={new URL("/og.png?v=11", data.requestUrl).href} />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="trendbeak · 每日市场信号" />
-        <meta name="twitter:image" content={new URL("/og.png?v=10", data.requestUrl).href} />
+        <meta name="twitter:image" content={new URL("/og.png?v=11", data.requestUrl).href} />
         <link rel="canonical" href={data.requestUrl} />
-        <link rel="manifest" href="/manifest.webmanifest?v=10" />
-        <link rel="icon" href="/favicon.svg?v=10" type="image/svg+xml" />
+        <link rel="manifest" href="/manifest.webmanifest?v=11" />
+        <link rel="icon" href="/favicon.ico?v=11" sizes="any" />
+        <link rel="icon" href="/favicon-16.png?v=11" type="image/png" sizes="16x16" />
+        <link rel="icon" href="/favicon-32.png?v=11" type="image/png" sizes="32x32" />
+        <link rel="icon" href="/favicon.svg?v=11" type="image/svg+xml" sizes="any" />
         <link
           rel="apple-touch-icon"
-          href="/apple-touch-icon.png?v=10"
+          href="/apple-touch-icon.png?v=11"
           sizes="180x180"
         />
         <link rel="stylesheet" href="/static/client.css" />

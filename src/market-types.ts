@@ -1,5 +1,5 @@
 export type Market = "CN" | "US";
-export type TrendRange = 30 | 90 | 180 | 365;
+export type TrendRange = number;
 
 export interface Instrument {
   symbol: string;

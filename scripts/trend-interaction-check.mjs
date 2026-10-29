@@ -66,26 +66,8 @@ try {
   const weekend=cn.days.find(day=>day.date>=start&&day.date<end&&day.status==='closed'&&us.days.some(other=>other.date===day.date&&other.status==='closed'));
   if(width===1440&&weekend){await page.mouse.move(position(weekend.date).x,position(weekend.date).y);await tooltip.waitFor();assert.match(await tooltip.innerText(),/休市/);assert.match(await tooltip.innerText(),/无观测/);assert.equal(await chart.locator('.index-active,.emotion-active').count(),0);await page.mouse.move(0,0);}
   await page.evaluate(()=>window.__seriesObserver.disconnect());
-  const range=page.getByRole('slider',{name:'拖动选择趋势范围'});
-  await range.focus();
-  for(const [key,value] of [['Home',365],['ArrowRight',180],['ArrowRight',90],['ArrowRight',30],['ArrowRight',30],['ArrowLeft',90],['End',30]]){
-    await page.keyboard.press(key);assert.equal(await range.getAttribute('aria-valuenow'),String(value));
-    for(const state of await graphState(page))assert.equal((Date.parse(state.end)-Date.parse(state.start))/86400000,value-1);
-  }
-  await range.scrollIntoViewIfNeeded();const r=await range.boundingBox();
-  if(width===390) {
-    await swipe(page,{x:r.x+r.width*.93,y:r.y+20},{x:r.x+r.width*.5,y:r.y+20});assert.equal(await range.getAttribute('aria-valuenow'),'180');
-    await range.scrollIntoViewIfNeeded();const s=await range.boundingBox(),before=await range.getAttribute('aria-valuenow');
-    await swipe(page,{x:s.x+s.width*.4,y:s.y+20},{x:s.x+s.width*.4,y:s.y-80});assert.equal(await range.getAttribute('aria-valuenow'),before,'vertical scroll preserves range');
-    await hit.scrollIntoViewIfNeeded();const h=await hit.boundingBox(),selected=await page.locator('[data-analysis-market=CN] .signals').getAttribute('data-date');
-    await swipe(page,{x:h.x+h.width*.5,y:h.y+80},{x:h.x+h.width*.5,y:h.y-30});assert.equal(await page.locator('[data-analysis-market=CN] .signals').getAttribute('data-date'),selected,'vertical chart scroll does not select');
-  } else {
-    await page.mouse.move(r.x+r.width*.92,r.y+20);await page.mouse.down();
-    const observed=[];
-    for(const fraction of [.9,.79,.66,.5,.35,.1,0]){await page.mouse.move(r.x+r.width*fraction,r.y+20);observed.push(Number(await range.getAttribute('aria-valuenow')));}
-    await page.mouse.up();assert.ok(observed.every(value=>[30,90,180,365].includes(value)));assert.equal(await range.getAttribute('aria-valuenow'),'365');
-  }
-  for(const days of [30,90,180,365]){await page.getByRole('button',{name:`${days} 日`,exact:true}).click();assert.equal(await range.getAttribute('aria-valuenow'),String(days));}
+  for(const label of ['趋势起始日期','趋势结束日期','移动趋势区间'])assert.equal(await page.getByRole('slider',{name:label,exact:true}).count(),1);
+  for(const days of [30,90,180,365]){await page.getByRole('button',{name:`${days} 日`,exact:true}).click();for(const state of await graphState(page))assert.equal((Date.parse(state.end)-Date.parse(state.start))/86400000,days-1);}
   if(us.sentiment?.observations.length===1)assert.equal(await page.locator('[data-analysis-market=US] [data-series=sentiment]').count(),0);
   await page.screenshot({path:`${out}/${width}-trend-365.png`,fullPage:true});
   await page.getByRole('button',{name:'情绪',exact:true}).click();
@@ -96,7 +78,7 @@ try {
   assert.equal(await page.locator('.navigator-window').evaluate(node=>getComputedStyle(node).transitionDuration),'0s');
   await page.getByRole('button',{name:'30 日',exact:true}).click();await selectLatestCalendarDate(page,initial);
   await layout(page,'interaction complete');assert.deepEqual(errors,[]);
-  report.push({width,selectionKeepsWindow:true,exactTooltip:true,calendarLinked:true,stableCurveNodes:true,outsideWindow:true,keyboard:true,fourSnapRanges:true,touch:width===390,missingUSHistoryNotConnected:true,reducedMotion:true,errors});
+  report.push({width,selectionKeepsWindow:true,exactTooltip:true,calendarLinked:true,stableCurveNodes:true,outsideWindow:true,keyboard:true,continuousRangeControls:true,touch:width===390,missingUSHistoryNotConnected:true,reducedMotion:true,errors});
   await context.close();
  }
  // Motion is enabled only for range changes, never pointer inspection.

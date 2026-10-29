@@ -3,11 +3,12 @@ import { autoUpdate, FloatingPortal, offset, shift, useDismiss, useFloating, use
 import type { MarketSnapshot, TrendRange } from "../market-types";
 import { displayDate, displayUpdate, number } from "../lib/market-format";
 import { sentimentState, shiftDate, trendReading, trendSeries } from "../lib/chart-series";
+import type { TrendWindow } from "../lib/trend-window";
 import TrendScene from "./TrendScene";
 import { sentimentColor } from "../lib/brand-palette";
 
-export default function MarketTrend({ snapshot, benchmark, windowEnd, selectedDate, hoveredDate, range, visible, onHoverDate, onSelectDate, canSelectDate }: {
-  snapshot: MarketSnapshot; benchmark: MarketSnapshot | null; windowEnd: string; selectedDate: string; hoveredDate: string | null; range: TrendRange;
+export default function MarketTrend({ snapshot, benchmark, bounds, windowEnd, selectedDate, hoveredDate, range, visible, onHoverDate, onSelectDate, canSelectDate }: {
+  snapshot: MarketSnapshot; benchmark: MarketSnapshot | null; bounds: TrendWindow; windowEnd: string; selectedDate: string; hoveredDate: string | null; range: TrendRange;
   visible: { mood: boolean; index: boolean }; onHoverDate: (date: string | null) => void; onSelectDate: (date: string) => void; canSelectDate: (date: string) => boolean;
 }) {
   const id = useId(), container = useRef<HTMLDivElement>(null), svg = useRef<SVGSVGElement | null>(null);
@@ -19,7 +20,7 @@ export default function MarketTrend({ snapshot, benchmark, windowEnd, selectedDa
   const left = 34, right = Math.max(left + 90, width - 124), top = 24, bottom = 184;
   const values = prices.map((point) => point.value), low = values.length ? Math.min(...values) : 0, high = values.length ? Math.max(...values) : 100;
   const padding = Math.max((high - low) * .18, high * .003, 1), min = Math.max(0, low - padding), max = high + padding;
-  const x = (date: string) => left + (Date.parse(date) - Date.parse(start)) / 86400000 / (range - 1) * (right - left);
+  const x = (date: string) => left + (Date.parse(date) - Date.parse(start)) / 86400000 / Math.max(1, range - 1) * (right - left);
   const yMood = (value: number) => bottom - value / 100 * (bottom - top);
   const yPrice = (value: number) => bottom - (value - min) / (max - min) * (bottom - top);
   const inWindow = (date: string) => date >= start && date <= windowEnd;
@@ -43,7 +44,7 @@ export default function MarketTrend({ snapshot, benchmark, windowEnd, selectedDa
     const element = svg.current; if (!element) return;
     refs.setPositionReference({ contextElement: element, getBoundingClientRect: () => {
       const rect = element.getBoundingClientRect(), plotRight = Math.max(left + 90, rect.width - 124);
-      const position = left + (Date.parse(date) - Date.parse(start)) / 86400000 / (range - 1) * (plotRight - left);
+      const position = left + (Date.parse(date) - Date.parse(start)) / 86400000 / Math.max(1, range - 1) * (plotRight - left);
       const at = tooltipWidth > plotRight - left ? (left + plotRight) / 2 : Math.max(left + tooltipWidth / 2, Math.min(plotRight - tooltipWidth / 2, position));
       return DOMRect.fromRect({ x: rect.left + at, y: rect.top + bottom, width: 0, height: 0 });
     } });
@@ -60,7 +61,7 @@ export default function MarketTrend({ snapshot, benchmark, windowEnd, selectedDa
       <title id={`${id}-title`}>{`${snapshot.instrument.market === "CN" ? "A 股" : "美股"}情绪与大盘，${range} 日`}</title>
       <desc id={`${id}-desc`}>情绪实线按分值从柔绿经金色到珊瑚红，低于20为绿、高于80为红，左轴0至100；深灰实线为大盘，右轴指数点位。窗口不随选日改变。左右键浏览日期，回车选择；缺失观测留空。</desc>
       {[0, 50, 100].map((value) => <g key={value}><line x1={left} x2={right} y1={yMood(value)} y2={yMood(value)} className="chart-grid" />{visible.mood && <text x="0" y={yMood(value) + 3} className="chart-tick">{value}</text>}{visible.index && prices.length > 0 && <text x={right + 7} y={yMood(value) + 3} className="chart-tick">{number(min + (max - min) * value / 100, 0)}</text>}</g>)}
-      <TrendScene snapshot={snapshot} benchmark={benchmark} end={windowEnd} range={range} left={left} right={right} top={top} bottom={bottom} min={min} max={max} visible={visible} id={id} />
+      <TrendScene snapshot={snapshot} benchmark={benchmark} end={windowEnd} range={range} bounds={bounds} left={left} right={right} top={top} bottom={bottom} min={min} max={max} visible={visible} id={id} />
       {visible.index && lastPrice && <><circle className="index-dot" cx={x(lastPrice.date)} cy={yPrice(lastPrice.value)} r="2.5" /><text className="index-end" x={width - 4} y={priceLabelY + 4} textAnchor="end" role="img" aria-label={`${benchmark!.instrument.name} ${number(lastPrice.value)}，${displayDate(lastPrice.date, true)}`} data-label-date={lastPrice.date}>{number(lastPrice.value)}</text></>}
       {visible.mood && lastMood && <><circle className="emotion-dot" fill={sentimentColor(lastMood.value)} cx={x(lastMood.date)} cy={yMood(lastMood.value)} r="2.5" /><text className="emotion-end" fill={sentimentColor(lastMood.value)} x={width - 4} y={moodLabelY + 4} textAnchor="end" role="img" aria-label={`情绪 ${number(lastMood.value, 1)}，${displayDate(lastMood.date, true)}，${sentimentState(lastMood.value)}`} data-label-date={lastMood.date}>{number(lastMood.value, 1)}</text></>}
       {visible.mood && !lastMood && <text x={(left + right) / 2} y="123" className="chart-empty" textAnchor="middle">暂无情绪数据</text>}

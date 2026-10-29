@@ -1,21 +1,22 @@
 import { memo, useMemo } from "react";
 import type { MarketSnapshot, TrendRange } from "../market-types";
-import { trendSeries } from "../lib/chart-series";
+import { shiftDate, trendSeries } from "../lib/chart-series";
 import { chartPath } from "../lib/chart-path";
+import { dateDistance, windowDays, type TrendWindow } from "../lib/trend-window";
 import { EMOTION_STOPS, sentimentColor } from "../lib/brand-palette";
 
 /** Animate the viewport over fixed real paths; never interpolate observations or gaps. */
-function TrendScene({ snapshot, benchmark, end, range, left, right, top, bottom, min, max, visible, id }: {
-  snapshot: MarketSnapshot; benchmark: MarketSnapshot | null; end: string; range: TrendRange;
+function TrendScene({ snapshot, benchmark, bounds, end, range, left, right, top, bottom, min, max, visible, id }: {
+  snapshot: MarketSnapshot; benchmark: MarketSnapshot | null; bounds: TrendWindow; end: string; range: TrendRange;
   left: number; right: number; top: number; bottom: number; min: number; max: number;
   visible: { mood: boolean; index: boolean }; id: string;
 }) {
-  const full = useMemo(() => trendSeries(snapshot, benchmark, end, 365), [snapshot, benchmark, end]);
+  const full = useMemo(() => trendSeries(snapshot, benchmark, bounds.end, windowDays(bounds)), [snapshot, benchmark, bounds.start, bounds.end]);
   const geometry = useMemo(() => {
     const values = full.prices.map((point) => point.value);
     const low = values.length ? Math.min(...values) : 0, high = values.length ? Math.max(...values) : 100;
     const padding = Math.max((high - low) * .18, high * .003, 1), baseMin = Math.max(0, low - padding), baseMax = high + padding;
-    const x = (date: string) => left + (Date.parse(date) - Date.parse(full.start)) / 86400000 / 364 * (right - left);
+    const x = (date: string) => left + (Date.parse(date) - Date.parse(full.start)) / 86400000 / Math.max(1,dateDistance(full.start,full.end)) * (right - left);
     const yPrice = (value: number) => bottom - (value - baseMin) / (baseMax - baseMin) * (bottom - top);
     const yMood = (value: number) => bottom - value / 100 * (bottom - top);
     return { baseMin, baseMax,
@@ -23,13 +24,14 @@ function TrendScene({ snapshot, benchmark, end, range, left, right, top, bottom,
       moods: full.moodSegments.filter((segment) => segment.length > 1).map((segment) => chartPath(segment, x, yMood)),
     };
   }, [full, left, right, top, bottom]);
-  const scaleX = 364 / (range - 1), translateX = right * (1 - scaleX);
+  const scaleX = Math.max(1,dateDistance(full.start,full.end)) / Math.max(1,range - 1);
+  const translateX = left * (1-scaleX) - dateDistance(full.start,shiftDate(end,1-range)) / Math.max(1,range-1) * (right-left);
   const scaleY = (geometry.baseMax - geometry.baseMin) / (max - min);
   const translateY = bottom * (1 - scaleY) - (geometry.baseMin - min) / (max - min) * (bottom - top);
-  const x = (date: string) => right - (Date.parse(end) - Date.parse(date)) / 86400000 / (range - 1) * (right - left);
+  const x = (date: string) => right - (Date.parse(end) - Date.parse(date)) / 86400000 / Math.max(1,range - 1) * (right - left);
   const start = new Date(Date.parse(end) - (range - 1) * 86400000).toISOString().slice(0,10);
-  const singletonMood = full.moodSegments.filter((segment) => segment.length === 1 && segment[0].date >= start);
-  const singletonPrice = full.priceSegments.filter((segment) => segment.length === 1 && segment[0].date >= start);
+  const singletonMood = full.moodSegments.filter((segment) => segment.length === 1 && segment[0].date >= start && segment[0].date <= end);
+  const singletonPrice = full.priceSegments.filter((segment) => segment.length === 1 && segment[0].date >= start && segment[0].date <= end);
   return <>
     <defs>
       <linearGradient id={`${id}-emotion`} gradientUnits="userSpaceOnUse" x1="0" y1={bottom} x2="0" y2={top} colorInterpolation="sRGB">

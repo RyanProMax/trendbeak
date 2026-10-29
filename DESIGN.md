@@ -1,6 +1,6 @@
 # trendbeak visual system
 
-White canvas, thin separators and tabular figures remain the foundation. UI accents derive from the approved five-bar logo: green, gray green, gold, apricot and coral. The existing wordmark and its gray-lavender `beak` stay unchanged. Small text uses darker related tones for legibility.
+White canvas, thin separators and tabular figures remain the foundation. The brand is one continuous trend line folded into an open right-facing beak. Its outlined `trend` wordmark blends sage through muted gold to coral; `beak` is gray green. Dark-background and one-color variants preserve the same geometry. Chart colors and layout stay unchanged. Small text uses darker related tones for legibility.
 
 ## Calendar and quotes
 
@@ -10,7 +10,7 @@ The calendar header contains only its title and the global selected date. Select
 
 ## Trend semantics and color
 
-Default to 365 natural days. The shared navigator snaps to 30, 90, 180 and 365 days, with its right edge anchored to the latest benchmark session. Calendar selection and hover update cursors and exact-date readings, never the window, source paths or index domain. Out-of-window selection has a brief state.
+Default to 365 natural days. The navigator has independent start/end handles, whole-window panning and background click-to-center. Its extent is the union of real benchmark history; 30/90/180/365 remain latest-window shortcuts. One absolute start/end pair controls both markets, with a seven-natural-day minimum (or all available dates if fewer). User-selected historical windows survive data refresh. Calendar selection and hover update cursors and exact-date readings, never the window, source paths or index domain. Out-of-window selection has a brief state.
 
 Emotion color encodes its Y value, not elapsed time. The scale is flat green at 0–20, then continuously blends through gray green at 40, gold at 50 and apricot at 65, reaching coral at 80–100. A user-space vertical SVG gradient shares the fixed 0–100 scale; points and tooltip values use the same sRGB interpolation. This display scale does not change either source's scoring algorithm or verbal emotion categories. Benchmark prices use a distinguishable neutral solid line and a separate point-value axis.
 
@@ -18,7 +18,7 @@ Trend headers contain only the market name. Curve-end labels show numeric values
 
 ## Motion and input
 
-Monotone curves pass through real observations and preserve extrema. A fixed 365-day scene holds the original paths and trading-day gaps; range changes continuously transform the clipped viewport and price scale over 420 ms. No intermediate observations are synthesized, and hover does not recreate paths. Reduced motion makes the transform immediate.
+Monotone curves pass through real observations and preserve extrema. A fixed scene covering the available benchmark history holds the original paths and trading-day gaps; range changes continuously transform the clipped viewport and price scale over 420 ms. No intermediate observations are synthesized, and hover does not recreate paths. Reduced motion makes the transform immediate.
 
 Mouse clicks on the SVG interaction region have no default rectangular outline. Keyboard focus remains visible through a thin, rounded gradient stroke. Other controls keep their own focus styles. The search field rotates a small conic-gradient border layer only while hovered or focused, pauses while inactive, and is static under reduced motion.
 
@@ -26,4 +26,4 @@ Mouse clicks on the SVG interaction region have no default rectangular outline. 
 
 Technical signals retain original units, calculations, a prominent value and quiet position rails. Thresholds, source, prior value and actual history remain in accessible hover/focus/touch bubbles. These are not six normalized emotion components.
 
-Review full-page screenshots at 1440 and 390 px plus all current and historical signal bubbles. Verify exact-date linkage, holidays, search and failures, keyboard focus, touch scrolling, range snapping, missing data and reduced motion. Sample actual intermediate transforms to verify zoom continuity, stable paths and frame pacing; a fade alone is insufficient evidence of smooth range changes.
+Review full-page screenshots at 1440 and 390 px plus all current and historical signal bubbles. Verify exact-date linkage, holidays, search and failures, keyboard focus, touch scrolling, free resize, pan and track jumps, missing data and reduced motion. Sample actual intermediate transforms to verify zoom continuity, stable paths and frame pacing; a fade alone is insufficient evidence of smooth range changes.

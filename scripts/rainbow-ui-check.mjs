@@ -7,7 +7,7 @@ try{
   const {page,context,initial,errors}=await openPage(browser,width);
   assert.equal(await page.locator('.market-grid').count(),0);
   assert.equal(await page.locator('.calendar-row > .market-card').count(),2);
-  assert.equal(await page.getByRole('slider',{name:'拖动选择趋势范围'}).getAttribute('aria-valuenow'),'365');
+  assert.equal(await page.locator('.trend-chart').first().getAttribute('data-range'),'365');
   assert.equal(await page.locator('.calendar-heading button').count(),0);
   assert.equal(await page.locator('.calendar-heading').locator(':scope > *').count(),2);
   const type=await page.evaluate(()=>[...document.querySelectorAll('.trend-chart .chart-tick,.chart-axis-head,.chart-active-date,.index-end,.emotion-end,.chart-legend,.navigator-caption,.navigator-stops button,.heat-legend')].map(el=>({size:parseFloat(getComputedStyle(el).fontSize),scale:el instanceof SVGElement?el.getScreenCTM().a:1})));
