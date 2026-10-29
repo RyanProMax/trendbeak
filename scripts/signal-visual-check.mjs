@@ -8,7 +8,8 @@ try {
     assert.equal(page.url(),base.replace(/\/$/,"")+"/");
     assert.match(await page.title(),/每日市场信号/);
     assert.equal(await page.locator("rect[data-date]").count(),730);
-    assert.equal(await page.locator(".market-period").count(),1);
+    assert.equal(await page.locator(".calendar-heading button").count(),0);
+    assert.equal(await page.locator(".calendar-heading time").count(),1);
     assert.equal(await page.locator(".trend-range-control").count(),1);
     assert.equal(await page.locator(".chart-legend").count(),1);
     await layout(page,width+" initial");
@@ -57,7 +58,7 @@ try {
     await page.locator(".signal-trigger").first().focus();await page.locator(".signal-tooltip").waitFor();
     await page.keyboard.press("Escape");await page.locator(".signal-tooltip").waitFor({state:"hidden"});
     assert.deepEqual(errors,[]);
-    report.push({width,identity:true,cells:730,alignedCalendars:true,sharedAxes:true,sharedRange:true,tooltips:10,singletonHistory:true,missingMarkers:true,maxHoverShift:hoverShift,consoleErrors:errors});
+    report.push({width,identity:true,cells:730,alignedCalendars:true,sharedAxes:true,sharedRange:true,tooltips:8,singletonHistory:true,missingMarkers:true,maxHoverShift:hoverShift,consoleErrors:errors});
     await context.close();
   }
   await writeFile(`${out}/results.json`,JSON.stringify(report,null,2));console.log(JSON.stringify(report));

@@ -112,7 +112,7 @@ function YearHeatmap({
               blockSize={size}
               blockMargin={3}
               blockRadius={2.5}
-              fontSize={11}
+              fontSize={width < 680 ? 12 : 13}
               weekStart={1}
               showMonthLabels={showMonths || width < 680}
               showTotalCount={false}
@@ -217,5 +217,8 @@ function YearHeatmap({
 export default memo(YearHeatmap);
 
 export function HeatLegend() {
-  return <div className="heat-legend" aria-label="绿跌红涨；颜色越深幅度越大"><span className="down">−3%</span><span className="swatches">{COLORS.map((color) => <i key={color} style={{ background: color }} />)}</span><span className="up">+3%</span><span className="legend-missing"><i />休市 <i className="missing-swatch" />无交易数据</span></div>;
+  return <div className="heat-legend" aria-label="绿跌红涨；颜色越深幅度越大">
+    <span className="heat-change-key"><span className="down">−3%</span><span className="swatches">{COLORS.map((color) => <i key={color} style={{ background: color }} />)}</span><span className="up">+3%</span></span>
+    <span className="legend-missing"><span><i />休市</span><span><i className="missing-swatch" />无交易数据</span></span>
+  </div>;
 }

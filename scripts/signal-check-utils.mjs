@@ -8,12 +8,12 @@ export async function launch() {
   return chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH} : ["darwin","win32"].includes(process.platform) ? {channel:"chrome"} : {});
 }
 export async function openPage(browser,width) {
-  const context = await browser.newContext({viewport:{width,height:900},isMobile:width===390,hasTouch:width===390,reducedMotion:"reduce"});
+  const context = await browser.newContext({viewport:{width,height:900},isMobile:width<=390,hasTouch:width<=390,reducedMotion:"reduce"});
   const page=await context.newPage(), errors=[];
   page.on("pageerror",e=>errors.push(e.message));
   page.on("console",m=>{if(m.type()==="error" && /hydration|React error|Uncaught/i.test(m.text()))errors.push(m.text());});
   await page.goto(base,{waitUntil:"networkidle"});
-  await page.locator(".signal-trigger").nth(9).waitFor();
+  await page.locator(".signal-trigger").nth(7).waitFor();
   await page.evaluate(()=>document.fonts.ready);
   const initial=await page.evaluate(()=>JSON.parse(document.querySelector("#trendbeak-data").textContent));
   return {page,context,initial,errors};
@@ -21,7 +21,7 @@ export async function openPage(browser,width) {
 export async function layout(page,label) {
   const result=await page.evaluate(()=>{
     const width=document.documentElement.clientWidth;
-    return {width,scroll:document.documentElement.scrollWidth,invalid:[...document.querySelectorAll(".market-card,.calendar-section,.calendar-section svg,.date-picker-popover,.date-picker-calendar .rdp-month_grid,.market-analysis,.signal-trigger,.signal-tooltip,.search-popover,.trend-chart,.chart-tooltip,.trend-range-control,.navigator-track")].flatMap(el=>{
+    return {width,scroll:document.documentElement.scrollWidth,invalid:[...document.querySelectorAll(".market-card,.calendar-section,.calendar-section svg,.market-analysis,.signal-trigger,.signal-tooltip,.search-popover,.trend-chart,.chart-tooltip,.trend-range-control,.navigator-track")].flatMap(el=>{
       const r=el.getBoundingClientRect(),clipped=el instanceof HTMLElement && el.scrollWidth>el.clientWidth+1;
       return r.left < -1 || r.right > width+1 || clipped ? [{tag:el.className,left:r.left,right:r.right,clipped}] : [];
     })};
@@ -46,15 +46,8 @@ export async function bubbles(page,width,prefix) {
   }
 }
 
-export async function selectPickerDate(page,date,width) {
-  const trigger=page.getByRole("button",{name:"选择日历日期",exact:true});
-  if(width===390)await trigger.tap();else await trigger.click();
-  const popup=page.getByRole("dialog",{name:"选择交易日期",exact:true});
-  await popup.getByLabel("选择年份",{exact:true}).selectOption(date.slice(0,4));
-  await popup.getByLabel("选择月份",{exact:true}).selectOption(String(Number(date.slice(5,7))-1));
-  await layout(page,"date picker open");
-  await page.screenshot({path:`${out}/${width}-date-picker-full.png`,fullPage:true});
-  await popup.screenshot({path:`${out}/${width}-date-picker.png`});
-  await popup.locator(`button[data-picker-date="${date}"]`).click();
-  await popup.waitFor({state:"hidden"});
+export async function selectLatestCalendarDate(page,initial) {
+ const [market,snapshot]=Object.entries(initial.markets).map(([market,state])=>[market,state.snapshot]).filter(([,snapshot])=>snapshot).sort((a,b)=>a[1].asOf.localeCompare(b[1].asOf)).at(-1);
+ await page.locator(`[data-calendar-market=${market}] rect[data-date="${snapshot.asOf}"]`).click();
+ return snapshot.asOf;
 }

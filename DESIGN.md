@@ -6,7 +6,7 @@ White canvas, thin separators and tabular figures remain the foundation. UI acce
 
 Keep the original annual return heatmap grouping, shared month axis, keyboard navigation and trading-day rules. The market name, instrument, point value, return and actual quote date now live in the left market area; mobile presents a compact header above each market grid. There are no standalone quote blocks at the top. A selected day updates these readings exactly; closed or missing sessions remain empty. The four-level return colors use softened green and coral from the same palette.
 
-The DayPicker popover retains month/year navigation, disabled dates, focus return and touch support. Price dates remain per market: a common calendar selection is never used to pretend a market has a quote.
+The calendar header contains only its title and the global selected date. Selection lives in the annual heatmap and trend chart; there is no separate date picker, adjacent-date control or latest button. The return scale and closed/missing keys share one centered, wrapping legend. Price dates remain per market: a common calendar selection is never used to pretend a market has a quote.
 
 ## Trend semantics and color
 
@@ -14,7 +14,7 @@ Default to 365 natural days. The shared navigator snaps to 30, 90, 180 and 365 d
 
 Emotion color encodes its Y value, not elapsed time. The scale is flat green at 0–20, then continuously blends through gray green at 40, gold at 50 and apricot at 65, reaching coral at 80–100. A user-space vertical SVG gradient shares the fixed 0–100 scale; points and tooltip values use the same sRGB interpolation. This display scale does not change either source's scoring algorithm or verbal emotion categories. Benchmark prices use a distinguishable neutral solid line and a separate point-value axis.
 
-The header is explicitly the latest dated emotion observation, independent of the quote date and calendar selection. Historical and hovered emotion values belong to the date tooltip. Missing values stay missing; a lone CNN observation is a point, never a fabricated yearly line. Emotion is not gated by whether a price bar exists on that date.
+Trend headers contain only the market name. Curve-end labels show numeric values only; their accessible names preserve the series, actual observation date and emotion category. Historical and hovered values belong to the date tooltip. Larger fixed-pixel axis labels, dates, legends and readouts share the calendar’s typography. Missing values stay missing; a lone CNN observation is a point, never a fabricated yearly line. Emotion is not gated by whether a price bar exists on that date.
 
 ## Motion and input
 

@@ -108,8 +108,8 @@ test("dashboard SSR renders both markets and 365 real day cells per market witho
     document.querySelectorAll(".calendar-section rect[data-date]").length,
     730,
   );
-  assert.equal(document.querySelectorAll(".signal-trigger").length, 10);
-  assert.equal(document.querySelectorAll("[aria-expanded]").length, 2); // Search and the date-picker trigger.
+  assert.equal(document.querySelectorAll(".signal-trigger").length, 8);
+  assert.equal(document.querySelectorAll("[aria-expanded]").length, 1); // Search.
   assert.equal(
     document.querySelectorAll(".signal-detail,details,.sample-pill").length,
     0,
@@ -190,6 +190,6 @@ test("both unavailable markets retain compact quote retry controls inside the ca
   const document = new JSDOM(renderToStaticMarkup(React.createElement(Document, { data }))).window.document;
   assert.equal(document.querySelectorAll(".calendar-row > .market-card .market-empty button").length, 2);
   assert.equal(document.querySelectorAll(".market-grid").length, 0);
-  assert.equal(document.querySelectorAll(".date-picker-trigger").length, 0);
+  assert.equal(document.querySelectorAll(".calendar-heading button").length, 0);
   assert.doesNotMatch(document.body.textContent, /Invalid Date|日期未知/);
 });

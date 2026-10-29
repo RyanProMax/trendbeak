@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
-import { launch, openPage, layout, out } from "./signal-check-utils.mjs";
+import { launch, openPage, layout, out, selectLatestCalendarDate } from "./signal-check-utils.mjs";
 const browser = await launch(), report = [];
 const shift = (date, days) => new Date(Date.parse(date)+days*86400000).toISOString().slice(0,10);
 const graphState = page => page.locator('.trend-chart').evaluateAll(charts => charts.map(chart => ({
@@ -38,8 +38,8 @@ try {
   assert.equal(await chart.getAttribute('data-active-date'),'');
   assert.match(await page.locator('[data-analysis-market=CN] .trend-status').innerText(),/不在当前 30 日窗口/);
   await hit.scrollIntoViewIfNeeded();
-  const box=await chart.boundingBox(),right=box.width-112;
-  const position=date=>({x:box.x+32+(Date.parse(date)-Date.parse(start))/86400000/29*(right-32),y:box.y+85});
+  const box=await hit.boundingBox();
+  const position=date=>({x:box.x+(Date.parse(date)-Date.parse(start))/86400000/29*box.width,y:box.y+65});
   if(width===390)await page.touchscreen.tap(position(common).x,position(common).y);else await page.mouse.move(position(common).x,position(common).y);
   const tooltip=page.locator('.chart-tooltip');await tooltip.waitFor();
   assert.equal(await chart.getAttribute('data-active-date'),common);
@@ -94,7 +94,7 @@ try {
   await page.getByRole('button',{name:'情绪',exact:true}).click();await page.getByRole('button',{name:'大盘',exact:true}).click();
   assert.equal(await page.locator('.trend-series').first().evaluate(node=>getComputedStyle(node).animationName),'none');
   assert.equal(await page.locator('.navigator-window').evaluate(node=>getComputedStyle(node).transitionDuration),'0s');
-  await page.getByRole('button',{name:'30 日',exact:true}).click();await page.getByRole('button',{name:'返回最新日期'}).click();
+  await page.getByRole('button',{name:'30 日',exact:true}).click();await selectLatestCalendarDate(page,initial);
   await layout(page,'interaction complete');assert.deepEqual(errors,[]);
   report.push({width,selectionKeepsWindow:true,exactTooltip:true,calendarLinked:true,stableCurveNodes:true,outsideWindow:true,keyboard:true,fourSnapRanges:true,touch:width===390,missingUSHistoryNotConnected:true,reducedMotion:true,errors});
   await context.close();

@@ -77,6 +77,4 @@ test("emotion colors encode score thresholds continuously rather than time posit
     const a=channels(palette.sentimentColor(threshold-.001)),b=channels(palette.sentimentColor(threshold+.001));
     assert.ok(a.every((value,i)=>Math.abs(value-b[i])<=1));
   }
-  const snapshot=fixture();assert.equal(series.latestSentiment(snapshot).date,"2026-10-29");
-  assert.equal(series.latestSentiment({...snapshot,sentiment:{observations:[]}}),null);
 });

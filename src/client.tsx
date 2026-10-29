@@ -2,7 +2,6 @@ import "@fontsource-variable/dm-sans/wght.css";
 import "@fontsource-variable/noto-sans-sc/wght.css";
 import { hydrateRoot } from "react-dom/client";
 import Document, { type PageData } from "./App";
-import "@daypicker/react/style.css";
 import "./styles.css";
 
 const payload = document.querySelector<HTMLScriptElement>("#trendbeak-data");

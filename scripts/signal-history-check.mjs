@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {writeFile} from "node:fs/promises";
-import {launch,openPage,layout,bubbles,out,selectPickerDate} from "./signal-check-utils.mjs";
+import {launch,openPage,layout,bubbles,out,selectLatestCalendarDate} from "./signal-check-utils.mjs";
 const browser=await launch(),report=[];
 try{
  for(const width of [1440,390]){
@@ -42,14 +42,11 @@ try{
   await page.keyboard.press("ArrowDown");
   const keyboardDate=await page.locator('[data-analysis-market=CN] .signals').getAttribute("data-date");
   assert.notEqual(cn.days.find(d=>d.date===keyboardDate)?.status,"closed");
-  await page.getByRole("button",{name:"返回最新日期"}).click();
-  for(const market of ["CN","US"])assert.equal(await page.locator(`[data-analysis-market=${market}] .signals`).getAttribute("data-date"),initial.markets[market].snapshot.asOf);
-  await selectPickerDate(page,date,width);
-  assert.equal(await page.locator('[data-analysis-market=CN] .signals').getAttribute("data-date"),date);
-  await page.getByRole("button",{name:"后一个交易日期"}).click();
-  assert.notEqual(await page.locator('[data-analysis-market=CN] .signals').getAttribute("data-date"),date);
+  const latest=await selectLatestCalendarDate(page,initial);
+  for(const market of ["CN","US"])assert.equal(await page.locator(`[data-analysis-market=${market}] .signals`).getAttribute("data-date"),latest);
+  assert.equal(await page.locator('.global-selected-date').getAttribute('datetime'),latest);
   await layout(page,"history complete");assert.deepEqual(errors,[]);
-  report.push({width,linkedHistory:true,correctValues:true,closedDatesDisabled:true,holidays:true,keyboard:true,datePicker:true,latest:true,historicalTooltips:10,noInventedUSHistory:true,consoleErrors:errors});await context.close();
+  report.push({width,linkedHistory:true,correctValues:true,closedDatesDisabled:true,holidays:true,keyboard:true,latestFromHeatmap:true,historicalTooltips:8,noInventedUSHistory:true,consoleErrors:errors});await context.close();
  }
  await writeFile(`${out}/history-results.json`,JSON.stringify(report,null,2));console.log(JSON.stringify(report));
 }finally{await browser.close();}
