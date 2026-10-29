@@ -1,12 +1,13 @@
-const CACHE_NAME = "stock-daily-shell-v4";
+const CACHE_NAME = "stock-daily-shell-v9";
 const PRECACHE = [
   "/offline",
-  "/manifest.webmanifest?v=4",
-  "/favicon.svg?v=4",
-  "/apple-touch-icon.png?v=4",
-  "/app-icon-192.png?v=4",
-  "/app-icon-512.png?v=4",
-  "/app-icon-maskable-512.png?v=4",
+  "/manifest.webmanifest?v=9",
+  "/favicon.svg?v=9",
+  "/stockdaily-wordmark.svg?v=9",
+  "/apple-touch-icon.png?v=9",
+  "/app-icon-192.png?v=9",
+  "/app-icon-512.png?v=9",
+  "/app-icon-maskable-512.png?v=9",
 ];
 
 self.addEventListener("install", (event) => {

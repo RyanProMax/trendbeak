@@ -16,6 +16,7 @@ import {
 } from "@floating-ui/react";
 import type { MarketSnapshot, Signal } from "../market-types";
 import { number, tone, displayDate } from "../lib/market-format";
+import { sentimentState } from "../lib/chart-series";
 
 export default function SignalMeter({
   signal,
@@ -61,6 +62,16 @@ export default function SignalMeter({
   const difference =
     value !== null && signal.previous !== null ? value - signal.previous : null;
   const formatted = `${number(value, signal.digits, signal.id === "trend")}${value === null ? "" : signal.unit}`;
+  const status = value === null ? "暂无数据" : signal.id === "sentiment" ? sentimentState(value)
+    : signal.id === "rsi" ? value < 30 ? "超卖" : value > 70 ? "超买" : "中性"
+    : signal.id === "trend" ? Math.abs(value) < .05 ? "贴近均线" : value < 0 ? "低于均线" : "高于均线"
+    : signal.id === "volume" ? value < 1 ? "缩量" : value > 1 ? "放量" : "均量"
+    : value < 20 ? "靠近低点" : value > 80 ? "靠近高点" : "区间中部";
+  const labels = signal.id === "rsi" ? ["超卖 <30", "中性 30–70", "超买 >70"]
+    : signal.id === "trend" ? ["低于均线", "0 · 贴近", "高于均线"]
+    : signal.id === "volume" ? ["缩量 <1×", "均量 1×", "放量 >1×"]
+    : signal.id === "range" ? ["0 · 一年低点", "", "100 · 一年高点"] : signal.labels;
+  const ticks = signal.id === "rsi" ? [30, 70] : signal.id === "range" ? [] : [50];
   return (
     <article className="signal" data-signal={signal.id}>
       <button
@@ -73,12 +84,13 @@ export default function SignalMeter({
       >
         <span className="signal-top">
           <span className="signal-name">
-            <strong>{signal.name}</strong>
-            <small>{signal.period}</small>
+            <strong>{signal.id === "trend" ? "MA20 偏离" : signal.id === "sentiment" ? "情绪" : signal.name}</strong>
+            <small>{signal.id === "rsi" ? "14 日 · 0–100" : signal.id === "trend" || signal.id === "sentiment" ? "" : signal.period}</small>
           </span>
           <span className="signal-reading">
-            <b>{number(value, signal.digits, signal.id === "trend")}</b>
+            <b>{value === null ? "暂无数据" : number(value, signal.digits, signal.id === "trend")}</b>
             {value !== null && <small>{signal.unit}</small>}
+            {value !== null && <span className="signal-status">· {status}</span>}
           </span>
         </span>
         <span
@@ -94,16 +106,17 @@ export default function SignalMeter({
           }
           aria-valuetext={value === null ? "暂无数据" : formatted}
         >
-          <span className="meter-center" />
+          {ticks.map((tick) => <span className="meter-tick" key={tick} style={{ left: `${tick}%` }} />)}
           {value !== null && (
             <span className="meter-marker" style={{ left: `${position}%` }} />
           )}
         </span>
         <span className="meter-labels">
-          {signal.labels.map((label) => (
+          {labels.map((label) => (
             <span key={label}>{label}</span>
           ))}
         </span>
+        {signal.id === "trend" && <span className="range-ends"><span>−10%</span><span>+10%</span></span>}
       </button>
       {open && (
         <FloatingPortal>

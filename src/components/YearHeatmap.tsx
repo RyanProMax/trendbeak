@@ -1,6 +1,6 @@
 import { cloneElement, useEffect, useId, useMemo, useRef, useState } from "react";
 import { ActivityCalendar } from "react-activity-calendar";
-import { autoUpdate, flip, FloatingPortal, offset, shift, useFloating } from "@floating-ui/react";
+import { autoUpdate, flip, FloatingPortal, offset, shift, useDismiss, useFloating, useInteractions } from "@floating-ui/react";
 import type { CalendarDay, MarketSnapshot } from "../market-types";
 import { displayDate, number } from "../lib/market-format";
 
@@ -39,34 +39,40 @@ function dayValue(day: CalendarDay) {
 export default function YearHeatmap({
   snapshot,
   selectedDate,
-  previewDate: hoverDate,
-  onPreviewDate: setHoverDate,
+  days,
+  showMonths = true,
   onSelectDate,
 }: {
   snapshot: MarketSnapshot;
   selectedDate: string;
-  previewDate: string | null;
-  onPreviewDate: (date: string | null) => void;
+  days: CalendarDay[];
+  showMonths?: boolean;
   onSelectDate: (date: string) => void;
 }) {
   const data = useMemo(
     () =>
-      snapshot.days.map((day) => ({
+      days.map((day) => ({
         ...day,
         count: day.change ?? 0,
         level: level(day.change),
       })),
-    [snapshot.days],
+    [days],
   );
-  const [width, setWidth] = useState(580);
+  const [width, setWidth] = useState(1000);
+  const [hoverDate, setHoverDate] = useState<string | null>(null);
+  const hoverDay = data.find((day) => day.date === hoverDate);
+  const focusDate = data.some((day) => day.date === selectedDate && day.status !== "closed") ? selectedDate : data.filter((day) => day.status !== "closed").at(-1)?.date;
   const closedTooltipId = useId();
-  const showClosedTooltip = data.some((day) => day.date === hoverDate && day.status === "closed");
-  const { refs, floatingStyles } = useFloating({
-    open: showClosedTooltip,
+  const showTooltip = !!hoverDay;
+  const { refs, floatingStyles, context } = useFloating({
+    open: showTooltip,
+    onOpenChange: (open) => { if (!open) setHoverDate(null); },
     placement: "top", strategy: "fixed",
     middleware: [offset(8), flip({ padding: 12 }), shift({ padding: 12 })],
     whileElementsMounted: autoUpdate,
   });
+  const dismiss = useDismiss(context);
+  const { getFloatingProps } = useInteractions([dismiss]);
   const container = useRef<HTMLElement>(null);
   useEffect(() => {
     if (!container.current) return;
@@ -76,7 +82,7 @@ export default function YearHeatmap({
     observer.observe(container.current);
     return () => observer.disconnect();
   }, []);
-  const groupWeeks = width < 290 ? 14 : width < 450 ? 18 : 27;
+  const groupWeeks = width < 310 ? 14 : width < 680 ? 18 : 53;
   const startOffset =
     (new Date(`${data[0].date}T12:00:00Z`).getUTCDay() + 6) % 7;
   const firstLength = groupWeeks * 7 - startOffset;
@@ -106,6 +112,7 @@ export default function YearHeatmap({
               blockRadius={2.5}
               fontSize={11}
               weekStart={1}
+              showMonthLabels={showMonths || width < 680}
               showTotalCount={false}
               showColorLegend={false}
               showWeekdayLabels={["mon", "wed", "fri"]}
@@ -132,11 +139,11 @@ export default function YearHeatmap({
                 const closed = day.status === "closed";
                 return cloneElement(block, {
                   role: "button",
-                  tabIndex: !closed && day.date === selectedDate ? 0 : -1,
+                  tabIndex: !closed && day.date === focusDate ? 0 : -1,
                   "aria-label": `${displayDate(day.date, true)}，${dayValue(day)}`,
                   "aria-disabled": closed || undefined,
-                  "aria-describedby": closed && hoverDate === day.date ? closedTooltipId : undefined,
-                  "aria-pressed": day.date === selectedDate,
+                  "aria-describedby": hoverDate === day.date ? closedTooltipId : undefined,
+                  "aria-pressed": !closed && day.date === selectedDate,
                   fill: missing ? "#fff" : block.props.fill,
                   ...{"data-date": day.date},
                   style: {
@@ -157,7 +164,7 @@ export default function YearHeatmap({
                     setHoverDate(day.date);
                   },
                   onMouseLeave: () => setHoverDate(null),
-                  onFocus: () => setHoverDate(day.date),
+                  onFocus: (event) => { refs.setReference(event.currentTarget); setHoverDate(day.date); },
                   onBlur: () => setHoverDate(null),
                   onKeyDown: (event) => {
                     if (closed) return;
@@ -195,23 +202,16 @@ export default function YearHeatmap({
           </div>
         ))}
       </div>
-      <div className="calendar-bottom">
-        <div className="heat-legend" aria-label="绿跌红涨；颜色越深幅度越大">
-          <span className="down">−3%</span>
-          <span className="swatches">
-            {COLORS.map((color) => (
-              <i key={color} style={{ background: color }} />
-            ))}
-          </span>
-          <span className="up">+3%</span>
-        </div>
-      </div>
-      {showClosedTooltip && (
+      {showTooltip && hoverDay && (
         <FloatingPortal>
-          <div id={closedTooltipId} role="tooltip" className="compact-tooltip closed-tooltip"
-            ref={refs.setFloating} style={floatingStyles}>休市</div>
+          <div id={closedTooltipId} role="tooltip" className={`compact-tooltip${hoverDay.status === "closed" ? " closed-tooltip" : ""}`}
+            ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()}><time dateTime={hoverDay.date}>{displayDate(hoverDay.date, true)}</time> · {dayValue(hoverDay)}{hoverDay.change !== null ? hoverDay.date === snapshot.asOf && snapshot.session === "trading" ? " · 盘中" : " · 收盘" : ""}</div>
         </FloatingPortal>
       )}
     </section>
   );
+}
+
+export function HeatLegend() {
+  return <div className="heat-legend" aria-label="绿跌红涨；颜色越深幅度越大"><span className="down">−3%</span><span className="swatches">{COLORS.map((color) => <i key={color} style={{ background: color }} />)}</span><span className="up">+3%</span><span className="legend-missing"><i />休市 <i className="missing-swatch" />无交易数据</span></div>;
 }

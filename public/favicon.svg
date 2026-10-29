@@ -1,7 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none">
-  <defs><linearGradient id="spectrum" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-    <stop stop-color="#d9758d"/><stop offset=".22" stop-color="#d69d55"/><stop offset=".43" stop-color="#7baf83"/><stop offset=".62" stop-color="#539da8"/><stop offset=".8" stop-color="#7d80bd"/><stop offset="1" stop-color="#ac78b4"/>
-  </linearGradient></defs>
-  <rect width="40" height="40" rx="11" fill="url(#spectrum)"/>
-  <path d="M27.5 11.5H16.7L11.5 19.5H28.5L23.3 28.5H12.5" stroke="#fff" stroke-width="3.3" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><g fill="none" stroke-width="2.5" stroke-linecap="round"><path d="M3 9V17" stroke="#4F9D83"/><path d="M7.5 6V19" stroke="#8DB399"/><path d="M12 3V21" stroke="#C8BD83"/><path d="M16.5 5V19" stroke="#D9A183"/><path d="M21 8V18" stroke="#CB7774"/></g></svg>

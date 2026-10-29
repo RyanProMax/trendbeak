@@ -1,6 +1,8 @@
 {
   "version": 1,
-  "include": ["/*"],
+  "include": [
+    "/*"
+  ],
   "exclude": [
     "/static/*",
     "/og.png",
@@ -13,6 +15,7 @@
     "/app-icon-192.png",
     "/app-icon-512.png",
     "/app-icon-maskable-512.png",
-    "/apple-touch-icon.png"
+    "/apple-touch-icon.png",
+    "/stockdaily-wordmark.svg"
   ]
 }

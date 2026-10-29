@@ -1,37 +1,25 @@
 # Stock Daily visual system
 
-The interface leads with today's market values, one year of daily returns, and five signals. Both markets remain visible; stock search replaces the corresponding market card.
+The interface follows the accepted V6 layout and V9 logo. White space, thin separators and tabular figures lead with real market values, the complete annual calendars, and five existing signals. The framework, data sources and indicator calculations are unchanged.
 
-## Palette and typography
+## Brand and color
 
-- Brand: a soft rainbow spectrum with a compact S mark; interactive accents use lavender `#7561b4`.
-- Canvas: `#faf9fc` with subtle rose/lavender gradients; cards and floating details: white. Thin rainbow accents run along the header and card edges.
-- Gains: coral/red. Losses: green. Heatmap intensity follows return magnitude.
-- Meters: continuous green–neutral–red gradient; missing readings use a neutral track without a marker.
-- Self-hosted DM Sans Variable and Noto Sans SC Variable.
+The supplied wordmark uses five soft colors: green `#4F9D83`, sage `#8DB399`, gold `#C8BD83`, apricot `#D9A183`, coral `#CB7774`. `stock` follows the same gradient; `daily` remains gray lavender. The icon is five thin round-ended bars. Header, favicon, install icons and offline icon use these assets.
 
-`src/styles.css` is the authority for dimensions, colors and responsive behavior.
+The canvas is `#fdfdfc`. Red means gains; green means losses. Emotion is a purple solid line and the benchmark a charcoal dashed line, identified by a shared legend. Technical meters use neutral rails and purple position markers. Self-hosted DM Sans Variable and Noto Sans SC Variable remain in place.
 
-## Structure
+## Layout and dates
 
-A horizontally centered stock search sits in the header. The brand stays on the left. The header applies `padding-left: calc(100vw - 100%)` internally to balance native scrollbar width while its background and rainbow edge span the page.
+Two quote summaries precede one annual calendar section. A shares and US calendars share the same 365 calendar dates, month columns and return legend. Verified holidays stay disabled; missing trading-day returns remain outlined empty cells. The two grids wrap into matching groups on mobile, without horizontal swiping.
 
-Desktop shows A shares on the left and US markets on the right. At 760px and below, the cards stack in the same order. Calendar rows wrap to preserve readable cells; no horizontal swipe is needed inside a market card.
+A shared date control updates both markets' quotes and available indicators. A market closed on that date shows no invented quote or indicator. Returning to latest restores each market's actual last session date independently. Session dates are shown once above the calendars; hovering previews details in a floating tooltip without moving the layout.
 
-The one-year date range appears once above both markets. Each card keeps the date, session and daily return in a fixed-width pastel rainbow badge at the top right. Dates and session labels stay close together, and the same styling applies to current and historical dates. A return icon immediately to its left restores the latest date; its hover/focus bubble reads “返回最新日期”. The card's rainbow edge follows its rounded corners.
+## Signals
 
-## Interaction
+A single 30/90 calendar-day control updates both charts on the same date axis. Emotion uses the left 0–100 scale, benchmark prices the right scale. Only dated observations are drawn; missing trading-day observations break the path. A lone CNN observation remains a point. Individual-stock selection changes its quote, calendar and technical readings while benchmark comparison continues to use the actual market index.
 
-- The calendar uses `react-activity-calendar`. Hover previews a day's date, session and return in the card's top-right badge without moving or resizing it; leaving the calendar restores the selected date. The calendar footer contains only the color legend. Selecting a trading date changes the quote and all available indicators to that date. Selection uses a white fine border and a lavender halo; missing readings remain empty. Closed dates are disabled and show “休市” on hover, preserving the selected day's indicators.
-- An instrument switch preserves the previous card until its matching name and data can be committed together. A short opacity transition and a thin loading line show progress without collapsing the card. Already visible markets do not force a page scroll.
-- A day can also be selected by click or keyboard. Arrow keys skip closed days; focused dates have a soft halo.
-- Indicator rows never expand. Floating UI positions explanations above or below the trigger and keeps them within the viewport. Hover, focus and touch share the same content; Escape and outside interaction dismiss it.
-- Search supports keyboard navigation, loading/error/empty states and up to ten local recent selections.
-
-## Content discipline
-
-Only market information and necessary data-state copy belongs in the interface. No design-demo badge, repeated page description, internal provider identifier or implementation terminology. Dates are localized. Unknown readings stay unknown; partial intraday volume is not compared with complete historical days.
+RSI retains Wilder 14-day values and explicit 30/70 thresholds. MA20 retains its −10% to +10% display range. Volume compares the selected complete day with the preceding 20 complete days, with 1× at the midpoint; unavailable values have no marker. The 52-week rail marks the one-year low and high and does not represent a historical percentile or trading recommendation. Sources, definitions and previous values remain in hover/focus/touch bubbles.
 
 ## Acceptance
 
-Review full-page screenshots at 1440px and 390px, plus every indicator bubble and search state. Check page and component overflow, tooltip boundaries, keyboard/touch behavior, centering with scrollbars, and zero vertical movement while hovering calendar days. The automated entry point is `scripts/signal-visual-check.mjs`.
+Run `pnpm build`, `pnpm test`, `pnpm security:check` and `pnpm test:visual` with the local preview running. The browser scripts cover 1440px desktop and 390px mobile: full-page screenshots, every current/historical signal bubble, aligned calendars, shared dates, holidays, keyboard navigation, return to latest, real stock search/switching, long names, refresh failure, retry, search history and offline layout. Review screenshots in addition to automated overflow and console checks.
