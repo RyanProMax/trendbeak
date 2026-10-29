@@ -85,7 +85,8 @@ test("selection is exact-date, retains prior values and does not fill weekends w
   delete snapshot.history["2026-08-16"];
   const weekend = signals.signalsForDate(snapshot, "2026-08-16");
   assert.ok(weekend.every((s) => s.value === null));
-  assert.ok(weekend.every((s) => s.unavailable.includes("休市")));
+  assert.ok(weekend.slice(1).every((s) => s.unavailable.includes("休市")));
+  assert.match(weekend[0].unavailable, /该日贪恐读数暂缺/);
   assert.equal(signals.signalsForDate(snapshot, last)[0].value, 66);
 });
 test("CN sentiment validates scores and dates, preserving the published historical sequence", () => {
@@ -158,4 +159,17 @@ test("A-share sentiment retains dated observations needed by older 365-day windo
   const result = sentiment.parseChinaSentiment("date,fear_greed_index\n2025-01-02,32\n2026-10-28,42\n", Date.parse("2026-10-29T12:00:00Z"));
   assert.equal(result.observations[0].date, "2025-01-02");
   assert.equal(result.observations[0].value, 32);
+});
+
+test("a dated emotion observation is independent of the benchmark quote session", () => {
+  const snapshot = {
+    instrument: { market: "US" }, asOf: "2026-10-28", session: "closed", signals: signals.calculateSignals(bars()),
+    days: [{ date: "2026-10-29", status: "missing" }], history: { "2026-10-28": { price: 100, change: 0, values: { rsi: 50, trend: 0, volume: 1, range: 50 }, previous: { rsi: 49, trend: 0, volume: 1, range: 49 }, range: null } },
+    sentiment: { observations: [{ date: "2026-10-29", value: 36.5, previous: 35 }], source: { name: "Dated source", url: "https://example.test" }, description: "Market emotion" },
+  };
+  const observation = signals.signalsForDate(snapshot, "2026-10-29");
+  assert.equal(observation[0].value, 36.5);
+  assert.equal(observation[0].unavailable, null);
+  assert.ok(observation.slice(1).every(signal => signal.value === null));
+  assert.equal(signals.signalsForDate(snapshot, "2026-10-28")[0].value, null);
 });

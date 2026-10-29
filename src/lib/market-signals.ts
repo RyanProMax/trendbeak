@@ -285,15 +285,11 @@ export function signalsForDate(
     unit: "",
     digits: 1,
     labels: ["0 恐惧", "50", "100 贪婪"],
-    value: reading ? (observation?.value ?? null) : null,
-    previous: reading ? (observation?.previous ?? null) : null,
+    value: observation?.value ?? null,
+    previous: observation?.previous ?? null,
     explanation:
       sentiment?.description ?? "反映整个市场的情绪，不是单只股票的评分。",
-    unavailable: !reading
-      ? missing
-      : observation
-        ? null
-        : (sentiment?.error ?? "该日贪恐读数暂缺。"),
+    unavailable: observation ? null : (sentiment?.error ?? "该日贪恐读数暂缺。"),
     source: sentiment?.source,
     previousLabel: "前次发布",
     note: sentiment?.historyUnavailable,

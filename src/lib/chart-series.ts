@@ -66,3 +66,8 @@ export function trendReading(snapshot: MarketSnapshot, benchmark: MarketSnapshot
     closed: isExchangeClosed(date, snapshot.instrument.market),
   };
 }
+
+/** Latest is independent of the quote session and calendar selection. */
+export function latestSentiment(snapshot: MarketSnapshot) {
+  return snapshot.sentiment?.observations.reduce<NonNullable<MarketSnapshot["sentiment"]>["observations"][number] | null>((latest, observation) => !latest || observation.date > latest.date ? observation : latest, null) ?? null;
+}

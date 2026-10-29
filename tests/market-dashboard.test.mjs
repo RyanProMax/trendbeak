@@ -182,3 +182,14 @@ test("market names and hydration data cannot escape HTML, including partial outa
     attack,
   );
 });
+
+test("both unavailable markets retain compact quote retry controls inside the calendar", async () => {
+  const { default: Document } = await vite.ssrLoadModule("/src/App.tsx");
+  const { BENCHMARKS } = await vite.ssrLoadModule("/src/market-types.ts");
+  const data = { requestUrl: "https://example.test/", markets: Object.fromEntries(["CN","US"].map(market => [market, { instrument: BENCHMARKS[market], snapshot: null, error: "行情暂不可用", retryable: true }])) };
+  const document = new JSDOM(renderToStaticMarkup(React.createElement(Document, { data }))).window.document;
+  assert.equal(document.querySelectorAll(".calendar-row > .market-card .market-empty button").length, 2);
+  assert.equal(document.querySelectorAll(".market-grid").length, 0);
+  assert.equal(document.querySelectorAll(".date-picker-trigger").length, 0);
+  assert.doesNotMatch(document.body.textContent, /Invalid Date|日期未知/);
+});

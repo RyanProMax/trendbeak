@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import test, { before, after } from "node:test";
 import { createServer } from "vite";
-let vite, series, paths;
+let vite, series, paths, palette;
 before(async () => {
   vite = await createServer({ configFile: false, appType: "custom", server: { middlewareMode: true, hmr: false } });
   series = await vite.ssrLoadModule("/src/lib/chart-series.ts");
   paths = await vite.ssrLoadModule("/src/lib/chart-path.ts");
+  palette = await vite.ssrLoadModule("/src/lib/brand-palette.ts");
 });
 after(async () => { await vite?.close(); });
 function fixture() {
@@ -64,4 +65,18 @@ test("monotone display paths preserve observations and introduce no extra extrem
     previous = [x3,y3]; index++;
   }
   assert.equal(index, points.length);
+});
+
+test("emotion colors encode score thresholds continuously rather than time position", () => {
+  assert.equal(palette.sentimentColor(0), palette.sentimentColor(20));
+  assert.equal(palette.sentimentColor(80), palette.sentimentColor(100));
+  for (const stop of palette.EMOTION_STOPS) assert.equal(palette.sentimentColor(stop.value), stop.color);
+  assert.notEqual(palette.sentimentColor(35), palette.sentimentColor(65));
+  const channels = color => color.startsWith("#") ? [1,3,5].map(i=>parseInt(color.slice(i,i+2),16)) : color.match(/\d+/g).map(Number);
+  for(const threshold of [20,40,50,65,80]) {
+    const a=channels(palette.sentimentColor(threshold-.001)),b=channels(palette.sentimentColor(threshold+.001));
+    assert.ok(a.every((value,i)=>Math.abs(value-b[i])<=1));
+  }
+  const snapshot=fixture();assert.equal(series.latestSentiment(snapshot).date,"2026-10-29");
+  assert.equal(series.latestSentiment({...snapshot,sentiment:{observations:[]}}),null);
 });

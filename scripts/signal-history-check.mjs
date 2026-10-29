@@ -37,7 +37,7 @@ try{
   await bubbles(page,width,"historical");
   // Missing market-specific sessions display no invented reading when the other market trades.
   const divergent=cn.days.find(d=>d.status==="trading" && us.days.find(u=>u.date===d.date)?.status==="closed");
-  if(divergent){await calendar.locator(`rect[data-date="${divergent.date}"]`).click();assert.equal(await page.locator('[data-market=US] .quote').innerText(),"—");assert.match(await page.locator(".session-dates").innerText(),/美股.*休市/);}
+  if(divergent){await calendar.locator(`rect[data-date="${divergent.date}"]`).click();assert.equal(await page.locator('[data-market=US] .quote').innerText(),"—");assert.match(await page.locator("[data-market=US] .quote-session").innerText(),/休市/);}
   await calendar.locator(`rect[data-date="${date}"]`).click();
   await page.keyboard.press("ArrowDown");
   const keyboardDate=await page.locator('[data-analysis-market=CN] .signals').getAttribute("data-date");

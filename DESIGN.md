@@ -1,19 +1,29 @@
 # trendbeak visual system
 
-White canvas, thin separators, tabular figures and the approved five-bar icon remain the visual foundation. The lowercase wordmark uses a muted green-to-coral gradient for `trend` and gray lavender for `beak`. Font outlines are generated from the existing DM Sans font, so the SVG is portable and independent of installed fonts.
+White canvas, thin separators and tabular figures remain the foundation. UI accents derive from the approved five-bar logo: green, gray green, gold, apricot and coral. The existing wordmark and its gray-lavender `beak` stay unchanged. Small text uses darker related tones for legibility.
 
-## Calendar
+## Calendar and quotes
 
-The annual return heatmap and its responsive grouping, shared month axis, color scale, date selection and previews are restored directly from commit 1ffc080. This is independent of the date selection popover.
+Keep the original annual return heatmap grouping, shared month axis, keyboard navigation and trading-day rules. The market name, instrument, point value, return and actual quote date now live in the left market area; mobile presents a compact header above each market grid. There are no standalone quote blocks at the top. A selected day updates these readings exactly; closed or missing sessions remain empty. The four-level return colors use softened green and coral from the same palette.
 
-Only the native date-input popup is replaced with DayPicker 10.0.2. Its small floating panel uses the existing lavender accent, rounded days, month/year navigation and keyboard focus. Escape and outside press dismiss it; selecting a permitted trading date updates both markets and returns focus to the trigger. Dates use UTC calendar labels, and the same existing trading-day predicate controls disabled dates.
+The DayPicker popover retains month/year navigation, disabled dates, focus return and touch support. Price dates remain per market: a common calendar selection is never used to pretend a market has a quote.
 
-## Signals
+## Trend semantics and color
 
-A shared miniature navigator snaps its left edge to 30, 90, 180 and 365 natural-day windows; the latest available benchmark date fixes the right edge. Dragging, touch, four small stop buttons and keyboard arrows/Home/End provide equivalent control. Vertical touch scrolling does not change the range. Emotion and benchmark prices keep separate axes and shared line semantics. Calendar selection and chart inspection update only cursors and exact-date readings, never the paths or index domains. Out-of-window selection has a short explicit state. Hover, focus and touch show a clamped date tooltip; chart selection updates the calendar. Legend buttons toggle each line and its scale. Monotone display curves pass through real observations without extra extrema; missing trading observations split paths. A short range-change fade respects reduced motion and does not restart on hover. No observations are invented or forward-filled. An explicit missing-state caption identifies unavailable emotion history.
+Default to 365 natural days. The shared navigator snaps to 30, 90, 180 and 365 days, with its right edge anchored to the latest benchmark session. Calendar selection and hover update cursors and exact-date readings, never the window, source paths or index domain. Out-of-window selection has a brief state.
 
-Technical signals show the essential name, a prominent purple numeric reading and a quiet position rail. Range endpoints, verbal states and threshold explanations are available through the same hover, focus and touch bubble. Missing values have no position marker. Each technical bubble also shows its existing raw-value history in the shared time window, with an exact-date marker. These retain their original units rather than fabricated normalized scores. Calculations and display domains remain unchanged.
+Emotion color encodes its Y value, not elapsed time. The scale is flat green at 0–20, then continuously blends through gray green at 40, gold at 50 and apricot at 65, reaching coral at 80–100. A user-space vertical SVG gradient shares the fixed 0–100 scale; points and tooltip values use the same sRGB interpolation. This display scale does not change either source's scoring algorithm or verbal emotion categories. Benchmark prices use a distinguishable neutral solid line and a separate point-value axis.
 
-## Validation
+The header is explicitly the latest dated emotion observation, independent of the quote date and calendar selection. Historical and hovered emotion values belong to the date tooltip. Missing values stay missing; a lone CNN observation is a point, never a fabricated yearly line. Emotion is not gated by whether a price bar exists on that date.
 
-Review full-page desktop 1440px and mobile 390px screenshots, all current and historical signal bubbles, calendar keyboard/touch behavior, verified holidays, missing sessions, four trend ranges, search and failure recovery. Automated overflow, date coverage, point counts and browser-error checks complement visual review. Passing a build alone is insufficient.
+## Motion and input
+
+Monotone curves pass through real observations and preserve extrema. A fixed 365-day scene holds the original paths and trading-day gaps; range changes continuously transform the clipped viewport and price scale over 420 ms. No intermediate observations are synthesized, and hover does not recreate paths. Reduced motion makes the transform immediate.
+
+Mouse clicks on the SVG interaction region have no default rectangular outline. Keyboard focus remains visible through a thin, rounded gradient stroke. Other controls keep their own focus styles. The search field rotates a small conic-gradient border layer only while hovered or focused, pauses while inactive, and is static under reduced motion.
+
+## Signals and validation
+
+Technical signals retain original units, calculations, a prominent value and quiet position rails. Thresholds, source, prior value and actual history remain in accessible hover/focus/touch bubbles. These are not six normalized emotion components.
+
+Review full-page screenshots at 1440 and 390 px plus all current and historical signal bubbles. Verify exact-date linkage, holidays, search and failures, keyboard focus, touch scrolling, range snapping, missing data and reduced motion. Sample actual intermediate transforms to verify zoom continuity, stable paths and frame pacing; a fade alone is insufficient evidence of smooth range changes.

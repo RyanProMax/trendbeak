@@ -15,8 +15,8 @@ export default function SignalHistory({ snapshot, signal, end, range }: { snapsh
     <div className="signal-history-heading"><span>近 {range} 日</span><span>{displayDate(snapshot.asOf)} · {selected ? `${number(selected.value, signal.digits, id === "trend")}${signal.unit}` : snapshot.asOf < start || snapshot.asOf > end ? "窗口外" : "无数据"}</span></div>
     <svg viewBox="0 0 260 82" role="img" aria-label={`${signal.name}真实历史，${range}自然日，单位${signal.unit || "指标值"}；缺失不补线`}>
       <line x1="4" x2="256" y1="69" y2="69" className="chart-grid" />
-      {segments.map((points, index) => points.length > 1 ? <path key={index} d={chartPath(points, x, y)} className="emotion-line" /> : <circle key={index} cx={x(points[0].date)} cy={y(points[0].value)} r="2" className="emotion-dot" />)}
-      {selected && <><line x1={x(selected.date)} x2={x(selected.date)} y1="15" y2="69" className="chart-crosshair" /><circle cx={x(selected.date)} cy={y(selected.value)} r="3" className="emotion-active" /></>}
+      {segments.map((points, index) => points.length > 1 ? <path key={index} d={chartPath(points, x, y)} className="technical-history-line" /> : <circle key={index} cx={x(points[0].date)} cy={y(points[0].value)} r="2" className="technical-history-dot" />)}
+      {selected && <><line x1={x(selected.date)} x2={x(selected.date)} y1="15" y2="69" className="chart-crosshair" /><circle cx={x(selected.date)} cy={y(selected.value)} r="3" className="technical-history-active" /></>}
       {!points.length && <text x="130" y="45" textAnchor="middle" className="chart-empty">该窗口暂无历史</text>}
       {points.length > 0 && <><text x="4" y="11" className="chart-tick">{number(high, signal.digits)}{signal.unit}</text><text x="256" y="80" textAnchor="end" className="chart-tick">{number(low, signal.digits)}{signal.unit}</text></>}
     </svg>

@@ -5,15 +5,15 @@ import type { CalendarDay, MarketSnapshot } from "../market-types";
 import { displayDate, number } from "../lib/market-format";
 
 const COLORS = [
-  "#126246",
-  "#318267",
-  "#73ae97",
-  "#bdd8ca",
-  "#eef0ed",
-  "#f1cec3",
-  "#e99985",
-  "#d86a51",
-  "#b74130",
+  "#3e7e65",
+  "#6ba18a",
+  "#9bbca9",
+  "#d1e0d5",
+  "#eef0eb",
+  "#f0dbd2",
+  "#ddb1a1",
+  "#cc8e7f",
+  "#b96e63",
 ];
 function level(change: number | null) {
   if (change === null || change === 0) return 0;

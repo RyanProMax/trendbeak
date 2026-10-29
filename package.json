@@ -14,7 +14,7 @@
     "pages:dev": "npm run preview",
     "security:check": "node scripts/check-public-repo.mjs",
     "deploy": "npm run build && wrangler pages deploy dist --project-name trendbeak --branch main --commit-dirty=true",
-    "test:visual": "node scripts/signal-visual-check.mjs && node scripts/signal-state-check.mjs && node scripts/signal-history-check.mjs && node scripts/trend-interaction-check.mjs",
+    "test:visual": "node scripts/signal-visual-check.mjs && node scripts/signal-state-check.mjs && node scripts/signal-history-check.mjs && node scripts/trend-interaction-check.mjs && node scripts/rainbow-ui-check.mjs",
     "check": "tsc --noEmit",
     "test": "npm run build && node --test --test-concurrency=4 tests/*.test.mjs"
   },

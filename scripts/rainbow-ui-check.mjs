@@ -1,0 +1,82 @@
+import assert from 'node:assert/strict';
+import {writeFile} from 'node:fs/promises';
+import {launch,openPage,layout,out} from './signal-check-utils.mjs';
+const browser=await launch(),report=[];
+try{
+ for(const width of [1440,390]){
+  const {page,context,initial,errors}=await openPage(browser,width);
+  assert.equal(await page.locator('.market-grid').count(),0);
+  assert.equal(await page.locator('.calendar-row > .market-card').count(),2);
+  assert.equal(await page.getByRole('slider',{name:'拖动选择趋势范围'}).getAttribute('aria-valuenow'),'365');
+  for(const market of ['CN','US']){
+   const observations=initial.markets[market].snapshot.sentiment.observations;
+   const latest=[...observations].sort((a,b)=>a.date.localeCompare(b.date)).at(-1);
+   const summary=page.locator(`[data-analysis-market=${market}] .emotion-summary`);
+   assert.equal(await summary.getAttribute('data-observation-date'),latest.date);
+   assert.equal(await summary.locator('.signal-reading b').innerText(),latest.value.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1}));
+   assert.match(await summary.innerText(),/最新情绪/);
+  }
+  const headline=await page.locator('.emotion-summary').allTextContents();
+  const date=Object.keys(initial.markets.CN.snapshot.history).filter(d=>initial.markets.US.snapshot.history[d]).sort().at(-40);
+  await page.locator(`[data-calendar-market=CN] rect[data-date="${date}"]`).click();await page.mouse.move(0,0);
+  assert.deepEqual(await page.locator('.emotion-summary').allTextContents(),headline,'latest emotion headline never masquerades as a selected date');
+  const usChart=page.locator('[data-analysis-market=US] .trend-chart'),usHit=usChart.locator('.chart-hit-area');
+  await usHit.scrollIntoViewIfNeeded();const box=await usChart.boundingBox();
+  const start=await usChart.getAttribute('data-start'),fraction=(Date.parse(date)-Date.parse(start))/86400000/364;
+  await page.mouse.move(box.x+32+fraction*(box.width-112-32),box.y+80);
+  await page.locator('.chart-tooltip').waitFor();assert.match(await page.locator('.chart-tooltip').innerText(),/无观测/);
+  await page.mouse.move(0,0);
+  const gradient=await page.locator('.trend-chart linearGradient[gradientUnits="userSpaceOnUse"]').first().evaluate(el=>({x1:el.getAttribute('x1'),x2:el.getAttribute('x2'),y1:el.getAttribute('y1'),y2:el.getAttribute('y2'),stops:[...el.children].map(stop=>({offset:stop.getAttribute('offset'),color:stop.getAttribute('stop-color')}))}));
+  assert.equal(gradient.x1,gradient.x2);assert.notEqual(gradient.y1,gradient.y2);
+  assert.deepEqual(gradient.stops.map(stop=>stop.offset),['0%','20%','40%','50%','65%','80%','100%']);
+  assert.equal(await page.locator('.index-line').first().evaluate(el=>getComputedStyle(el).strokeDasharray),'none');
+  const chart=page.locator('[data-analysis-market=CN] .trend-chart'),hit=chart.locator('.chart-hit-area');
+  await hit.scrollIntoViewIfNeeded();await page.mouse.click((await hit.boundingBox()).x+35,(await hit.boundingBox()).y+60);
+  assert.equal(await hit.evaluate(el=>getComputedStyle(el).outlineStyle),'none');
+  assert.equal(Number(await chart.locator('.chart-focus-ring').evaluate(el=>getComputedStyle(el).opacity)),0);
+  await page.screenshot({path:`${out}/${width}-pointer-focus.png`,fullPage:true});
+  await page.keyboard.press('Tab');await hit.focus();
+  assert.equal(await hit.evaluate(el=>el.matches(':focus-visible')),true);
+  assert.ok(Number(await chart.locator('.chart-focus-ring').evaluate(el=>getComputedStyle(el).opacity))>.5);
+  assert.ok(parseFloat(await chart.locator('.chart-focus-ring').evaluate(el=>getComputedStyle(el).strokeWidth))<=1.5);
+  await page.screenshot({path:`${out}/${width}-keyboard-focus.png`,fullPage:true});
+  await page.keyboard.press('Escape');await hit.blur();
+  await page.getByRole('button',{name:'返回最新日期'}).click();
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  const view=page.locator('.index-view').first();
+  const before=await view.evaluate(el=>getComputedStyle(el).transform);
+  const originalPaths=await page.locator('.trend-series path').evaluateAll(paths=>paths.map(path=>path.getAttribute('d')));
+  await page.getByRole('button',{name:'30 日',exact:true}).click();
+  const samples=await page.evaluate(async()=>{
+   const view=document.querySelector('.index-view'),start=performance.now(),samples=[];
+   return await new Promise(resolve=>{function frame(now){samples.push({ms:now-start,transform:getComputedStyle(view).transform});if(now-start<600)requestAnimationFrame(frame);else resolve(samples);}requestAnimationFrame(frame);});
+  });
+  const target=await view.evaluate(el=>el.style.transform);
+  assert.ok(new Set(samples.map(sample=>sample.transform)).size>4,'range zoom has actual intermediate transforms');
+  assert.notEqual(samples.at(-1).transform,before);
+  assert.deepEqual(await page.locator('.trend-series path').evaluateAll(paths=>paths.map(path=>path.getAttribute('d'))),originalPaths,'zoom never synthesizes new observation paths');
+  assert.equal(await page.locator('.trend-series').first().evaluate(el=>getComputedStyle(el).animationName),'none','not merely an opacity reveal');
+  await page.screenshot({path:`${out}/${width}-range-30.png`,fullPage:true});
+  await page.getByRole('button',{name:'365 日',exact:true}).click();await page.waitForTimeout(150);
+  await page.screenshot({path:`${out}/${width}-range-mid-motion.png`,fullPage:true});await page.waitForTimeout(350);
+  const search=page.getByRole('combobox'),field=page.locator('.search-field');
+  await page.mouse.move(0,0);await search.scrollIntoViewIfNeeded();
+  assert.equal(await field.evaluate(el=>getComputedStyle(el,'::before').animationPlayState),'paused');
+  if(width===1440)await field.hover();else await search.focus();await page.waitForTimeout(180);
+  const first=await field.evaluate(el=>getComputedStyle(el,'::before').transform);await page.waitForTimeout(180);
+  assert.notEqual(await field.evaluate(el=>getComputedStyle(el,'::before').transform),first);
+  assert.match(await field.evaluate(el=>getComputedStyle(el,'::before').backgroundImage),/conic-gradient/);
+  await search.focus();await page.screenshot({path:`${out}/${width}-search-rainbow.png`});
+  await page.emulateMedia({reducedMotion:'reduce'});
+  assert.equal(await field.evaluate(el=>getComputedStyle(el,'::before').animationName),'none');
+  await search.blur();await page.mouse.move(0,0);
+  await page.getByRole('button',{name:'30 日',exact:true}).click();
+  assert.equal(await view.evaluate(el=>getComputedStyle(el).transitionDuration),'0s');
+  await page.getByRole('button',{name:'365 日',exact:true}).click();
+  await layout(page,'rainbow final');assert.deepEqual(errors,[]);
+  const intervals=samples.slice(1).map((sample,i)=>sample.ms-samples[i].ms).sort((a,b)=>a-b);
+  report.push({width,quotesIntegrated:true,default365:true,latestEmotionDated:true,historicalEmotionNotFilled:true,verticalScoreGradient:gradient,solidBenchmark:true,noMouseBlackOutline:true,keyboardFocusRing:true,stablePathsDuringZoom:true,intermediateTransformCount:new Set(samples.map(sample=>sample.transform)).size,animationFrameMedianMs:intervals[Math.floor(intervals.length/2)],animationFrameP95Ms:intervals[Math.floor(intervals.length*.95)],animationSamples:samples,searchRotatesOnlyActive:true,reducedMotion:true,errors});
+  await context.close();
+ }
+ await writeFile(`${out}/rainbow-results.json`,JSON.stringify(report,null,2));console.log(JSON.stringify(report.map(({animationSamples,...result})=>result)));
+}finally{await browser.close();}

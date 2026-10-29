@@ -18,6 +18,8 @@ try {
   const {page,context,initial,errors}=await openPage(browser,width);
   const cn=initial.markets.CN.snapshot,us=initial.markets.US.snapshot;
   const chart=page.locator('[data-analysis-market=CN] .trend-chart'), hit=chart.locator('.chart-hit-area');
+  assert.equal(await chart.getAttribute("data-range"), "365", "default range is a full year");
+  await page.getByRole("button",{name:"30 日",exact:true}).click();
   const baseline=await graphState(page),end=baseline[0].end,start=baseline[0].start;
   const common=Object.keys(cn.history).filter(date=>us.history[date] && date>=start && date<end).sort().at(-3);
   assert.ok(common);
@@ -100,7 +102,8 @@ try {
  // Motion is enabled only for range changes, never pointer inspection.
  const {page,context}=await openPage(browser,1440);await page.emulateMedia({reducedMotion:'no-preference'});
  await page.getByRole('button',{name:'90 日',exact:true}).click();
- assert.equal(await page.locator('.trend-series').first().evaluate(node=>getComputedStyle(node).animationName),'chart-reveal');
+ assert.equal(await page.locator('.trend-view').first().evaluate(node=>getComputedStyle(node).transitionProperty),'transform');
+ assert.notEqual(await page.locator('.trend-view').first().evaluate(node=>getComputedStyle(node).transitionDuration),'0s');
  await context.close();
  await writeFile(`${out}/interaction-results.json`,JSON.stringify(report,null,2));console.log(JSON.stringify(report));
 } finally { await browser.close(); }
