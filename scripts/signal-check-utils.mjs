@@ -21,7 +21,7 @@ export async function openPage(browser,width) {
 export async function layout(page,label) {
   const result=await page.evaluate(()=>{
     const width=document.documentElement.clientWidth;
-    return {width,scroll:document.documentElement.scrollWidth,invalid:[...document.querySelectorAll(".market-card,.calendar-section,.market-calendar .rdp-month_grid,.market-analysis,.signal-trigger,.signal-tooltip,.search-popover,.trend-chart")].flatMap(el=>{
+    return {width,scroll:document.documentElement.scrollWidth,invalid:[...document.querySelectorAll(".market-card,.calendar-section,.calendar-section svg,.date-picker-popover,.date-picker-calendar .rdp-month_grid,.market-analysis,.signal-trigger,.signal-tooltip,.search-popover,.trend-chart")].flatMap(el=>{
       const r=el.getBoundingClientRect(),clipped=el instanceof HTMLElement && el.scrollWidth>el.clientWidth+1;
       return r.left < -1 || r.right > width+1 || clipped ? [{tag:el.className,left:r.left,right:r.right,clipped}] : [];
     })};
@@ -44,4 +44,17 @@ export async function bubbles(page,width,prefix) {
     await page.keyboard.press("Escape");await page.mouse.move(0,0);
     await bubble.waitFor({state:"hidden"});
   }
+}
+
+export async function selectPickerDate(page,date,width) {
+  const trigger=page.getByRole("button",{name:"选择日历日期",exact:true});
+  if(width===390)await trigger.tap();else await trigger.click();
+  const popup=page.getByRole("dialog",{name:"选择交易日期",exact:true});
+  await popup.getByLabel("选择年份",{exact:true}).selectOption(date.slice(0,4));
+  await popup.getByLabel("选择月份",{exact:true}).selectOption(String(Number(date.slice(5,7))-1));
+  await layout(page,"date picker open");
+  await page.screenshot({path:`${out}/${width}-date-picker-full.png`,fullPage:true});
+  await popup.screenshot({path:`${out}/${width}-date-picker.png`});
+  await popup.locator(`button[data-picker-date="${date}"]`).click();
+  await popup.waitFor({state:"hidden"});
 }

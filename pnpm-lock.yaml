@@ -29,6 +29,9 @@ importers:
       react:
         specifier: ^19.2.6
         version: 19.2.8
+      react-activity-calendar:
+        specifier: 3.2.1
+        version: 3.2.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react-dom:
         specifier: ^19.2.6
         version: 19.2.8(react@19.2.8)
@@ -929,6 +932,11 @@ packages:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
 
+  react-activity-calendar@3.2.1:
+    resolution: {integrity: sha512-FcdwCu7V0XzGfx3MNQ7qFuIA0IGnJ0yPu46jvDjfA33OlqIkcth096Mdpl1exR3HwLv2nbK2yJAKyBqdzk4DHw==}
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
+
   react-day-picker@10.0.2:
     resolution: {integrity: sha512-QetiKtZWE9Uaw/pM/SYNv6WPYOTRnSJ2puL0GgwkmUFMIwiY0dtjH1W4B7DOVXVNQM0ZOClGpH/heOfBSzWeiA==}
     engines: {node: '>=18'}
@@ -1761,6 +1769,14 @@ snapshots:
       source-map-js: 1.2.1
 
   punycode@2.3.1: {}
+
+  react-activity-calendar@3.2.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+    dependencies:
+      '@floating-ui/react': 0.27.19(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      date-fns: 4.4.0
+      react: 19.2.8
+    transitivePeerDependencies:
+      - react-dom
 
   react-day-picker@10.0.2(@types/react@19.2.14)(react@19.2.8):
     dependencies:

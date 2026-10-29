@@ -105,11 +105,11 @@ test("dashboard SSR renders both markets and 365 real day cells per market witho
     ["CN", "US"],
   );
   assert.equal(
-    document.querySelectorAll(".calendar-section button[data-date]").length,
+    document.querySelectorAll(".calendar-section rect[data-date]").length,
     730,
   );
   assert.equal(document.querySelectorAll(".signal-trigger").length, 10);
-  assert.equal(document.querySelectorAll("[aria-expanded]").length, 1); // Only the stock combobox.
+  assert.equal(document.querySelectorAll("[aria-expanded]").length, 2); // Search and the date-picker trigger.
   assert.equal(
     document.querySelectorAll(".signal-detail,details,.sample-pill").length,
     0,

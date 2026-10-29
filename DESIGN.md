@@ -4,9 +4,9 @@ White canvas, thin separators, tabular figures and the approved five-bar icon re
 
 ## Calendar
 
-DayPicker 10.0.2 replaces the activity-heatmap library. The full trailing 365 calendar dates remain visible in monthly layouts. A small leading-month fragment avoids wasting a whole month frame on the first few dates; the remaining months use standard numbered calendars. Both markets share dates, month placement and the return legend. Verified closed days are disabled, and unavailable sessions remain distinct from closures.
+The annual return heatmap and its responsive grouping, shared month axis, color scale, date selection and previews are restored directly from commit 1ffc080. This is independent of the date selection popover.
 
-DayPicker owns focus movement and keyboard navigation; custom buttons forward its props, disabled state and handlers. Dates are interpreted in UTC as calendar labels, without applying a second exchange-time-zone conversion. Selecting a trading date updates both markets. A closed counterpart displays missing readings instead of borrowing a different session.
+Only the native date-input popup is replaced with DayPicker 10.0.2. Its small floating panel uses the existing lavender accent, rounded days, month/year navigation and keyboard focus. Escape and outside press dismiss it; selecting a permitted trading date updates both markets and returns focus to the trigger. Dates use UTC calendar labels, and the same existing trading-day predicate controls disabled dates.
 
 ## Signals
 

@@ -7,14 +7,14 @@ try {
     const {page,context,initial,errors}=await openPage(browser,width);
     assert.equal(page.url(),base.replace(/\/$/,"")+"/");
     assert.match(await page.title(),/每日市场信号/);
-    assert.equal(await page.locator("button[data-date]").count(),730);
+    assert.equal(await page.locator("rect[data-date]").count(),730);
     assert.equal(await page.locator(".market-period").count(),1);
     assert.equal(await page.locator(".range-control").count(),1);
     assert.equal(await page.locator(".chart-legend").count(),1);
     await layout(page,width+" initial");
     const alignment=await page.evaluate(()=>{
-      const a=[...document.querySelectorAll('[data-calendar-market=CN] button[data-date]')];
-      const b=[...document.querySelectorAll('[data-calendar-market=US] button[data-date]')];
+      const a=[...document.querySelectorAll('[data-calendar-market=CN] rect[data-date]')];
+      const b=[...document.querySelectorAll('[data-calendar-market=US] rect[data-date]')];
       return a.every((cell,i)=>cell.dataset.date===b[i].dataset.date && Math.abs(cell.getBoundingClientRect().x-b[i].getBoundingClientRect().x)<1);
     });
     assert.ok(alignment,"calendar dates and columns align");
@@ -44,7 +44,7 @@ try {
     const hoverShift=await page.evaluate(async()=>{
       const target=document.querySelector(".market-signals"),top=target.getBoundingClientRect().top+scrollY;
       let max=0;
-      for(const cell of document.querySelectorAll(".calendar-section button[data-date]")){
+      for(const cell of document.querySelectorAll(".calendar-section rect[data-date]")){
         cell.dispatchEvent(new MouseEvent("mouseover",{bubbles:true}));
         await new Promise(resolve=>requestAnimationFrame(resolve));
         max=Math.max(max,Math.abs(target.getBoundingClientRect().top+scrollY-top));

@@ -9,7 +9,8 @@ import {
 } from "./market-types";
 import StockSearch from "./components/StockSearch";
 import MarketCard, { type ViewState } from "./components/MarketCard";
-import YearCalendar, { HeatLegend } from "./components/YearCalendar";
+import YearHeatmap, { HeatLegend } from "./components/YearHeatmap";
+import DatePicker from "./components/DatePicker";
 import SignalMeter from "./components/SignalMeter";
 import MarketTrend from "./components/MarketTrend";
 import { signalsForDate } from "./lib/market-signals";
@@ -191,7 +192,7 @@ function Dashboard({ data }: { data: PageData }) {
             })}</div>
             <div className={`date-control${selectedDate ? " is-historical" : ""}`}>
               <button aria-label="前一个交易日期" disabled={!previousDate} onClick={() => previousDate && selectDate(previousDate)}><ChevronLeft size={15} /></button>
-              <input type="date" aria-label="选择日历日期" min={calendarStart} max={calendarEnd} value={selectedDate ?? calendarEnd} onChange={(event) => event.target.value && selectDate(event.target.value)} />
+              <DatePicker value={selectedDate ?? calendarEnd} min={calendarStart!} max={calendarEnd} isSelectable={selectable} onSelect={selectDate} />
               <button aria-label="后一个交易日期" disabled={!nextDate} onClick={() => nextDate && selectDate(nextDate)}><ChevronRight size={15} /></button>
               <button className="latest-date-button" aria-label="返回最新日期" disabled={!selectedDate} onClick={() => { setSelectedDate(null); setDateError(""); }}>最新</button>
             </div>
@@ -201,7 +202,7 @@ function Dashboard({ data }: { data: PageData }) {
             {(["CN", "US"] as Market[]).map((market, index) => {
               const snapshot = markets[market].snapshot;
               return <div className="calendar-row" data-calendar-market={market} key={market}><h3>{market === "CN" ? "A 股" : "美股"}</h3>
-                {snapshot ? <YearCalendar snapshot={snapshot} days={alignedDays[market]} selectedDate={selectedDate ?? snapshot.asOf} onSelectDate={selectDate} />
+                {snapshot ? <YearHeatmap snapshot={snapshot} days={alignedDays[market]} selectedDate={selectedDate ?? snapshot.asOf} onSelectDate={selectDate} showMonths={index === 0 || !markets.CN.snapshot} />
                   : <p className="calendar-unavailable">行情暂不可用</p>}
               </div>;
             })}

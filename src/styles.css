@@ -72,14 +72,23 @@ main { max-width: 1248px; margin: 22px auto 64px; }
 .date-control { display: flex; align-items: center; gap: 4px; flex-shrink: 0; color: #818791; }
 .date-control button { display: grid; place-items: center; width: 24px; height: 28px; padding: 0; border-radius: 3px; }
 .date-control button:not(:disabled):hover { background: #f0edf6; color: #766592; }
-.date-control input { width: 122px; padding: 3px 0; border: 0; background: none; color: #737a84; font-size: 11px; font-variant-numeric: tabular-nums; }
+
 .date-control .latest-date-button { font-size: 11px; width: 34px; margin-left: 4px; }
 .date-error { color: #9c7056; font-size: 11px; margin: -12px 0 16px; }
 .calendar-rows { display: grid; gap: 27px; }
-.calendar-row { min-width: 0; }
-.calendar-row h3 { font-size: 14px; font-weight: 550; margin-bottom: 18px; }
-.calendar-section { min-width: 0; }
-.heat-legend { display: flex; align-items: center; gap: 5px; margin: 22px 0 0; color: #979ca4; font-size: 9px; line-height: 18px; }
+.calendar-row { display: grid; grid-template-columns: 168px minmax(0,1fr); align-items: center; min-width: 0; }
+.calendar-row h3 { font-size: 14px; font-weight: 550; }
+.calendar-section, .calendar-half { min-width: 0; }
+.calendar-groups { display: grid; gap: 18px; }
+.react-activity-calendar { max-width: 100%; color: #9a9ea6 !important; }
+.react-activity-calendar svg { display: block; max-width: 100%; height: auto; overflow: visible; }
+.react-activity-calendar__scroll-container { overflow: visible !important; }
+.react-activity-calendar rect { cursor: pointer; }
+.react-activity-calendar rect[aria-disabled="true"] { cursor: default; }
+.react-activity-calendar rect[role="button"]:focus { outline: none !important; }
+.react-activity-calendar rect[aria-pressed="true"] { filter: drop-shadow(0 0 1.5px #9784bd); }
+.react-activity-calendar rect[role="button"]:focus-visible { filter: drop-shadow(0 0 2px #8e78b8); }
+.heat-legend { display: flex; align-items: center; gap: 5px; margin: 22px 0 0 196px; color: #979ca4; font-size: 9px; line-height: 18px; }
 .swatches { display: flex; gap: 2px; align-items: center; }
 .swatches i { width: 9px; height: 9px; border-radius: 1px; }
 .legend-missing { margin-left: auto; display: flex; align-items: center; gap: 5px; }
@@ -145,11 +154,15 @@ main { max-width: 1248px; margin: 22px auto 64px; }
 @media (max-width: 1320px) {
   main, .topbar-inner { margin-left: 36px; margin-right: 36px; }
   .market-grid, .analysis-grid { gap: 50px; }
+  .calendar-row { grid-template-columns: 140px minmax(0,1fr); }
+  .heat-legend { margin-left: 168px; }
   .signal-top { flex-wrap: wrap; gap: 4px; }
 }
 @media (max-width: 900px) {
   .topbar-inner { grid-template-columns: minmax(170px,1fr) minmax(200px,336px) minmax(170px,1fr); gap: 16px; }
   .market-grid, .analysis-grid { gap: 32px; }
+  .calendar-row { grid-template-columns: 70px minmax(0,1fr); }
+  .heat-legend { margin-left: 98px; }
   .calendar-heading { flex-wrap: wrap; }
   .session-dates { order: 3; width: 100%; justify-content: flex-start; }
   .date-control { margin-left: auto; }
@@ -183,6 +196,9 @@ main { max-width: 1248px; margin: 22px auto 64px; }
   .date-control { margin-left: 0; width: 100%; justify-content: flex-end; }
   .session-dates { order: 0; font-size: 9px; gap: 5px 12px; }
   .calendar-rows { gap: 26px; }
+  .calendar-row { grid-template-columns: minmax(0,1fr); gap: 13px; }
+  .calendar-groups { gap: 16px; }
+  .heat-legend { margin-left: 28px; flex-wrap: wrap; font-size: 8px; gap: 4px; }
   .calendar-row h3 { font-size: 12px; }
   .swatches i { width: 8px; height: 8px; }
   .legend-missing { margin-left: 0; width: 100%; margin-top: 6px; }
@@ -226,21 +242,7 @@ main { max-width: 1248px; margin: 22px auto 64px; }
   .market-loading::after { animation: none; width: 100%; }
 }
 
-/* DayPicker keeps native calendar behavior; monthly layouts replace the old activity grid. */
-.market-calendar { --rdp-accent-color: #8c7db8; --rdp-day-width: 100%; --rdp-day-height: 27px; --rdp-day_button-width: 100%; --rdp-day_button-height: 25px; --rdp-day_button-border-radius: 7px; --rdp-selected-border: 1.5px solid #8c7db8; --rdp-disabled-opacity: 1; }
-.market-calendar .rdp-months { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 26px 34px; max-width: none; }
-.market-calendar .rdp-month { min-width: 0; border-top: 1px solid #eeedf0; padding-top: 11px; }
-.market-calendar .rdp-month_caption { height: 28px; font-size: 12px; font-weight: 550; color: #646c76; }
-.market-calendar .rdp-month_grid { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 3px 3px; }
-.market-calendar .rdp-weekday { font-size: 9px; font-weight: 400; color: #a0a6af; padding: 3px 0 7px; }
-.market-calendar .rdp-day { padding: 0; font-size: 10px; font-variant-numeric: tabular-nums; }
-.market-calendar .calendar-day { color: #44534c; border: 1px solid transparent; font-weight: 450; }
-.market-calendar .calendar-day:not(:disabled):hover { outline: 1px solid #a99cc3; outline-offset: 1px; }
-.market-calendar .rdp-selected .calendar-day { outline: 2px solid #8c7db8; outline-offset: 1px; font-weight: 700; }
-.market-calendar .calendar-day:disabled { color: #afb4bb; background: #f7f7f6 !important; cursor: default; }
-.market-calendar .rdp-today:not(.rdp-selected) { color: inherit; }
-.calendar-rows { gap: 34px; }
-.annual-calendar { padding-bottom: 22px; }
+/* Keep the prominent signal readings from the dashboard refinement. */
 .technical-signals .signal-top { min-height: 30px; }
 .technical-signals .meter { margin-top: 18px; }
 .technical-signals .signal-trigger { padding-bottom: 16px; }
@@ -249,30 +251,27 @@ main { max-width: 1248px; margin: 22px auto 64px; }
 .tooltip-reading b { color: #75618f; font-size: 19px; font-variant-numeric: tabular-nums; }
 .tooltip-status { margin: 2px 0 9px; color: #75618f; font-size: 12px; }
 .tooltip-scale { margin-top: 9px; color: #89828e; font-size: 10px; }
-@media(max-width:1100px) { .market-calendar .rdp-months { gap: 22px; } }
-@media(max-width:900px) { .market-calendar .rdp-months { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+.analysis-heading .meter { display: none; }
 @media(max-width:760px) {
-  .market-calendar .rdp-months { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 22px 18px; }
-  .market-calendar .rdp-month_caption { font-size: 11px; }
-  .market-calendar .rdp-month_grid { border-spacing: 2px 3px; }
-  .market-calendar .rdp-weekday { font-size: 8px; }
-  .market-calendar .rdp-day { font-size: 9px; }
-  .market-calendar { --rdp-day-height: 25px; --rdp-day_button-height: 23px; --rdp-day_button-border-radius: 6px; }
-  .calendar-row h3 { margin-bottom: 13px; }
   .range-control { gap: 16px; }
   .signals-heading .range-control { width: 100%; margin-left: 0; justify-content: flex-end; }
   .technical-signals .signal-top { min-height: 58px; }
 }
 
-.analysis-heading .meter { display: none; }
-
-.calendar-section.has-leading-fragment .rdp-month:first-child { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; padding: 0; border: 0; margin-bottom: -8px; }
-.calendar-section.has-leading-fragment .rdp-month:first-child .rdp-month_caption { height: auto; flex-shrink: 0; color: #9297a0; font-size: 10px; }
-.calendar-section.has-leading-fragment .rdp-month:first-child .rdp-month_grid { display: block; width: auto; min-width: 0; flex: 1; }
-.calendar-section.has-leading-fragment .rdp-month:first-child .rdp-weekdays { display: none; }
-.calendar-section.has-leading-fragment .rdp-month:first-child .rdp-weeks { display: flex; flex-wrap: wrap; gap: 4px; }
-.calendar-section.has-leading-fragment .rdp-month:first-child .rdp-week { display: contents; }
-.calendar-section.has-leading-fragment .rdp-month:first-child .rdp-day { display: inline-flex; width: 26px; height: 25px; }
-.calendar-section.has-leading-fragment .rdp-month:first-child .rdp-day:not(:has(button[data-date])) { display: none; }
-.market-calendar .rdp-day { font-size: 11px; }
-@media(max-width:760px) { .market-calendar .rdp-day { font-size: 10px; } .calendar-section.has-leading-fragment .rdp-month:first-child { gap: 10px; } }
+.date-control .date-picker-trigger { display: inline-flex; justify-content: space-between; gap: 12px; width: auto; min-width: 144px; height: 32px; padding: 0 8px; font-size: 11px; font-variant-numeric: tabular-nums; border-radius: 6px; }
+.date-picker-trigger[aria-expanded="true"] { background: #f3f0f7; color: #75618f; }
+.date-picker-popover { z-index: 120; width: min(310px,calc(100vw - 24px)); padding: 18px; background: #fff; border: 1px solid #e7e4ed; border-radius: 14px; box-shadow: 0 12px 40px #51436b1c; }
+.date-picker-calendar { --rdp-accent-color: #8c7db8; --rdp-accent-background-color: #f3f0f7; --rdp-day-width: 38px; --rdp-day-height: 38px; --rdp-day_button-width: 34px; --rdp-day_button-height: 34px; --rdp-day_button-border-radius: 8px; --rdp-selected-border: 0; --rdp-nav_button-width: 28px; --rdp-nav_button-height: 28px; font-size: 12px; }
+.date-picker-calendar .rdp-months { max-width: none; }
+.date-picker-calendar .rdp-month_grid { width: 100%; }
+.date-picker-calendar .rdp-month_caption { height: 36px; margin-bottom: 12px; }
+.date-picker-calendar .rdp-dropdowns { gap: 5px; font-size: 13px; color: #59606c; }
+.date-picker-calendar .rdp-caption_label { font-weight: 550; }
+.date-picker-calendar .rdp-weekday { font-size: 10px; font-weight: 400; color: #9298a1; padding-bottom: 8px; }
+.date-picker-calendar .rdp-day { font-size: 12px; font-variant-numeric: tabular-nums; }
+.date-picker-calendar .rdp-selected .rdp-day_button { background: #8c7db8; color: #fff; font-weight: 600; }
+.date-picker-calendar .rdp-day_button:not(:disabled):hover { background: #f0edf6; color: #75618f; }
+.date-picker-calendar .rdp-selected .rdp-day_button:not(:disabled):hover { background: #7b6a9f; color: #fff; }
+.date-picker-calendar .rdp-chevron { width: 14px; height: 14px; fill: #8c7db8; }
+.date-picker-calendar .rdp-button_previous:hover, .date-picker-calendar .rdp-button_next:hover { background: #f4f1f8; border-radius: 6px; }
+.date-picker-calendar .rdp-today:not(.rdp-selected) { color: #75618f; font-weight: 600; }
