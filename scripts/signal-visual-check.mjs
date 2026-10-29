@@ -9,7 +9,7 @@ try {
     assert.match(await page.title(),/每日市场信号/);
     assert.equal(await page.locator("rect[data-date]").count(),730);
     assert.equal(await page.locator(".market-period").count(),1);
-    assert.equal(await page.locator(".range-control").count(),1);
+    assert.equal(await page.locator(".trend-range-control").count(),1);
     assert.equal(await page.locator(".chart-legend").count(),1);
     await layout(page,width+" initial");
     const alignment=await page.evaluate(()=>{

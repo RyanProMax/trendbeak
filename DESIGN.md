@@ -10,9 +10,9 @@ Only the native date-input popup is replaced with DayPicker 10.0.2. Its small fl
 
 ## Signals
 
-The four shared range controls use 30, 90, 180 and 365 natural days. Emotion and benchmark prices keep separate axes and shared line semantics. No observations are invented, interpolated or forward-filled. An explicit missing-state caption identifies unavailable emotion history.
+A shared miniature navigator snaps its left edge to 30, 90, 180 and 365 natural-day windows; the latest available benchmark date fixes the right edge. Dragging, touch, four small stop buttons and keyboard arrows/Home/End provide equivalent control. Vertical touch scrolling does not change the range. Emotion and benchmark prices keep separate axes and shared line semantics. Calendar selection and chart inspection update only cursors and exact-date readings, never the paths or index domains. Out-of-window selection has a short explicit state. Hover, focus and touch show a clamped date tooltip; chart selection updates the calendar. Legend buttons toggle each line and its scale. Monotone display curves pass through real observations without extra extrema; missing trading observations split paths. A short range-change fade respects reduced motion and does not restart on hover. No observations are invented or forward-filled. An explicit missing-state caption identifies unavailable emotion history.
 
-Technical signals show the essential name, a prominent purple numeric reading and a quiet position rail. Range endpoints, verbal states and threshold explanations are available through the same hover, focus and touch bubble. Missing values have no position marker. Calculations and display domains remain unchanged.
+Technical signals show the essential name, a prominent purple numeric reading and a quiet position rail. Range endpoints, verbal states and threshold explanations are available through the same hover, focus and touch bubble. Missing values have no position marker. Each technical bubble also shows its existing raw-value history in the shared time window, with an exact-date marker. These retain their original units rather than fabricated normalized scores. Calculations and display domains remain unchanged.
 
 ## Validation
 

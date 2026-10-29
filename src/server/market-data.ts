@@ -37,7 +37,8 @@ async function fetchJson(url: URL): Promise<JsonObject> {
   }
   if (!response.ok) {
     const retryAfter = response.headers.get("Retry-After");
-    const retryAfterMs = retryAfter === null ? 0 : /^\d+$/.test(retryAfter) ? Number(retryAfter) * 1000 : Math.max(0, Date.parse(retryAfter) - Date.now()) || 0;
+    // Any explicit Retry-After disables our quick recovery, even zero, expired or malformed values.
+    const retryAfterMs = retryAfter === null ? 0 : Math.max(1, /^\d+$/.test(retryAfter) ? Number(retryAfter) * 1000 : Date.parse(retryAfter) - Date.now() || 0);
     throw new SourceError(`Market source returned ${response.status}`, url.hostname, "http", Date.now() - started, response.status, retryAfterMs);
   }
   let payload: unknown;
@@ -345,6 +346,7 @@ export async function loadMarket(
     for (let attempt = 1; attempt <= 2; attempt++) {
       try { return await readSnapshot(); }
       catch (error) {
+        if (attempt > 1 && error instanceof SourceError) error.recoveryAttempted = true;
         reportSourceFailure("market", market === "CN" ? "Tencent" : "Yahoo", error, { market, symbol, attempt });
         // One bounded retry for a quick transient CN transport failure. Never
         // retry access denials, throttling, malformed data or a full timeout.

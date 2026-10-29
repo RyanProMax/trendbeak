@@ -1,4 +1,4 @@
-import { cloneElement, useEffect, useId, useMemo, useRef, useState } from "react";
+import { cloneElement, memo, useEffect, useId, useMemo, useRef, useState } from "react";
 import { ActivityCalendar } from "react-activity-calendar";
 import { autoUpdate, flip, FloatingPortal, offset, shift, useDismiss, useFloating, useInteractions } from "@floating-ui/react";
 import type { CalendarDay, MarketSnapshot } from "../market-types";
@@ -36,18 +36,20 @@ function dayValue(day: CalendarDay) {
       : "无交易数据";
 }
 
-export default function YearHeatmap({
+function YearHeatmap({
   snapshot,
   selectedDate,
   days,
   showMonths = true,
   onSelectDate,
+  onHoverDate,
 }: {
   snapshot: MarketSnapshot;
   selectedDate: string;
   days: CalendarDay[];
   showMonths?: boolean;
   onSelectDate: (date: string) => void;
+  onHoverDate?: (date: string | null) => void;
 }) {
   const data = useMemo(
     () =>
@@ -161,11 +163,11 @@ export default function YearHeatmap({
                   onClick: () => { if (!closed) onSelectDate(day.date); },
                   onMouseEnter: (event) => {
                     refs.setReference(event.currentTarget);
-                    setHoverDate(day.date);
+                    setHoverDate(day.date); onHoverDate?.(day.date);
                   },
-                  onMouseLeave: () => setHoverDate(null),
-                  onFocus: (event) => { refs.setReference(event.currentTarget); setHoverDate(day.date); },
-                  onBlur: () => setHoverDate(null),
+                  onMouseLeave: () => { setHoverDate(null); onHoverDate?.(null); },
+                  onFocus: (event) => { refs.setReference(event.currentTarget); setHoverDate(day.date); onHoverDate?.(day.date); },
+                  onBlur: () => { setHoverDate(null); onHoverDate?.(null); },
                   onKeyDown: (event) => {
                     if (closed) return;
                     const jump = (
@@ -211,6 +213,8 @@ export default function YearHeatmap({
     </section>
   );
 }
+
+export default memo(YearHeatmap);
 
 export function HeatLegend() {
   return <div className="heat-legend" aria-label="绿跌红涨；颜色越深幅度越大"><span className="down">−3%</span><span className="swatches">{COLORS.map((color) => <i key={color} style={{ background: color }} />)}</span><span className="up">+3%</span><span className="legend-missing"><i />休市 <i className="missing-swatch" />无交易数据</span></div>;

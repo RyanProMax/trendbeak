@@ -14,16 +14,21 @@ import {
   useInteractions,
   useRole,
 } from "@floating-ui/react";
-import type { MarketSnapshot, Signal } from "../market-types";
+import type { MarketSnapshot, Signal, TrendRange } from "../market-types";
 import { number, tone, displayDate } from "../lib/market-format";
+import SignalHistory from "./SignalHistory";
 import { sentimentState } from "../lib/chart-series";
 
 export default function SignalMeter({
   signal,
   snapshot,
+  range,
+  windowEnd,
 }: {
   signal: Signal;
   snapshot: MarketSnapshot;
+  range?: TrendRange;
+  windowEnd?: string;
 }) {
   const [open, setOpen] = useState(false);
   const { refs, floatingStyles, context } = useFloating({
@@ -31,7 +36,7 @@ export default function SignalMeter({
     onOpenChange: setOpen,
     placement: "top",
     strategy: "fixed",
-    middleware: [offset(12), flip({ padding: 12 }), shift({ padding: 12 })],
+    middleware: [offset(12), flip({ padding: 12 }), shift({ padding: 12, crossAxis: true })],
     whileElementsMounted: autoUpdate,
   });
   const hover = useHover(context, {
@@ -125,6 +130,7 @@ export default function SignalMeter({
             <p>{signal.unavailable ?? signal.explanation}</p>
             <p className="tooltip-scale">{labels.filter(Boolean).join(" · ")}{signal.id === "trend" ? " · 显示区间 −10% 至 +10%" : ""}</p>
             {signal.note && <p className="signal-note">{signal.note}</p>}
+            {range && windowEnd && signal.id !== "sentiment" && <SignalHistory snapshot={snapshot} signal={signal} end={windowEnd} range={range} />}
             {!signal.unavailable && (
               <dl>
                 <div>

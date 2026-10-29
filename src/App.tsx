@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BENCHMARKS,
   type Instrument,
@@ -13,6 +13,7 @@ import YearHeatmap, { HeatLegend } from "./components/YearHeatmap";
 import DatePicker from "./components/DatePicker";
 import SignalMeter from "./components/SignalMeter";
 import MarketTrend from "./components/MarketTrend";
+import TrendRangeControl from "./components/TrendRange";
 import { signalsForDate } from "./lib/market-signals";
 import { calendarForRange, shiftDate } from "./lib/chart-series";
 import { displayDate } from "./lib/market-format";
@@ -28,21 +29,28 @@ function Dashboard({ data }: { data: PageData }) {
   const [benchmarks, setBenchmarks] = useState<Record<Market, MarketSnapshot | null>>({ CN: data.markets.CN.snapshot, US: data.markets.US.snapshot });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [range, setRange] = useState<TrendRange>(30);
+  const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+  const [visibleSeries, setVisibleSeries] = useState({ mood: true, index: true });
   const [dateError, setDateError] = useState("");
   const calendarDates = Object.values(markets).flatMap(({ snapshot }) =>
     snapshot ? [snapshot.days[0].date, snapshot.days.at(-1)!.date] : [],
   ).sort();
   const calendarEnd = calendarDates.at(-1);
   const calendarStart = calendarEnd ? shiftDate(calendarEnd, -364) : undefined;
-  const alignedDays = Object.fromEntries((["CN", "US"] as Market[]).map((market) => [market,
+  const alignedDays = useMemo(() => Object.fromEntries((["CN", "US"] as Market[]).map((market) => [market,
     markets[market].snapshot && calendarEnd ? calendarForRange(markets[market].snapshot!, calendarEnd) : [],
-  ]));
-  const selectable = (date: string) => !!calendarStart && !!calendarEnd && date >= calendarStart && date <= calendarEnd &&
-    (["CN", "US"] as Market[]).some((market) => alignedDays[market].some((day) => day.date === date && day.status !== "closed"));
-  const selectDate = (date: string) => {
+  ])), [markets, calendarEnd]);
+  const windowEnd = Object.values(benchmarks).flatMap((snapshot) => snapshot ? [snapshot.asOf] : []).sort().at(-1) ?? calendarEnd;
+  useEffect(() => {
+    document.querySelectorAll("[data-trend-hover]").forEach((cell) => cell.removeAttribute("data-trend-hover"));
+    if (hoveredDate) document.querySelectorAll(`.calendar-section rect[data-date="${hoveredDate}"]`).forEach((cell) => cell.setAttribute("data-trend-hover", "true"));
+  }, [hoveredDate, alignedDays]);
+  const selectable = useCallback((date: string) => !!calendarStart && !!calendarEnd && date >= calendarStart && date <= calendarEnd &&
+    (["CN", "US"] as Market[]).some((market) => alignedDays[market].some((day) => day.date === date && day.status !== "closed")), [calendarStart, calendarEnd, alignedDays]);
+  const selectDate = useCallback((date: string) => {
     if (!selectable(date)) { setDateError("请选择日历范围内的交易日期"); return; }
     setDateError(""); setSelectedDate(date);
-  };
+  }, [selectable]);
   const adjacentDate = (direction: number) => {
     if (!calendarEnd || !calendarStart) return null;
     let date = shiftDate(selectedDate ?? calendarEnd, direction);
@@ -218,7 +226,7 @@ function Dashboard({ data }: { data: PageData }) {
             {(["CN", "US"] as Market[]).map((market, index) => {
               const snapshot = markets[market].snapshot;
               return <div className="calendar-row" data-calendar-market={market} key={market}><h3>{market === "CN" ? "A 股" : "美股"}</h3>
-                {snapshot ? <YearHeatmap snapshot={snapshot} days={alignedDays[market]} selectedDate={selectedDate ?? snapshot.asOf} onSelectDate={selectDate} showMonths={index === 0 || !markets.CN.snapshot} />
+                {snapshot ? <YearHeatmap snapshot={snapshot} days={alignedDays[market]} selectedDate={selectedDate ?? snapshot.asOf} onSelectDate={selectDate} onHoverDate={setHoveredDate} showMonths={index === 0 || !markets.CN.snapshot} />
                   : <p className="calendar-unavailable">行情暂不可用</p>}
               </div>;
             })}
@@ -227,23 +235,22 @@ function Dashboard({ data }: { data: PageData }) {
         </section>}
         <section className="market-signals" aria-labelledby="signals-title">
           <div className="signals-heading"><h2 id="signals-title">市场信号</h2>
-            <div className="chart-legend" aria-label="情绪为紫色实线，大盘为深灰虚线"><span className="emotion-key">情绪</span><span className="index-key">大盘</span></div>
-            <div className="range-control" role="group" aria-label="趋势时间范围">{([30, 90, 180, 365] as const).map((days) => <button key={days} aria-pressed={range === days} onClick={() => setRange(days)}>{days} 日</button>)}</div>
+            <div className="chart-legend" aria-label="情绪为紫色实线，大盘为深灰虚线"><button type="button" className="emotion-key" aria-pressed={visibleSeries.mood} onClick={() => setVisibleSeries((old) => ({ ...old, mood: !old.mood }))}>情绪</button><button type="button" className="index-key" aria-pressed={visibleSeries.index} onClick={() => setVisibleSeries((old) => ({ ...old, index: !old.index }))}>大盘</button></div>
           </div>
           <div className="analysis-grid">{(["CN", "US"] as Market[]).map((market) => {
             const snapshot = markets[market].snapshot;
-            if (!snapshot) return <section className="analysis-unavailable" key={market} aria-label={`${market === "CN" ? "A 股" : "美股"}指标`}>行情恢复后显示指标</section>;
+            if (!snapshot) return <section className="analysis-unavailable" data-analysis-market={market} key={market} aria-label={`${market === "CN" ? "A 股" : "美股"}指标`}>行情恢复后显示指标</section>;
             const date = selectedDate ?? snapshot.asOf;
             const signals = signalsForDate(snapshot, date);
             const datedSnapshot = { ...snapshot, asOf: date, session: date === snapshot.asOf ? snapshot.session : "closed" as const };
             return <section className="market-analysis" data-analysis-market={market} key={market}>
               <div className="signals" data-date={date} aria-label={`${displayDate(date, true)}指标`}>
                 <div className="analysis-heading"><h3>{market === "CN" ? "A 股" : "美股"}</h3><SignalMeter signal={signals[0]} snapshot={datedSnapshot} /></div>
-                <MarketTrend snapshot={snapshot} benchmark={benchmarks[market]} date={selectedDate ?? calendarEnd ?? date} range={range} />
-                <div className="technical-signals">{signals.slice(1).map((signal) => <SignalMeter key={signal.id} signal={signal} snapshot={datedSnapshot} />)}</div>
+                <MarketTrend snapshot={snapshot} benchmark={benchmarks[market]} windowEnd={windowEnd ?? snapshot.asOf} selectedDate={date} hoveredDate={hoveredDate} range={range} visible={visibleSeries} onHoverDate={setHoveredDate} onSelectDate={selectDate} canSelectDate={selectable} />
+                <div className="technical-signals">{signals.slice(1).map((signal) => <SignalMeter key={signal.id} signal={signal} snapshot={datedSnapshot} range={range} windowEnd={windowEnd ?? snapshot.asOf} />)}</div>
               </div>
             </section>;
-          })}</div>
+          })}{windowEnd && <TrendRangeControl end={windowEnd} range={range} benchmarks={benchmarks} onChange={setRange} />}</div>
         </section>
       </main>
     </>

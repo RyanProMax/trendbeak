@@ -1,4 +1,5 @@
 export class SourceError extends Error {
+  recoveryAttempted = false;
   constructor(message: string, public readonly provider: string, public readonly phase: "http" | "timeout" | "network" | "json" | "shape", public readonly elapsedMs: number, public readonly status?: number, public readonly retryAfterMs = 0) {
     super(message);
     this.name = "SourceError";
@@ -18,6 +19,6 @@ export function reportSourceFailure(operation: string, provider: string, error: 
 }
 
 export function isTransientSourceFailure(error: unknown): error is SourceError {
-  return error instanceof SourceError && error.retryAfterMs === 0 && (error.phase === "timeout" || error.phase === "network" ||
+  return error instanceof SourceError && !error.recoveryAttempted && error.retryAfterMs === 0 && (error.phase === "timeout" || error.phase === "network" ||
     (error.phase === "http" && error.status !== undefined && error.status >= 500 && error.status <= 599));
 }

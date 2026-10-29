@@ -21,7 +21,7 @@ export async function openPage(browser,width) {
 export async function layout(page,label) {
   const result=await page.evaluate(()=>{
     const width=document.documentElement.clientWidth;
-    return {width,scroll:document.documentElement.scrollWidth,invalid:[...document.querySelectorAll(".market-card,.calendar-section,.calendar-section svg,.date-picker-popover,.date-picker-calendar .rdp-month_grid,.market-analysis,.signal-trigger,.signal-tooltip,.search-popover,.trend-chart")].flatMap(el=>{
+    return {width,scroll:document.documentElement.scrollWidth,invalid:[...document.querySelectorAll(".market-card,.calendar-section,.calendar-section svg,.date-picker-popover,.date-picker-calendar .rdp-month_grid,.market-analysis,.signal-trigger,.signal-tooltip,.search-popover,.trend-chart,.chart-tooltip,.trend-range-control,.navigator-track")].flatMap(el=>{
       const r=el.getBoundingClientRect(),clipped=el instanceof HTMLElement && el.scrollWidth>el.clientWidth+1;
       return r.left < -1 || r.right > width+1 || clipped ? [{tag:el.className,left:r.left,right:r.right,clipped}] : [];
     })};
