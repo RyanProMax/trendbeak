@@ -15,13 +15,13 @@ export async function openPage(browser,width) {
   await page.goto(base,{waitUntil:"networkidle"});
   await page.locator(".signal-trigger").nth(9).waitFor();
   await page.evaluate(()=>document.fonts.ready);
-  const initial=await page.evaluate(()=>JSON.parse(document.querySelector("#stock-daily-data").textContent));
+  const initial=await page.evaluate(()=>JSON.parse(document.querySelector("#trendbeak-data").textContent));
   return {page,context,initial,errors};
 }
 export async function layout(page,label) {
   const result=await page.evaluate(()=>{
     const width=document.documentElement.clientWidth;
-    return {width,scroll:document.documentElement.scrollWidth,invalid:[...document.querySelectorAll(".market-card,.calendar-section,.react-activity-calendar svg,.market-analysis,.signal-trigger,.signal-tooltip,.search-popover,.trend-chart")].flatMap(el=>{
+    return {width,scroll:document.documentElement.scrollWidth,invalid:[...document.querySelectorAll(".market-card,.calendar-section,.market-calendar .rdp-month_grid,.market-analysis,.signal-trigger,.signal-tooltip,.search-popover,.trend-chart")].flatMap(el=>{
       const r=el.getBoundingClientRect(),clipped=el instanceof HTMLElement && el.scrollWidth>el.clientWidth+1;
       return r.left < -1 || r.right > width+1 || clipped ? [{tag:el.className,left:r.left,right:r.right,clipped}] : [];
     })};

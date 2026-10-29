@@ -1,2 +1,0 @@
--- Migration number retained for databases that already recorded it.
--- Historical report payloads remain only in production D1.

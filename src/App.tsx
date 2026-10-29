@@ -5,10 +5,11 @@ import {
   type Market,
   type MarketSnapshot,
   type PageData,
+  type TrendRange,
 } from "./market-types";
 import StockSearch from "./components/StockSearch";
 import MarketCard, { type ViewState } from "./components/MarketCard";
-import YearHeatmap, { HeatLegend } from "./components/YearHeatmap";
+import YearCalendar, { HeatLegend } from "./components/YearCalendar";
 import SignalMeter from "./components/SignalMeter";
 import MarketTrend from "./components/MarketTrend";
 import { signalsForDate } from "./lib/market-signals";
@@ -25,7 +26,7 @@ function Dashboard({ data }: { data: PageData }) {
   current.current = markets;
   const [benchmarks, setBenchmarks] = useState<Record<Market, MarketSnapshot | null>>({ CN: data.markets.CN.snapshot, US: data.markets.US.snapshot });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [range, setRange] = useState<30 | 90>(30);
+  const [range, setRange] = useState<TrendRange>(30);
   const [dateError, setDateError] = useState("");
   const calendarDates = Object.values(markets).flatMap(({ snapshot }) =>
     snapshot ? [snapshot.days[0].date, snapshot.days.at(-1)!.date] : [],
@@ -164,8 +165,8 @@ function Dashboard({ data }: { data: PageData }) {
     <>
       <header className="topbar">
         <div className="topbar-inner">
-          <a className="brand" href="/" aria-label="Stock Daily 首页">
-            <img className="brand-wordmark" src="/stockdaily-wordmark.svg?v=9" alt="stockdaily" width="331" height="68" />
+          <a className="brand" href="/" aria-label="trendbeak 首页">
+            <img className="brand-wordmark" src="/trendbeak-wordmark.svg?v=10" alt="trendbeak" width="339" height="68" />
           </a>
           <StockSearch onSelect={(instrument) => load(instrument, true)} />
         </div>
@@ -200,7 +201,7 @@ function Dashboard({ data }: { data: PageData }) {
             {(["CN", "US"] as Market[]).map((market, index) => {
               const snapshot = markets[market].snapshot;
               return <div className="calendar-row" data-calendar-market={market} key={market}><h3>{market === "CN" ? "A 股" : "美股"}</h3>
-                {snapshot ? <YearHeatmap snapshot={snapshot} days={alignedDays[market]} selectedDate={selectedDate ?? snapshot.asOf} onSelectDate={selectDate} showMonths={index === 0 || !markets.CN.snapshot} />
+                {snapshot ? <YearCalendar snapshot={snapshot} days={alignedDays[market]} selectedDate={selectedDate ?? snapshot.asOf} onSelectDate={selectDate} />
                   : <p className="calendar-unavailable">行情暂不可用</p>}
               </div>;
             })}
@@ -210,7 +211,7 @@ function Dashboard({ data }: { data: PageData }) {
         <section className="market-signals" aria-labelledby="signals-title">
           <div className="signals-heading"><h2 id="signals-title">市场信号</h2>
             <div className="chart-legend" aria-label="情绪为紫色实线，大盘为深灰虚线"><span className="emotion-key">情绪</span><span className="index-key">大盘</span></div>
-            <div className="range-control" role="group" aria-label="趋势时间范围">{([30, 90] as const).map((days) => <button key={days} aria-pressed={range === days} onClick={() => setRange(days)}>{days} 日</button>)}</div>
+            <div className="range-control" role="group" aria-label="趋势时间范围">{([30, 90, 180, 365] as const).map((days) => <button key={days} aria-pressed={range === days} onClick={() => setRange(days)}>{days} 日</button>)}</div>
           </div>
           <div className="analysis-grid">{(["CN", "US"] as Market[]).map((market) => {
             const snapshot = markets[market].snapshot;
@@ -246,32 +247,36 @@ export default function Document({ data }: { data: PageData }) {
           content="width=device-width, initial-scale=1.0, viewport-fit=cover"
         />
         <meta name="theme-color" content="#7561b4" />
-        <meta name="application-name" content="Stock Daily" />
+        <meta name="application-name" content="trendbeak" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Stock Daily" />
+        <meta name="apple-mobile-web-app-title" content="trendbeak" />
         <meta
           name="description"
           content="A 股与美股每日行情、年度涨跌与关键技术指标。"
         />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Stock Daily" />
-        <meta property="og:title" content="每日市场信号 · Stock Daily" />
+        <meta property="og:site_name" content="trendbeak" />
+        <meta property="og:title" content="每日市场信号 · trendbeak" />
         <meta
           property="og:description"
           content="A 股与美股每日行情、年度涨跌与关键技术指标。"
         />
         <meta property="og:url" content={data.requestUrl} />
+        <meta property="og:image" content={new URL("/og.png?v=10", data.requestUrl).href} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="trendbeak · 每日市场信号" />
+        <meta name="twitter:image" content={new URL("/og.png?v=10", data.requestUrl).href} />
         <link rel="canonical" href={data.requestUrl} />
-        <link rel="manifest" href="/manifest.webmanifest?v=9" />
-        <link rel="icon" href="/favicon.svg?v=9" type="image/svg+xml" />
+        <link rel="manifest" href="/manifest.webmanifest?v=10" />
+        <link rel="icon" href="/favicon.svg?v=10" type="image/svg+xml" />
         <link
           rel="apple-touch-icon"
-          href="/apple-touch-icon.png?v=9"
+          href="/apple-touch-icon.png?v=10"
           sizes="180x180"
         />
         <link rel="stylesheet" href="/static/client.css" />
-        <title>每日市场信号 · Stock Daily</title>
+        <title>每日市场信号 · trendbeak</title>
       </head>
       <body>
         <a className="skip-link" href="#main-content">
@@ -279,7 +284,7 @@ export default function Document({ data }: { data: PageData }) {
         </a>
         <Dashboard data={data} />
         <script
-          id="stock-daily-data"
+          id="trendbeak-data"
           type="application/json"
           dangerouslySetInnerHTML={{ __html: serialized }}
         />

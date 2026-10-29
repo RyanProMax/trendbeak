@@ -26,3 +26,9 @@ test('weekends preserve continuity, and a lone dated CNN observation remains a p
   assert.deepEqual(chartSegments(days,points),[points]);
   assert.deepEqual(chartSegments(days,[points[1]]),[[points[1]]]);
 });
+
+test('older known price rows keep their exact date and return in long chart windows', () => {
+  const snapshot = {instrument:{market:'US'},days:[],history:{'2025-01-02':{price:5900,change:.4}}};
+  const days = calendarForRange(snapshot,'2025-01-03');
+  assert.deepEqual(days.at(-2),{date:'2025-01-02',change:.4,status:'trading'});
+});

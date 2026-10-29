@@ -10,10 +10,11 @@ export function calendarForRange(snapshot: MarketSnapshot, end: string): Calenda
   const known = new Map(snapshot.days.map((day) => [day.date, day]));
   return Array.from({ length: 365 }, (_, index) => {
     const date = shiftDate(end, index - 364);
-    return known.get(date) ?? {
+    const reading = snapshot.history?.[date];
+    return known.get(date) ?? (reading ? { date, change: reading.change, status: "trading" } : {
       date, change: null,
       status: isExchangeClosed(date, snapshot.instrument.market) ? "closed" : "missing",
-    };
+    });
   });
 }
 

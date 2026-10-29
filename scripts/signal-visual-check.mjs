@@ -7,14 +7,14 @@ try {
     const {page,context,initial,errors}=await openPage(browser,width);
     assert.equal(page.url(),base.replace(/\/$/,"")+"/");
     assert.match(await page.title(),/每日市场信号/);
-    assert.equal(await page.locator("rect[role=button]").count(),730);
+    assert.equal(await page.locator("button[data-date]").count(),730);
     assert.equal(await page.locator(".market-period").count(),1);
     assert.equal(await page.locator(".range-control").count(),1);
     assert.equal(await page.locator(".chart-legend").count(),1);
     await layout(page,width+" initial");
     const alignment=await page.evaluate(()=>{
-      const a=[...document.querySelectorAll('[data-calendar-market=CN] rect[role=button]')];
-      const b=[...document.querySelectorAll('[data-calendar-market=US] rect[role=button]')];
+      const a=[...document.querySelectorAll('[data-calendar-market=CN] button[data-date]')];
+      const b=[...document.querySelectorAll('[data-calendar-market=US] button[data-date]')];
       return a.every((cell,i)=>cell.dataset.date===b[i].dataset.date && Math.abs(cell.getBoundingClientRect().x-b[i].getBoundingClientRect().x)<1);
     });
     assert.ok(alignment,"calendar dates and columns align");
@@ -24,10 +24,14 @@ try {
     assert.ok(Math.abs(center)<1,"search remains centered");
     await page.screenshot({path:`${out}/${width}-full.png`,fullPage:true});
     await page.screenshot({path:`${out}/${width}-viewport.png`});
-    await page.getByRole("button",{name:"90 日",exact:true}).click();
-    assert.equal(await page.getByRole("button",{name:"90 日",exact:true}).getAttribute("aria-pressed"),"true");
-    for(const start of await page.locator(".trend-chart").evaluateAll(els=>els.map(el=>(Date.parse(el.dataset.end)-Date.parse(el.dataset.start))/86400000)))assert.equal(start,89);
+    for (const days of [30,90,180,365]) {
+      await page.getByRole("button",{name:`${days} 日`,exact:true}).click();
+      assert.equal(await page.getByRole("button",{name:`${days} 日`,exact:true}).getAttribute("aria-pressed"),"true");
+      for(const span of await page.locator(".trend-chart").evaluateAll(els=>els.map(el=>(Date.parse(el.dataset.end)-Date.parse(el.dataset.start))/86400000)))assert.equal(span,days-1);
+    }
     await page.getByRole("button",{name:"30 日",exact:true}).click();
+    assert.equal(await page.locator(".technical-signals .meter-labels, .technical-signals .range-ends, .technical-signals .signal-status").count(),0);
+    assert.doesNotMatch(await page.locator(".technical-signals").first().innerText(),/0–100|超卖|超买|中性/);
     // A dated singleton is a point, never a made-up historical line.
     if(initial.markets.US.snapshot.sentiment?.observations.length===1)assert.equal(await page.locator('[data-analysis-market=US] [data-series=sentiment]').count(),0);
     for(const market of ["CN","US"]){
@@ -40,7 +44,7 @@ try {
     const hoverShift=await page.evaluate(async()=>{
       const target=document.querySelector(".market-signals"),top=target.getBoundingClientRect().top+scrollY;
       let max=0;
-      for(const cell of document.querySelectorAll(".calendar-section rect[role=button]")){
+      for(const cell of document.querySelectorAll(".calendar-section button[data-date]")){
         cell.dispatchEvent(new MouseEvent("mouseover",{bubbles:true}));
         await new Promise(resolve=>requestAnimationFrame(resolve));
         max=Math.max(max,Math.abs(target.getBoundingClientRect().top+scrollY-top));

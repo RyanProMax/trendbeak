@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import type { Instrument } from "../market-types";
-import { HISTORY_KEY, parseHistory, remember } from "../lib/search-history";
+import { HISTORY_KEY, LEGACY_HISTORY_KEY, parseHistory, remember } from "../lib/search-history";
 
 export default function StockSearch({
   onSelect,
@@ -22,7 +22,11 @@ export default function StockSearch({
   const show = open && Boolean(query.trim() || history.length);
   useEffect(() => {
     try {
-      setHistory(parseHistory(localStorage.getItem(HISTORY_KEY)));
+      const current = localStorage.getItem(HISTORY_KEY);
+      const legacy = localStorage.getItem(LEGACY_HISTORY_KEY);
+      const saved = parseHistory(current ?? legacy);
+      setHistory(saved);
+      if (current === null && legacy !== null) localStorage.setItem(HISTORY_KEY, JSON.stringify(saved));
     } catch {}
   }, []);
   useEffect(() => {
@@ -168,6 +172,7 @@ export default function StockSearch({
                   setHistory([]);
                   try {
                     localStorage.removeItem(HISTORY_KEY);
+                    localStorage.removeItem(LEGACY_HISTORY_KEY);
                   } catch {}
                 }}
               >

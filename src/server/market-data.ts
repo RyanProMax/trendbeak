@@ -26,7 +26,7 @@ async function fetchJson(url: URL): Promise<JsonObject> {
   const response = await fetch(url, {
     headers: {
       Accept: "application/json",
-      "User-Agent": "Mozilla/5.0 StockDaily/2.0",
+      "User-Agent": "Mozilla/5.0 trendbeak/2.0",
     },
     signal: AbortSignal.timeout(8_000),
   });

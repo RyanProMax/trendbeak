@@ -19,7 +19,7 @@ try{
   await page.reload({waitUntil:"networkidle"});await search.click();
   assert.equal(await page.getByRole("option").count(),2);
   await page.getByRole("button",{name:"清空",exact:true}).click();
-  assert.equal(await page.evaluate(()=>localStorage.getItem("stock-daily:search-history:v2")),null);
+  assert.equal(await page.evaluate(()=>localStorage.getItem("trendbeak:search-history:v1")),null);
   const instrument={market:"US",symbol:"TEST",code:"TEST",kind:"stock",name:"A deliberately long company name for responsive layout verification"};
   const quote=structuredClone(initial.markets.US.snapshot);quote.instrument=instrument;
   let failed=false,release;let gate=null;
@@ -42,7 +42,7 @@ try{
   await page.getByRole("button",{name:"重试美股行情"}).waitFor();assert.equal(await page.locator(".signals").count(),2);
   failed=false;quote.instrument=initial.markets.US.instrument;
   await page.getByRole("button",{name:"重试美股行情"}).click();await page.locator("[data-market=US].stock-selected").waitFor({state:"hidden"});
-  await page.evaluate(()=>localStorage.setItem("stock-daily:search-history:v2",JSON.stringify(Array.from({length:12},(_,i)=>({market:"US",symbol:`T${i}`,code:`T${i}`,kind:"stock",name:`Test ${i}` })))));
+  await page.evaluate(()=>localStorage.setItem("trendbeak:search-history:v1",JSON.stringify(Array.from({length:12},(_,i)=>({market:"US",symbol:`T${i}`,code:`T${i}`,kind:"stock",name:`Test ${i}` })))));
   await page.reload({waitUntil:"networkidle"});await search.click();assert.equal(await page.getByRole("option").count(),10);await layout(page,"history ten");
   await page.screenshot({path:`${out}/${width}-history-ten.png`,fullPage:true});
   await page.goto(base+"/offline",{waitUntil:"networkidle"});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth),width);

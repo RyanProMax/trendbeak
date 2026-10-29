@@ -8,7 +8,7 @@ test("web app manifest exposes installable square and maskable icons", async () 
   const manifest = JSON.parse(
     await readFile(new URL("public/manifest.webmanifest", root), "utf8"),
   );
-  assert.equal(manifest.name, "Stock Daily");
+  assert.equal(manifest.name, "trendbeak");
   assert.equal(manifest.start_url, "/");
   assert.equal(manifest.scope, "/");
   assert.equal(manifest.display, "standalone");
@@ -21,14 +21,14 @@ test("web app manifest exposes installable square and maskable icons", async () 
 
 test("document includes iOS and standards-based installation metadata", async () => {
   const app = await readFile(new URL("src/App.tsx", root), "utf8");
-  assert.match(app, /rel="manifest" href="\/manifest\.webmanifest\?v=9"/);
+  assert.match(app, /rel="manifest" href="\/manifest\.webmanifest\?v=10"/);
   assert.match(app, /apple-mobile-web-app-capable/);
   assert.match(app, /apple-mobile-web-app-status-bar-style/);
   assert.match(app, /rel="apple-touch-icon"/);
   assert.match(app, /viewport-fit=cover/);
 });
 
-test("service worker never caches report navigations or dynamic data", async () => {
+test("service worker never caches page navigations or dynamic data", async () => {
   const worker = await readFile(
     new URL("public/service-worker.js", root),
     "utf8",
@@ -51,7 +51,7 @@ test("local preview removes stale PWA caches instead of registering a worker", a
   assert.match(client, /key\.startsWith\("stock-daily-"\)/);
 });
 
-test("PWA assets bypass the report worker and update-sensitive files revalidate", async () => {
+test("PWA assets bypass the page worker and update-sensitive files revalidate", async () => {
   const routes = JSON.parse(
     await readFile(new URL("public/_routes.json", root), "utf8"),
   );
@@ -61,7 +61,7 @@ test("PWA assets bypass the report worker and update-sensitive files revalidate"
     "/offline",
     "/apple-touch-icon.png",
   ]) {
-    assert.ok(routes.exclude.includes(path), `${path} must bypass the report worker`);
+    assert.ok(routes.exclude.includes(path), `${path} must bypass the page worker`);
   }
   const headers = await readFile(new URL("public/_headers", root), "utf8");
   assert.match(headers, /\/service-worker\.js\s+Cache-Control: no-cache, no-store, must-revalidate/s);

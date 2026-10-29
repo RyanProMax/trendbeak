@@ -55,7 +55,7 @@ export function parseChinaSentiment(
     })
     .sort((a, b) => a.date.localeCompare(b.date));
   if (!rows.length) throw new Error("No sentiment observations");
-  const cutoff = new Date(Date.parse(today) - 370 * 86400000)
+  const cutoff = new Date(Date.parse(today) - 740 * 86400000)
     .toISOString()
     .slice(0, 10);
   return {
@@ -99,6 +99,7 @@ export function parseUSSentiment(
     throw new Error("Unavailable sentiment reading");
   return {
     ...sources.US,
+    historyUnavailable: "当前来源只提供有日期的当前观测，未提供逐日情绪历史。未标日期的周、月比较不作为历史曲线。",
     observations: [
       {
         date: marketDate(time, "US"),

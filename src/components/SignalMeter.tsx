@@ -85,12 +85,11 @@ export default function SignalMeter({
         <span className="signal-top">
           <span className="signal-name">
             <strong>{signal.id === "trend" ? "MA20 偏离" : signal.id === "sentiment" ? "情绪" : signal.name}</strong>
-            <small>{signal.id === "rsi" ? "14 日 · 0–100" : signal.id === "trend" || signal.id === "sentiment" ? "" : signal.period}</small>
+            <small>{signal.id === "rsi" ? "14 日" : signal.id === "trend" || signal.id === "sentiment" ? "" : signal.period}</small>
           </span>
           <span className="signal-reading">
             <b>{value === null ? "暂无数据" : number(value, signal.digits, signal.id === "trend")}</b>
             {value !== null && <small>{signal.unit}</small>}
-            {value !== null && <span className="signal-status">· {status}</span>}
           </span>
         </span>
         <span
@@ -111,12 +110,7 @@ export default function SignalMeter({
             <span className="meter-marker" style={{ left: `${position}%` }} />
           )}
         </span>
-        <span className="meter-labels">
-          {labels.map((label) => (
-            <span key={label}>{label}</span>
-          ))}
-        </span>
-        {signal.id === "trend" && <span className="range-ends"><span>−10%</span><span>+10%</span></span>}
+
       </button>
       {open && (
         <FloatingPortal>
@@ -126,7 +120,10 @@ export default function SignalMeter({
             style={floatingStyles}
             {...getFloatingProps()}
           >
+            <div className="tooltip-reading"><strong>{signal.name}</strong><b>{value === null ? "暂无数据" : formatted}</b></div>
+            <p className="tooltip-status">{status}</p>
             <p>{signal.unavailable ?? signal.explanation}</p>
+            <p className="tooltip-scale">{labels.filter(Boolean).join(" · ")}{signal.id === "trend" ? " · 显示区间 −10% 至 +10%" : ""}</p>
             {signal.note && <p className="signal-note">{signal.note}</p>}
             {!signal.unavailable && (
               <dl>

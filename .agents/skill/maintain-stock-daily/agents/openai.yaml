@@ -1,4 +1,0 @@
-interface:
-  display_name: "Stock Daily Maintainer"
-  short_description: "Publish structured reports and maintain SSR/D1"
-  default_prompt: "Use $maintain-stock-daily to validate, publish and read back a structured Stock Daily report, or maintain its renderer and report API."

@@ -8,17 +8,9 @@ import {
   searchInstruments,
   validSymbol,
 } from "./server/market-data";
-import { readApiReport, reportWriteRoutes } from "./server/report-writes";
-import { getDailyArchive } from "./server/reports";
 
-type Bindings = {
-  DB?: D1Database;
-  REMOTE_DATA_ORIGIN?: string;
-  REPORT_WRITE_TOKENS?: string;
-};
-const app = new Hono<{ Bindings: Bindings }>();
-const productionOrigin = "https://stock-daily-8k4.pages.dev";
-const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+const app = new Hono();
+const productionOrigin = "https://trendbeak.com";
 
 app.get("/api/markets", async (c) => {
   c.header("Cache-Control", "public, max-age=15, s-maxage=60");
@@ -72,79 +64,6 @@ app.get("/api/health", async (c) => {
   );
 });
 
-// Existing authenticated report storage remains available to external writers.
-// The signal dashboard above is independent of report publication and D1.
-app.use("/api/*", async (c, next) => {
-  const origin = c.env.REMOTE_DATA_ORIGIN?.trim();
-  if (!origin) return next();
-  if (c.req.method !== "GET")
-    return c.json(
-      { error: { message: "Local API access is read-only.", status: 405 } },
-      405,
-    );
-  const target = new URL(c.req.path, origin);
-  if (target.protocol !== "https:")
-    return c.json({ error: "Invalid data origin" }, 503);
-  target.search = new URL(c.req.url).search;
-  const response = await fetch(target, {
-    headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(10_000),
-  });
-  return new Response(response.body, {
-    status: response.status,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store",
-    },
-  });
-});
-app.route("/api", reportWriteRoutes);
-app.get("/api/reports", async (c) => {
-  if (!c.env.DB)
-    return c.json(
-      { error: { message: "Database unavailable", status: 503 } },
-      503,
-    );
-  const before = c.req.query("before") ?? null;
-  if (before && !datePattern.test(before))
-    return c.json(
-      { error: { message: "Before must be YYYY-MM-DD.", status: 400 } },
-      400,
-    );
-  const requested = Number(c.req.query("limit") ?? 30);
-  const limit = Number.isFinite(requested)
-    ? Math.max(1, Math.min(100, Math.trunc(requested)))
-    : 30;
-  const data = await getDailyArchive(c.env.DB, limit, before);
-  return c.json({ data, meta: { total: data.length, limit } });
-});
-for (const [path, kind] of [
-  ["/api/reports/:date", "daily"],
-  ["/api/weekly/:date", "weekly"],
-] as const) {
-  app.get(path, async (c) => {
-    const date = c.req.param("date");
-    if (!datePattern.test(date))
-      return c.json(
-        { error: { message: "Date must be YYYY-MM-DD.", status: 400 } },
-        400,
-      );
-    if (!c.env.DB)
-      return c.json(
-        { error: { message: "Database unavailable", status: 503 } },
-        503,
-      );
-    const result = await readApiReport(c.env.DB, kind, date);
-    if (!result)
-      return c.json(
-        { error: { message: "Report not found.", status: 404 } },
-        404,
-      );
-    c.header("Cache-Control", "no-store");
-    c.header("ETag", result.meta.etag);
-    return c.json(result);
-  });
-}
 app.get("/", async () => {
   const markets = await loadDashboard();
   const stream = await renderToReadableStream(
@@ -161,8 +80,6 @@ app.get("/", async () => {
     },
   });
 });
-app.get("/weekly", (c) => c.redirect("/", 308));
-app.get("/weekly/", (c) => c.redirect("/", 308));
 app.onError((error, c) => {
   console.error("Request failed", error);
   return c.json({ error: "暂时无法读取数据" }, 503);

@@ -214,7 +214,7 @@ export function buildHistory(
   through: string,
   trading = false,
 ): Record<string, HistoricalReading> {
-  const cutoff = new Date(Date.parse(through) - 364 * DAY)
+  const cutoff = new Date(Date.parse(through) - 729 * DAY)
     .toISOString()
     .slice(0, 10);
   const history: Record<string, HistoricalReading> = {};
@@ -296,6 +296,7 @@ export function signalsForDate(
         : (sentiment?.error ?? "该日贪恐读数暂缺。"),
     source: sentiment?.source,
     previousLabel: "前次发布",
+    note: sentiment?.historyUnavailable,
   };
   return [fearGreed, ...technical];
 }

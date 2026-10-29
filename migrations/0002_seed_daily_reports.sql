@@ -1,2 +1,0 @@
--- Migration number retained for databases that already recorded it.
--- Reports are never seeded from the repository.

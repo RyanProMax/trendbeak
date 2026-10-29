@@ -141,3 +141,21 @@ test("US relay never substitutes crypto, stale values or undated comparisons for
       ),
     );
 });
+
+test("a 365-day trend at an earlier selectable date retains existing upstream prices", () => {
+  const rows = bars();
+  const through = rows.at(-1).date;
+  const history = signals.buildHistory(rows, through);
+  const selectedDate = rows[350].date;
+  const start = new Date(Date.parse(selectedDate) - 364 * 86400000).toISOString().slice(0, 10);
+  const expected = rows.filter(row => row.date >= start && row.date <= selectedDate);
+  assert.ok(expected.length > 300);
+  for (const row of expected) assert.equal(history[row.date]?.price, row.close);
+  assert.equal(history[selectedDate].values.rsi, signals.calculateSignals(rows.slice(0, 351))[0].value);
+});
+
+test("A-share sentiment retains dated observations needed by older 365-day windows", () => {
+  const result = sentiment.parseChinaSentiment("date,fear_greed_index\n2025-01-02,32\n2026-10-28,42\n", Date.parse("2026-10-29T12:00:00Z"));
+  assert.equal(result.observations[0].date, "2025-01-02");
+  assert.equal(result.observations[0].value, 32);
+});

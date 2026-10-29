@@ -1,13 +1,13 @@
-const CACHE_NAME = "stock-daily-shell-v9";
+const CACHE_NAME = "trendbeak-shell-v1";
 const PRECACHE = [
   "/offline",
-  "/manifest.webmanifest?v=9",
-  "/favicon.svg?v=9",
-  "/stockdaily-wordmark.svg?v=9",
-  "/apple-touch-icon.png?v=9",
-  "/app-icon-192.png?v=9",
-  "/app-icon-512.png?v=9",
-  "/app-icon-maskable-512.png?v=9",
+  "/manifest.webmanifest?v=10",
+  "/favicon.svg?v=10",
+  "/trendbeak-wordmark.svg?v=10",
+  "/apple-touch-icon.png?v=10",
+  "/app-icon-192.png?v=10",
+  "/app-icon-512.png?v=10",
+  "/app-icon-maskable-512.png?v=10",
 ];
 
 self.addEventListener("install", (event) => {
@@ -19,7 +19,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => (key.startsWith("trendbeak-") || key.startsWith("stock-daily-")) && key !== CACHE_NAME).map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
 });

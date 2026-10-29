@@ -1,6 +1,8 @@
 import type { Instrument } from "../market-types";
 
-export const HISTORY_KEY = "stock-daily:search-history:v2";
+export const HISTORY_KEY = "trendbeak:search-history:v1";
+// Read only for migration of existing browser history.
+export const LEGACY_HISTORY_KEY = "stock-daily:search-history:v2";
 export function parseHistory(value: string | null): Instrument[] {
   try {
     const input: unknown = JSON.parse(value ?? "[]");

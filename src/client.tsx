@@ -2,9 +2,10 @@ import "@fontsource-variable/dm-sans/wght.css";
 import "@fontsource-variable/noto-sans-sc/wght.css";
 import { hydrateRoot } from "react-dom/client";
 import Document, { type PageData } from "./App";
+import "@daypicker/react/style.css";
 import "./styles.css";
 
-const payload = document.querySelector<HTMLScriptElement>("#stock-daily-data");
+const payload = document.querySelector<HTMLScriptElement>("#trendbeak-data");
 
 if (payload?.textContent) {
   const data = JSON.parse(payload.textContent) as PageData;
@@ -27,7 +28,7 @@ if ("serviceWorker" in navigator && isLocalPreview) {
         .then((keys) =>
           Promise.all(
             keys
-              .filter((key) => key.startsWith("stock-daily-"))
+              .filter((key) => (key.startsWith("trendbeak-") || key.startsWith("stock-daily-")))
               .map((key) => caches.delete(key)),
           ),
         );

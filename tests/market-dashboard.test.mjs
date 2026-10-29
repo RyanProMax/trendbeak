@@ -91,11 +91,7 @@ after(async () => {
   await vite?.close();
 });
 const request = (path) =>
-  app.request(
-    `https://example.test${path}`,
-    {},
-    { REMOTE_DATA_ORIGIN: "https://legacy.example.test" },
-  );
+  app.request(`https://example.test${path}`);
 
 test("dashboard SSR renders both markets and 365 real day cells per market without D1", async () => {
   const response = await request("/");
@@ -109,7 +105,7 @@ test("dashboard SSR renders both markets and 365 real day cells per market witho
     ["CN", "US"],
   );
   assert.equal(
-    document.querySelectorAll(".calendar-section rect[role=button]").length,
+    document.querySelectorAll(".calendar-section button[data-date]").length,
     730,
   );
   assert.equal(document.querySelectorAll(".signal-trigger").length, 10);
@@ -119,17 +115,17 @@ test("dashboard SSR renders both markets and 365 real day cells per market witho
     0,
   );
   const data = JSON.parse(
-    document.querySelector("#stock-daily-data").textContent,
+    document.querySelector("#trendbeak-data").textContent,
   );
   assert.equal(data.markets.CN.snapshot.price, 100);
   assert.equal(data.markets.US.snapshot.price, 100);
-  document.querySelector("#stock-daily-data").remove();
+  document.querySelector("#trendbeak-data").remove();
   assert.doesNotMatch(
     document.body.textContent,
     /示例数据|日报|周报|\d{4}-\d{2}-\d{2}|API Skill|contractVersion/,
   );
 });
-test("market and search routes bypass legacy read-through and reject unbounded or hostile input", async () => {
+test("market and search routes reject unbounded or hostile input", async () => {
   const response = await request("/api/markets");
   assert.equal(response.status, 200);
   assert.equal((await response.json()).data.CN.snapshot.days.length, 365);
@@ -144,7 +140,6 @@ test("market and search routes bypass legacy read-through and reject unbounded o
     400,
   );
   assert.equal((await request("/api/markets/CN?symbol=NVDA")).status, 400);
-  assert.ok(seen.every((url) => url.hostname !== "legacy.example.test"));
 });
 test("failed individual quotes return no fabricated price and do not poison the other market", async () => {
   const response = await request("/api/markets/US?symbol=NVDA");
@@ -154,11 +149,11 @@ test("failed individual quotes return no fabricated price and do not poison the 
   assert.equal((await request("/api/markets/CN")).status, 200);
   assert.equal((await request("/api/health")).status, 200);
 });
-test("retired weekly URLs return to the market dashboard", async () => {
-  for (const path of ["/weekly", "/weekly/"]) {
-    const response = await request(path);
-    assert.equal(response.status, 308);
-    assert.equal(response.headers.get("location"), "/");
+test("removed product routes have no readers, writers or redirects", async () => {
+  for (const path of ["/weekly", "/weekly/", "/api/reports", "/api/reports/2026-10-28", "/api/weekly/2026-10-25"]) {
+    assert.equal((await request(path)).status, 404);
+    const result = await app.request(`https://example.test${path}`, { method: "PUT", body: "{}", headers: { "content-type": "application/json" } });
+    assert.equal(result.status, 404);
   }
 });
 test("market names and hydration data cannot escape HTML, including partial outages", async () => {
@@ -182,7 +177,7 @@ test("market names and hydration data cannot escape HTML, including partial outa
     "行情暂不可用重试",
   );
   assert.equal(
-    JSON.parse(document.querySelector("#stock-daily-data").textContent).markets
+    JSON.parse(document.querySelector("#trendbeak-data").textContent).markets
       .CN.instrument.name,
     attack,
   );

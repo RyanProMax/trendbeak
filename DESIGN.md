@@ -1,25 +1,19 @@
-# Stock Daily visual system
+# trendbeak visual system
 
-The interface follows the accepted V6 layout and V9 logo. White space, thin separators and tabular figures lead with real market values, the complete annual calendars, and five existing signals. The framework, data sources and indicator calculations are unchanged.
+White canvas, thin separators, tabular figures and the approved five-bar icon remain the visual foundation. The lowercase wordmark uses a muted green-to-coral gradient for `trend` and gray lavender for `beak`. Font outlines are generated from the existing DM Sans font, so the SVG is portable and independent of installed fonts.
 
-## Brand and color
+## Calendar
 
-The supplied wordmark uses five soft colors: green `#4F9D83`, sage `#8DB399`, gold `#C8BD83`, apricot `#D9A183`, coral `#CB7774`. `stock` follows the same gradient; `daily` remains gray lavender. The icon is five thin round-ended bars. Header, favicon, install icons and offline icon use these assets.
+DayPicker 10.0.2 replaces the activity-heatmap library. The full trailing 365 calendar dates remain visible in monthly layouts. A small leading-month fragment avoids wasting a whole month frame on the first few dates; the remaining months use standard numbered calendars. Both markets share dates, month placement and the return legend. Verified closed days are disabled, and unavailable sessions remain distinct from closures.
 
-The canvas is `#fdfdfc`. Red means gains; green means losses. Emotion is a purple solid line and the benchmark a charcoal dashed line, identified by a shared legend. Technical meters use neutral rails and purple position markers. Self-hosted DM Sans Variable and Noto Sans SC Variable remain in place.
-
-## Layout and dates
-
-Two quote summaries precede one annual calendar section. A shares and US calendars share the same 365 calendar dates, month columns and return legend. Verified holidays stay disabled; missing trading-day returns remain outlined empty cells. The two grids wrap into matching groups on mobile, without horizontal swiping.
-
-A shared date control updates both markets' quotes and available indicators. A market closed on that date shows no invented quote or indicator. Returning to latest restores each market's actual last session date independently. Session dates are shown once above the calendars; hovering previews details in a floating tooltip without moving the layout.
+DayPicker owns focus movement and keyboard navigation; custom buttons forward its props, disabled state and handlers. Dates are interpreted in UTC as calendar labels, without applying a second exchange-time-zone conversion. Selecting a trading date updates both markets. A closed counterpart displays missing readings instead of borrowing a different session.
 
 ## Signals
 
-A single 30/90 calendar-day control updates both charts on the same date axis. Emotion uses the left 0–100 scale, benchmark prices the right scale. Only dated observations are drawn; missing trading-day observations break the path. A lone CNN observation remains a point. Individual-stock selection changes its quote, calendar and technical readings while benchmark comparison continues to use the actual market index.
+The four shared range controls use 30, 90, 180 and 365 natural days. Emotion and benchmark prices keep separate axes and shared line semantics. No observations are invented, interpolated or forward-filled. An explicit missing-state caption identifies unavailable emotion history.
 
-RSI retains Wilder 14-day values and explicit 30/70 thresholds. MA20 retains its −10% to +10% display range. Volume compares the selected complete day with the preceding 20 complete days, with 1× at the midpoint; unavailable values have no marker. The 52-week rail marks the one-year low and high and does not represent a historical percentile or trading recommendation. Sources, definitions and previous values remain in hover/focus/touch bubbles.
+Technical signals show the essential name, a prominent purple numeric reading and a quiet position rail. Range endpoints, verbal states and threshold explanations are available through the same hover, focus and touch bubble. Missing values have no position marker. Calculations and display domains remain unchanged.
 
-## Acceptance
+## Validation
 
-Run `pnpm build`, `pnpm test`, `pnpm security:check` and `pnpm test:visual` with the local preview running. The browser scripts cover 1440px desktop and 390px mobile: full-page screenshots, every current/historical signal bubble, aligned calendars, shared dates, holidays, keyboard navigation, return to latest, real stock search/switching, long names, refresh failure, retry, search history and offline layout. Review screenshots in addition to automated overflow and console checks.
+Review full-page desktop 1440px and mobile 390px screenshots, all current and historical signal bubbles, calendar keyboard/touch behavior, verified holidays, missing sessions, four trend ranges, search and failure recovery. Automated overflow, date coverage, point counts and browser-error checks complement visual review. Passing a build alone is insufficient.

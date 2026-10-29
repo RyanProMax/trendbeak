@@ -1,18 +1,12 @@
-# Stock Daily repository rules
+# trendbeak repository rules
 
 ## Reader-facing quality
 
-- Reader-facing copy must contain only information that helps a reader understand the market, the evidence, or the report state.
+- Reader-facing copy must contain only information that helps a reader understand the market, the evidence, or the data state.
 - Never expose implementation or debugging terms in the website UI, metadata intended for readers, or market labels. This includes `API Skill`, internal provider or operation IDs, agent/model names, schema or contract names, pipeline stages, debug flags, and internal scoring terminology.
 - Do not add helper prose that merely explains the page structure or the generation process.
 - Prefer integrating related information into the component where it is used. Do not create a separate section that makes readers jump back to the corresponding signal when the status or result can live inside that signal.
 - All dates and timestamps shown to readers must use localized, human-readable formatting. Never render raw ISO timestamps.
-
-## Data status
-
-- Scheduled publication is complete only after the current report passes validation, publishes, and is read back successfully from production.
-- A completed scheduled event must move to a realized state promptly after its result is verified against the event authority’s first-party source.
-- Deterministic facts such as supported company tickers must be derived in code from verified source text rather than relying on generated output to copy them.
 
 ## UI acceptance
 
