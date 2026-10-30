@@ -25,11 +25,12 @@ export default function TechnicalRadar({snapshot,date}:{snapshot:MarketSnapshot;
     const left=Math.max(12,bounds.left),right=Math.min(window.innerWidth-12,bounds.right),clampX=(x:number)=>Math.max(left,Math.min(right-w,x)),mid=clampX(ax-w/2);
     const index=Math.max(0,factors.findIndex(item=>item.id===active));
     const corners=[{x:left,y:box.top},{x:right-w,y:box.top},{x:right-w,y:box.bottom-h},{x:left,y:box.bottom-h}];
-    const above={x:mid,y:box.top-h-12},below={x:mid,y:box.bottom+12};
+    const above={x:mid,y:box.top-h-12},below={x:mid,y:Math.max(centerY+radius,...labels.map(l=>l.bottom))+8};
+    const neighbors=[...document.querySelectorAll(".chart-hit-area,.chart-axis-head span,.analysis-heading h3")].map(e=>e.getBoundingClientRect());
     const candidates=[corners[index],index<2?above:below,...corners.filter((_,i)=>i!==index),index<2?below:above];
     const scored=candidates.map((p,i)=>{
       const dx=Math.max(p.x-centerX,0,centerX-p.x-w),dy=Math.max(p.y-centerY,0,centerY-p.y-h);
-      const collision=dx+dy<radius+8||labels.some(l=>p.x<l.right+6&&p.x+w>l.left-6&&p.y<l.bottom+6&&p.y+h>l.top-6);
+      const collision=dx+dy<radius+8||[...labels,...neighbors].some(l=>p.x<l.right+6&&p.x+w>l.left-6&&p.y<l.bottom+6&&p.y+h>l.top-6);
       const overflow=Math.max(0,12-p.y)+Math.max(0,p.y+h-window.innerHeight+12)+Math.max(0,left-p.x)+Math.max(0,p.x+w-right);
       return {...p,cost:Number(collision)*1e6+overflow*1e4+i};
     }).sort((a,b)=>a.cost-b.cost);

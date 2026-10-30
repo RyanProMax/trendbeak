@@ -360,7 +360,7 @@ main { max-width: 1248px; margin: 22px auto 64px; }
 .chart-readout .readout-mood { background: var(--brand-ramp); }
 .chart-readout .explanation-close { top: -2px; right: 0; }
 @media(max-width:760px) {
-  .technical-signals.radar-signals { padding: 6px 0 0; margin-top: 8px; }
+  .technical-signals.radar-signals { padding: 6px 0 40px; margin-top: 8px; }
   .radar-axis > span { font-size: 12px; }
   .radar-value { font-size: 20px; }
   .radar-axis.axis-1, .radar-axis.axis-3 { width: 88px; }
