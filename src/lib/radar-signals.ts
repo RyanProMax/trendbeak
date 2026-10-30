@@ -44,3 +44,22 @@ export function radarSegments(factors: Pick<RadarFactor,"score">[]): number[][] 
   for(let n=1;n<=factors.length;n++){const i=(missing+n)%factors.length;if(factors[i].score!==null)segment.push(i);else if(segment.length){result.push(segment);segment=[];}}
   if(segment.length)result.push(segment);return result;
 }
+
+/** Clip nearby touch targets at their perpendicular bisectors, so a larger
+ * target never steals another real vertex. Equal coordinates share angular sectors. */
+export function radarHitArea(index:number, points:([number,number]|null)[], radius=14):string {
+ const origin=points[index];if(!origin)return "";
+ let vertices:[number,number][]=[[-radius,-radius],[radius,-radius],[radius,radius],[-radius,radius]];
+ for(let j=0;j<points.length;j++){
+  const other=points[j];if(j===index||!other)continue;
+  let dx=other[0]-origin[0],dy=other[1]-origin[1],boundary=(dx*dx+dy*dy)/2;
+  if(boundary<1e-10){const a=-Math.PI/2+index*Math.PI/2,b=-Math.PI/2+j*Math.PI/2;dx=Math.cos(b)-Math.cos(a);dy=Math.sin(b)-Math.sin(a);boundary=0;}
+  const next:[number,number][]=[],distance=(v:[number,number])=>v[0]*dx+v[1]*dy-boundary;
+  for(let n=0;n<vertices.length;n++){const a=vertices[n],b=vertices[(n+1)%vertices.length],da=distance(a),db=distance(b);
+   if(da<=1e-8)next.push(a);
+   if((da<0&&db>0)||(da>0&&db<0)){const t=da/(da-db);next.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]);}
+  }
+  vertices=next;
+ }
+ return `polygon(${vertices.map(([x,y])=>`${(x+radius)/(radius*2)*100}% ${(y+radius)/(radius*2)*100}%`).join(",")})`;
+}

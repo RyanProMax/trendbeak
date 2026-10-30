@@ -109,7 +109,9 @@ test("dashboard SSR renders both markets and 365 real day cells per market witho
     730,
   );
   assert.equal(document.querySelectorAll(".radar-axis").length, 8);
-  assert.equal(document.querySelectorAll("[aria-expanded]").length, 9); // Search and four factor buttons per market.
+  assert.equal(document.querySelectorAll(".react-activity-calendar").length, 2);
+  assert.equal(document.querySelectorAll(".market-signals title,.market-signals [title]").length, 0);
+  assert.equal(document.querySelectorAll("[aria-expanded]").length, 17); // Search, four labels and four point targets per market.
   assert.equal(
     document.querySelectorAll(".signal-detail,details,.sample-pill").length,
     0,

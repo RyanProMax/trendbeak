@@ -54,7 +54,7 @@ export default function TrendRangeControl({ bounds, value, benchmarks, onChange,
    <div className="navigator-thumb navigator-start" style={{left:position(startIndex)}} role="slider" tabIndex={0} aria-label="趋势起始日期" aria-valuemin={0} aria-valuemax={Math.max(0,endIndex-minimum+1)} aria-valuenow={startIndex} aria-valuetext={displayDate(value.start,true)} aria-describedby={help} onPointerDown={e=>begin(e,"start")} onKeyDown={e=>key(e,"start")}/>
    <div className="navigator-thumb navigator-finish" style={{left:position(endIndex)}} role="slider" tabIndex={0} aria-label="趋势结束日期" aria-valuemin={Math.min(total,startIndex+minimum-1)} aria-valuemax={total} aria-valuenow={endIndex} aria-valuetext={displayDate(value.end,true)} aria-describedby={help} onPointerDown={e=>begin(e,"end")} onKeyDown={e=>key(e,"end")}/>
   </div>
-  <div className="navigator-stops">{[365,180,90,30].map(count=><button key={count} type="button" aria-pressed={days===count&&value.end===bounds.end} title={`最近${count}日`} onClick={()=>publish(latestWindow(bounds,count),true)}>{count} 日</button>)}</div>
+  <div className="navigator-stops">{[365,180,90,30].map(count=><button key={count} type="button" aria-pressed={days===count&&value.end===bounds.end} onClick={()=>publish(latestWindow(bounds,count),true)}>{count} 日</button>)}</div>
   <span className="sr-only" id={help}>拖动两端调整日期，拖动选区或下方握柄平移，点击轨道跳转。最少{minimum}自然日。方向键调整一天，Shift配合方向键调整七天，PageUp和PageDown调整三十天，Home和End到边界。快捷日期范围以最新观测为终点。</span>
  </div>;
 }

@@ -87,26 +87,26 @@ function YearHeatmap({
   }, []);
   const startOffset =
     (new Date(`${data[0].date}T12:00:00Z`).getUTCDay() + 6) % 7;
-  const groupWeeks = Math.min(width < 310 ? 14 : width < 680 ? 18 : 53, Math.ceil((startOffset + data.length) / 7));
-  const firstLength = groupWeeks * 7 - startOffset;
-  const groups = [data.slice(0, firstLength)];
-  for (let start = firstLength; start < data.length; start += groupWeeks * 7)
-    groups.push(data.slice(start, start + groupWeeks * 7));
-  const size = Math.floor(
-    Math.min(20, Math.max(7, (width - 28 - (groupWeeks - 1) * 3) / groupWeeks)),
-  );
+  const weeks = Math.ceil((startOffset + data.length) / 7);
+  // One continuous grid, regardless of January. Preserve usable cells on narrow
+  // screens; only the grid scrolls when the selected interval cannot fit.
+  const size = Math.round(Math.min(20, Math.max(12, (width - 28 - (weeks - 1) * 3) / weeks)) * 100) / 100;
   return (
     <section
       className="calendar-section"
       ref={container}
       aria-label={`${snapshot.instrument.name}，${displayDate(data[0].date,true)}至${displayDate(data.at(-1)!.date,true)}每日涨跌`}
-      data-start={data[0].date} data-end={data.at(-1)!.date} data-day-count={data.length}
+      data-start={data[0].date} data-end={data.at(-1)!.date} data-day-count={data.length} data-weeks={weeks}
     >
-      <div className="calendar-groups">
-        {groups.map((group, index) => (
-          <div className="calendar-half" key={index}>
+      <div className="calendar-groups" onScroll={event=>{
+        const current=event.currentTarget;
+        current.closest(".calendar-rows")?.querySelectorAll<HTMLElement>(".calendar-groups").forEach(other=>{
+          if(other!==current&&Math.abs(other.scrollLeft-current.scrollLeft)>1)other.scrollLeft=current.scrollLeft;
+        });
+      }}>
+          <div className="calendar-half">
             <ActivityCalendar
-              data={group}
+              data={data}
               minLevel={-4}
               maxLevel={4}
               theme={{ light: COLORS }}
@@ -204,7 +204,6 @@ function YearHeatmap({
               }}
             />
           </div>
-        ))}
       </div>
       {showTooltip && hoverDay && (
         <FloatingPortal>
