@@ -36,7 +36,7 @@ export default function TrendRangeControl({ bounds, value, benchmarks, onChange,
   else if(queued.current)publish(queued.current,true);
   gesture.current=null;setDragging(false);onDragging(false);
  };
- const cancel=()=>{if(queued.current)publish(queued.current,true);gesture.current=null;setDragging(false);onDragging(false);};
+ const cancel=()=>{const original=gesture.current?.active?gesture.current.window:null;if(frame.current!==null)cancelAnimationFrame(frame.current);frame.current=null;queued.current=null;if(original)onChange(original);gesture.current=null;setDragging(false);onDragging(false);};
  const key=(event:KeyboardEvent<HTMLDivElement>,mode:Exclude<Mode,"track">)=>{
   let delta=event.key==="ArrowLeft"||event.key==="ArrowDown"?-1:event.key==="ArrowRight"||event.key==="ArrowUp"?1:event.key==="PageUp"?-30:event.key==="PageDown"?30:0;
   if(event.shiftKey&&Math.abs(delta)===1)delta*=7;
@@ -46,9 +46,9 @@ export default function TrendRangeControl({ bounds, value, benchmarks, onChange,
   else next=resizeWindow(value,mode,event.key==="Home"?(mode==="start"?bounds.start:shiftDate(value.start,minimum-1)):event.key==="End"?(mode==="end"?bounds.end:shiftDate(value.end,1-minimum)):shiftDate(value[mode],delta),bounds);
   publish(next,true);
  };
- return <div className="trend-range-control" role="group" aria-label="两市趋势范围" data-min={bounds.start} data-max={bounds.end} data-start={value.start} data-end={value.end}>
-  <div className="navigator-caption"><span>两市 · {days} 日</span><span>{displayDate(value.start,true)} — {displayDate(value.end,true)}</span></div>
-  <div className={`navigator-track${dragging?" is-dragging":""}`} ref={track} onPointerDown={e=>begin(e,"track")} onPointerMove={move} onPointerUp={finish} onPointerCancel={cancel}>
+ return <div className="trend-range-control" role="group" aria-label="两市日期范围" data-min={bounds.start} data-max={bounds.end} data-start={value.start} data-end={value.end}>
+  <div className="navigator-caption"><span>已选 {days} 自然日</span><span>{displayDate(value.start,true)} — {displayDate(value.end,true)}</span></div>
+  <div className={`navigator-track${dragging?" is-dragging":""}`} ref={track} onPointerDown={e=>begin(e,"track")} onPointerMove={move} onPointerUp={finish} onPointerCancel={cancel} onKeyDown={event=>{if(event.key==="Escape"&&gesture.current){event.preventDefault();cancel();}}}>
    <svg className="navigator-preview" viewBox="0 0 1000 44" preserveAspectRatio="none" aria-hidden="true">{previews.flatMap((segments,row)=>segments.map((s,i)=>s.single?<circle key={`${row}-${i}`} cx={s.x} cy={s.y} r="1"/>:<path key={`${row}-${i}`} d={s.path} vectorEffect="non-scaling-stroke"/>))}</svg>
    <div className="navigator-window" style={{left:position(startIndex),right:`calc(28px + ${(1-endIndex/total)*100}% - ${(1-endIndex/total)*56}px)`}} role="slider" tabIndex={0} aria-label="移动趋势区间" aria-valuemin={0} aria-valuemax={Math.max(0,total-span)} aria-valuenow={startIndex} aria-valuetext={`${displayDate(value.start,true)}至${displayDate(value.end,true)}，${days}日`} aria-describedby={help} onPointerDown={e=>begin(e,"move")} onKeyDown={e=>key(e,"move")}><span className="navigator-pan-grip" aria-hidden="true" /></div>
    <div className="navigator-thumb navigator-start" style={{left:position(startIndex)}} role="slider" tabIndex={0} aria-label="趋势起始日期" aria-valuemin={0} aria-valuemax={Math.max(0,endIndex-minimum+1)} aria-valuenow={startIndex} aria-valuetext={displayDate(value.start,true)} aria-describedby={help} onPointerDown={e=>begin(e,"start")} onKeyDown={e=>key(e,"start")}/>

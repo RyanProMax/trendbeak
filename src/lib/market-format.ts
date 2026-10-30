@@ -1,12 +1,10 @@
+const shortDate = new Intl.DateTimeFormat("zh-CN",{month:"long",day:"numeric",timeZone:"UTC"});
+const fullDate = new Intl.DateTimeFormat("zh-CN",{year:"numeric",month:"long",day:"numeric",timeZone:"UTC"});
+const decimals = new Map<number,Intl.NumberFormat>();
 export function displayDate(date: string, full = false): string {
   const parsed = new Date(`${date}T12:00:00Z`);
   if (!Number.isFinite(parsed.getTime())) return "日期未知";
-  return new Intl.DateTimeFormat("zh-CN", {
-    ...(full ? { year: "numeric" as const } : {}),
-    month: "long",
-    day: "numeric",
-    timeZone: "UTC",
-  }).format(parsed);
+  return (full?fullDate:shortDate).format(parsed);
 }
 
 export function number(
@@ -15,10 +13,9 @@ export function number(
   signed = false,
 ): string {
   if (value === null || !Number.isFinite(value)) return "—";
-  const magnitude = Math.abs(value).toLocaleString("en-US", {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  });
+  let formatter=decimals.get(digits);
+  if(!formatter){formatter=new Intl.NumberFormat("en-US",{minimumFractionDigits:digits,maximumFractionDigits:digits});decimals.set(digits,formatter);}
+  const magnitude=formatter.format(Math.abs(value));
   return `${value < 0 ? "−" : signed && value > 0 ? "+" : ""}${magnitude}`;
 }
 

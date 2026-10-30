@@ -1,53 +1,9 @@
 import assert from "node:assert/strict";
 import { mkdir } from "node:fs/promises";
 import { chromium } from "@playwright/test";
-export const base = process.env.SIGNAL_PREVIEW_URL || "http://127.0.0.1:8788";
-export const out = process.env.SIGNAL_ARTIFACT_DIR || "artifacts/screenshots/signals";
-export async function launch() {
-  await mkdir(out,{recursive:true});
-  return chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH} : ["darwin","win32"].includes(process.platform) ? {channel:"chrome"} : {});
-}
-export async function openPage(browser,width) {
-  const context = await browser.newContext({viewport:{width,height:900},isMobile:width<=390,hasTouch:width<=390,reducedMotion:"reduce"});
-  const page=await context.newPage(), errors=[];
-  page.on("pageerror",e=>errors.push(e.message));
-  page.on("console",m=>{if(m.type()==="error" && /hydration|React error|Uncaught/i.test(m.text()))errors.push(m.text());});
-  await page.goto(base,{waitUntil:"networkidle"});
-  await page.locator(".signal-trigger").nth(7).waitFor();
-  await page.evaluate(()=>document.fonts.ready);
-  const initial=await page.evaluate(()=>JSON.parse(document.querySelector("#trendbeak-data").textContent));
-  return {page,context,initial,errors};
-}
-export async function layout(page,label) {
-  const result=await page.evaluate(()=>{
-    const width=document.documentElement.clientWidth;
-    return {width,scroll:document.documentElement.scrollWidth,invalid:[...document.querySelectorAll(".market-card,.calendar-section,.calendar-section svg,.market-analysis,.signal-trigger,.signal-tooltip,.search-popover,.trend-chart,.chart-tooltip,.trend-range-control,.navigator-track")].flatMap(el=>{
-      const r=el.getBoundingClientRect(),clipped=el instanceof HTMLElement && el.scrollWidth>el.clientWidth+1;
-      return r.left < -1 || r.right > width+1 || clipped ? [{tag:el.className,left:r.left,right:r.right,clipped}] : [];
-    })};
-  });
-  assert.equal(result.scroll,result.width,label+": page overflow");
-  assert.deepEqual(result.invalid,[],label+": component overflow");
-}
-export async function bubbles(page,width,prefix) {
-  const triggers=page.locator(".signal-trigger");
-  for(let i=0;i<await triggers.count();i++){
-    const trigger=triggers.nth(i);await trigger.scrollIntoViewIfNeeded();
-    const before=await trigger.boundingBox();
-    if(width===390)await trigger.tap();else await trigger.hover();
-    const bubble=page.locator(".signal-tooltip");await bubble.waitFor();
-    await layout(page,prefix+" bubble "+i);
-    const box=await bubble.boundingBox();assert.ok(box.y>=0 && box.y+box.height<=900,prefix+": tooltip vertical overflow");
-    assert.equal((await trigger.boundingBox()).y,before.y,prefix+": tooltip moves content");
-    await page.screenshot({path:`${out}/${width}-${prefix}-signal-${i}.png`,fullPage:true});
-    await bubble.screenshot({path:`${out}/${width}-${prefix}-bubble-${i}.png`});
-    await page.keyboard.press("Escape");await page.mouse.move(0,0);
-    await bubble.waitFor({state:"hidden"});
-  }
-}
-
-export async function selectLatestCalendarDate(page,initial) {
- const [market,snapshot]=Object.entries(initial.markets).map(([market,state])=>[market,state.snapshot]).filter(([,snapshot])=>snapshot).sort((a,b)=>a[1].asOf.localeCompare(b[1].asOf)).at(-1);
- await page.locator(`[data-calendar-market=${market}] rect[data-date="${snapshot.asOf}"]`).click();
- return snapshot.asOf;
-}
+export const base=process.env.SIGNAL_PREVIEW_URL||"http://127.0.0.1:8788",out=process.env.SIGNAL_ARTIFACT_DIR||"artifacts/screenshots/signals";
+export async function launch(){await mkdir(out,{recursive:true});return chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:["darwin","win32"].includes(process.platform)?{channel:"chrome"}:{});}
+export async function openPage(browser,width){const context=await browser.newContext({viewport:{width,height:900},isMobile:width<=390,hasTouch:width<=390,reducedMotion:"reduce"}),page=await context.newPage(),errors=[];page.on("pageerror",e=>errors.push(e.message));page.on("console",m=>{if(m.type()==="error"&&/hydration|React error|Uncaught/i.test(m.text()))errors.push(m.text());});await page.goto(base,{waitUntil:"networkidle"});await page.locator('.radar-axis').nth(7).waitFor();await page.locator('main[data-range-ready=true]').waitFor();await page.evaluate(()=>document.fonts.ready);const initial=await page.evaluate(()=>JSON.parse(document.querySelector('#trendbeak-data').textContent));return{page,context,initial,errors};}
+export async function layout(page,label){const r=await page.evaluate(()=>{const width=document.documentElement.clientWidth;return{width,scroll:document.documentElement.scrollWidth,invalid:[...document.querySelectorAll('.market-card,.calendar-section,.calendar-section svg,.radar-signals,.radar-axis,.radar-explanation,.search-popover,.trend-chart,.chart-readout,.trend-range-control,.navigator-track')].flatMap(el=>{const r=el.getBoundingClientRect(),clipped=el instanceof HTMLElement&&el.scrollWidth>el.clientWidth+1;return r.left< -1||r.right>width+1||clipped?[{tag:el.className,left:r.left,right:r.right,clipped}]:[];})};});assert.equal(r.scroll,r.width,label+': page overflow');assert.deepEqual(r.invalid,[],label+': component overflow');}
+export async function bubbles(page,width,prefix){const axes=page.locator('.radar-axis');for(let i=0;i<await axes.count();i++){const axis=axes.nth(i),panel=axis.locator('xpath=ancestor::section[contains(@class,"radar-signals")]');await axis.scrollIntoViewIfNeeded();const geometry=await panel.locator('.radar-stage').evaluate(e=>({x:e.getBoundingClientRect().x,y:e.getBoundingClientRect().y+scrollY,w:e.clientWidth,h:e.clientHeight}));if(width<=390)await axis.tap();else await axis.click();const expected=await axis.locator('span').innerText(),bubble=panel.locator('.radar-explanation');await bubble.waitFor();assert.equal(await bubble.locator('.radar-explanation-title > strong').innerText(),expected);await layout(page,prefix+' factor '+i);const position=await panel.evaluate(e=>({plot:e.querySelector('.radar-stage').getBoundingClientRect().bottom,tip:e.querySelector('.radar-explanation').getBoundingClientRect().top}));assert.ok(position.tip>=position.plot,prefix+': explanation overlaps radar');assert.deepEqual(await panel.locator('.radar-stage').evaluate(e=>({x:e.getBoundingClientRect().x,y:e.getBoundingClientRect().y+scrollY,w:e.clientWidth,h:e.clientHeight})),geometry);await bubble.scrollIntoViewIfNeeded();assert.equal(await bubble.locator('.radar-explanation-title > strong').innerText(),expected);await page.screenshot({path:`${out}/${width}-${prefix}-signal-${i}.png`,fullPage:true});await bubble.screenshot({path:`${out}/${width}-${prefix}-bubble-${i}.png`});assert.equal(await bubble.locator('.radar-explanation-title > strong').innerText(),expected);await bubble.getByRole('button',{name:'关闭指标说明'}).click();await page.mouse.move(0,0);await bubble.waitFor({state:'hidden'});}}
+export async function selectLatestCalendarDate(page,initial){const end=await page.locator('.trend-range-control').getAttribute('data-end');const date=Object.values(initial.markets).flatMap(s=>Object.keys(s.snapshot?.history??{})).filter(d=>d<=end).sort().at(-1);for(const market of['CN','US']){const cell=page.locator(`[data-calendar-market=${market}] rect[data-date="${date}"]`);if(await cell.count()&&await cell.getAttribute('aria-disabled')!=='true'){await cell.click();return date;}}throw Error('No selectable latest date');}

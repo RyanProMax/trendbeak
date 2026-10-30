@@ -60,6 +60,7 @@ function YearHeatmap({
       })),
     [days],
   );
+  const byDate = useMemo(()=>new Map(data.map(day=>[day.date,day])),[data]);
   const [width, setWidth] = useState(1000);
   const [hoverDate, setHoverDate] = useState<string | null>(null);
   const hoverDay = data.find((day) => day.date === hoverDate);
@@ -84,9 +85,9 @@ function YearHeatmap({
     observer.observe(container.current);
     return () => observer.disconnect();
   }, []);
-  const groupWeeks = width < 310 ? 14 : width < 680 ? 18 : 53;
   const startOffset =
     (new Date(`${data[0].date}T12:00:00Z`).getUTCDay() + 6) % 7;
+  const groupWeeks = Math.min(width < 310 ? 14 : width < 680 ? 18 : 53, Math.ceil((startOffset + data.length) / 7));
   const firstLength = groupWeeks * 7 - startOffset;
   const groups = [data.slice(0, firstLength)];
   for (let start = firstLength; start < data.length; start += groupWeeks * 7)
@@ -98,7 +99,8 @@ function YearHeatmap({
     <section
       className="calendar-section"
       ref={container}
-      aria-label={`${snapshot.instrument.name}过去一年每日涨跌`}
+      aria-label={`${snapshot.instrument.name}，${displayDate(data[0].date,true)}至${displayDate(data.at(-1)!.date,true)}每日涨跌`}
+      data-start={data[0].date} data-end={data.at(-1)!.date} data-day-count={data.length}
     >
       <div className="calendar-groups">
         {groups.map((group, index) => (
@@ -136,7 +138,7 @@ function YearHeatmap({
                 weekdays: ["日", "一", "二", "三", "四", "五", "六"],
               }}
               renderBlock={(block, activity) => {
-                const day = data.find((item) => item.date === activity.date)!;
+                const day = byDate.get(activity.date)!;
                 const missing = day.change === null && day.status !== "closed";
                 const closed = day.status === "closed";
                 return cloneElement(block, {

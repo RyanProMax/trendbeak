@@ -9,11 +9,10 @@ import {
 import StockSearch from "./components/StockSearch";
 import MarketCard, { type ViewState } from "./components/MarketCard";
 import YearHeatmap, { HeatLegend } from "./components/YearHeatmap";
-import SignalMeter from "./components/SignalMeter";
+import TechnicalRadar from "./components/TechnicalRadar";
 import MarketTrend from "./components/MarketTrend";
 import TrendRangeControl from "./components/TrendRange";
-import { signalsForDate } from "./lib/market-signals";
-import { clampWindow, historyBounds, latestWindow, windowDays, type TrendWindow } from "./lib/trend-window";
+import { clampWindow, historyBounds, latestWindow, windowDays, parseTrendWindow, TREND_WINDOW_STORAGE_KEY, type TrendWindow } from "./lib/trend-window";
 import { isExchangeClosed } from "./lib/exchange-calendar";
 import { calendarForRange, shiftDate } from "./lib/chart-series";
 import { rememberSnapshot, restoreSnapshot } from "./lib/browser-snapshots";
@@ -34,24 +33,32 @@ function Dashboard({ data }: { data: PageData }) {
   const [navigating,setNavigating] = useState(false);
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [visibleSeries, setVisibleSeries] = useState({ mood: true, index: true });
-  const calendarDates = Object.values(markets).flatMap(({ snapshot }) =>
-    snapshot ? [snapshot.days[0].date, snapshot.days.at(-1)!.date] : [],
-  ).sort();
-  const calendarEnd = calendarDates.at(-1);
-  const alignedDays = useMemo(() => Object.fromEntries((["CN", "US"] as Market[]).map((market) => [market,
-    markets[market].snapshot && calendarEnd ? calendarForRange(markets[market].snapshot!, calendarEnd) : [],
-  ])), [markets, calendarEnd]);
+  const [defaultDays,setDefaultDays] = useState(365);
+  const [rangeReady,setRangeReady] = useState(false);
+  useEffect(()=>{
+    setDefaultDays(window.matchMedia("(max-width: 760px)").matches?90:365);
+    try { const saved=parseTrendWindow(window.sessionStorage.getItem(TREND_WINDOW_STORAGE_KEY));if(saved)setUserWindow(previous=>previous??saved); } catch { /* Storage is optional. */ }
+    setRangeReady(true);
+  },[]);
+  const chooseWindow = useCallback((next:TrendWindow)=>{
+    setUserWindow(next);
+    try { window.sessionStorage.setItem(TREND_WINDOW_STORAGE_KEY,JSON.stringify(next)); } catch { /* Quota or private mode must not block controls. */ }
+  },[]);
+  const calendarEnd = Object.values(markets).flatMap(({snapshot})=>snapshot?[snapshot.asOf]:[]).sort().at(-1);
   const bounds = useMemo(()=>historyBounds(Object.values(benchmarks)),[benchmarks]);
-  const trendWindow = bounds ? clampWindow(userWindow ?? latestWindow(bounds),bounds) : null;
-  const windowEnd = trendWindow?.end ?? calendarEnd;
-  const range = trendWindow ? windowDays(trendWindow) : 365;
+  const trendWindow = bounds?clampWindow(userWindow??latestWindow(bounds,defaultDays),bounds):null;
+  const windowEnd = trendWindow?.end??calendarEnd;
+  const range = trendWindow?windowDays(trendWindow):defaultDays;
+  const alignedDays = useMemo(()=>Object.fromEntries((["CN","US"] as Market[]).map(market=>[market,
+    markets[market].snapshot&&windowEnd?calendarForRange(markets[market].snapshot!,windowEnd,range):[],
+  ])),[markets,windowEnd,range]);
   useEffect(() => {
     document.querySelectorAll("[data-trend-hover]").forEach((cell) => cell.removeAttribute("data-trend-hover"));
     if (hoveredDate) document.querySelectorAll(`.calendar-section rect[data-date="${hoveredDate}"]`).forEach((cell) => cell.setAttribute("data-trend-hover", "true"));
   }, [hoveredDate, alignedDays]);
   const selectable = useCallback((date:string)=>(["CN","US"] as Market[]).some(market=>{
     const snapshot=markets[market].snapshot;if(!snapshot||isExchangeClosed(date,market))return false;
-    // Annual missing-day inspection is independent of the chart's real-price extent.
+    // Selection inspects exact dates; it never changes the shared date window.
     return alignedDays[market].some(day=>day.date===date&&day.status!=="closed") || !!bounds && date>=bounds.start && date<=bounds.end && !!snapshot.history[date];
   }),[bounds,markets,alignedDays]);
   const selectDate = useCallback((date: string) => {
@@ -224,7 +231,7 @@ function Dashboard({ data }: { data: PageData }) {
           <StockSearch onSelect={(instrument) => load(instrument, true)} />
         </div>
       </header>
-      <main id="main-content">
+      <main id="main-content" data-range-ready={rangeReady}>
         <h1 className="sr-only">每日市场信号</h1>
         <section className="annual-calendar" aria-labelledby="calendar-title">
           <div className="calendar-heading">
@@ -251,16 +258,14 @@ function Dashboard({ data }: { data: PageData }) {
             const snapshot = markets[market].snapshot;
             if (!snapshot) return <section className="analysis-unavailable" data-analysis-market={market} key={market} aria-label={`${market === "CN" ? "A 股" : "美股"}指标`}>行情恢复后显示指标</section>;
             const date = selectedDate ?? snapshot.asOf;
-            const signals = signalsForDate(snapshot, date);
-            const datedSnapshot = { ...snapshot, asOf: date, session: date === snapshot.asOf ? snapshot.session : "closed" as const };
             return <section className="market-analysis" data-analysis-market={market} key={market}>
               <div className="signals" data-date={date} aria-label={`${displayDate(date, true)}指标`}>
                 <div className="analysis-heading"><h3>{market === "CN" ? "A 股" : "美股"}</h3></div>
                 <MarketTrend snapshot={snapshot} benchmark={benchmarks[market]} bounds={bounds ?? {start:shiftDate(windowEnd ?? snapshot.asOf,-364),end:windowEnd ?? snapshot.asOf}} windowEnd={windowEnd ?? snapshot.asOf} selectedDate={date} hoveredDate={hoveredDate} range={range} visible={visibleSeries} onHoverDate={setHoveredDate} onSelectDate={selectDate} canSelectDate={selectable} />
-                <div className="technical-signals">{signals.slice(1).map((signal) => <SignalMeter key={signal.id} signal={signal} snapshot={datedSnapshot} range={range} windowEnd={windowEnd ?? snapshot.asOf} />)}</div>
+                <TechnicalRadar snapshot={snapshot} date={date} />
               </div>
             </section>;
-          })}{bounds && trendWindow && <TrendRangeControl bounds={bounds} value={trendWindow} benchmarks={benchmarks} onChange={setUserWindow} onDragging={setNavigating} />}</div>
+          })}{bounds && trendWindow && <TrendRangeControl bounds={bounds} value={trendWindow} benchmarks={benchmarks} onChange={chooseWindow} onDragging={setNavigating} />}</div>
         </section>
       </main>
     </>

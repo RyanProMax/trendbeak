@@ -21,3 +21,13 @@ export function resizeWindow(window: TrendWindow,side: "start"|"end",date: strin
  : {start:window.start,end:date>bounds.end?bounds.end:date<shiftDate(window.start,gap)?shiftDate(window.start,gap):date};
 }
 export function jumpWindow(window: TrendWindow,date: string,bounds: TrendWindow): TrendWindow {return shiftWindow(window,dateDistance(window.start,date)-Math.floor((windowDays(window)-1)/2),bounds);}
+
+export const TREND_WINDOW_STORAGE_KEY = "trendbeak:window:v1";
+/** Only a valid explicit selection is restored; automatic defaults are not persisted. */
+export function parseTrendWindow(raw: string | null): TrendWindow | null {
+ if(!raw)return null;
+ try {
+  const value=JSON.parse(raw),valid=(date:unknown):date is string=>typeof date==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(date)&&Number.isFinite(Date.parse(date))&&new Date(date).toISOString().slice(0,10)===date;
+  return value&&valid(value.start)&&valid(value.end)&&value.start<=value.end?{start:value.start,end:value.end}:null;
+ } catch { return null; }
+}

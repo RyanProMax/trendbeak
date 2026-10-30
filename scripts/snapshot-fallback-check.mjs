@@ -26,7 +26,7 @@ try{
   await page.route(base+'/',route=>route.fulfill({contentType:'text/html',body:html}));
   await page.reload({waitUntil:'networkidle'});await warning.waitFor();
   assert.equal((await page.locator('#trendbeak-data').textContent()).includes('"snapshot":null'),true);
-  assert.equal(await page.locator('[data-calendar-market=CN] rect[data-date]').count(),365);
+  assert.equal(await page.locator('[data-calendar-market=CN] rect[data-date]').count(),width<=760?90:365);
   assert.equal(await warning.locator('time').getAttribute('datetime'),storedAt);
   await layout(page,'missing SSR restored');await page.screenshot({path:`${out}/${width}-cold-ssr-restored.png`,fullPage:true});
   const failedInstrument={market:'CN',symbol:'600000.SS',code:'600000',kind:'stock',name:'无缓存测试股票'};
