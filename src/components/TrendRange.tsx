@@ -46,8 +46,8 @@ export default function TrendRangeControl({ bounds, value, benchmarks, onChange,
   else next=resizeWindow(value,mode,event.key==="Home"?(mode==="start"?bounds.start:shiftDate(value.start,minimum-1)):event.key==="End"?(mode==="end"?bounds.end:shiftDate(value.end,1-minimum)):shiftDate(value[mode],delta),bounds);
   publish(next,true);
  };
- return <div className="trend-range-control" role="group" aria-label="两市日期范围" data-min={bounds.start} data-max={bounds.end} data-start={value.start} data-end={value.end}>
-  <div className="navigator-caption"><span>已选 {days} 自然日</span><span>{displayDate(value.start,true)} — {displayDate(value.end,true)}</span></div>
+ return <div className="trend-range-control" role="group" aria-label="两市日期范围" data-min={bounds.start} data-max={bounds.end} data-start={value.start} data-end={value.end} data-day-count={days}>
+  <div className="navigator-caption" aria-label="所选日期范围"><span><time dateTime={value.start}>{displayDate(value.start,true)}</time> — <time dateTime={value.end}>{displayDate(value.end,true)}</time></span></div>
   <div className={`navigator-track${dragging?" is-dragging":""}`} ref={track} onPointerDown={e=>begin(e,"track")} onPointerMove={move} onPointerUp={finish} onPointerCancel={cancel} onKeyDown={event=>{if(event.key==="Escape"&&gesture.current){event.preventDefault();cancel();}}}>
    <svg className="navigator-preview" viewBox="0 0 1000 44" preserveAspectRatio="none" aria-hidden="true">{previews.flatMap((segments,row)=>segments.map((s,i)=>s.single?<circle key={`${row}-${i}`} cx={s.x} cy={s.y} r="1"/>:<path key={`${row}-${i}`} d={s.path} vectorEffect="non-scaling-stroke"/>))}</svg>
    <div className="navigator-window" style={{left:position(startIndex),right:`calc(28px + ${(1-endIndex/total)*100}% - ${(1-endIndex/total)*56}px)`}} role="slider" tabIndex={0} aria-label="移动趋势区间" aria-valuemin={0} aria-valuemax={Math.max(0,total-span)} aria-valuenow={startIndex} aria-valuetext={`${displayDate(value.start,true)}至${displayDate(value.end,true)}，${days}日`} aria-describedby={help} onPointerDown={e=>begin(e,"move")} onKeyDown={e=>key(e,"move")}><span className="navigator-pan-grip" aria-hidden="true" /></div>

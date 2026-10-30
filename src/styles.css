@@ -71,8 +71,15 @@ main { max-width: 1248px; margin: 22px auto 64px; }
 .calendar-row { display: grid; grid-template-columns: 168px minmax(0,1fr); align-items: center; min-width: 0; }
 .calendar-row h3 { font-size: 14px; font-weight: 550; }
 .calendar-section, .calendar-half { min-width: 0; }
-.calendar-groups { height: 188px; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; overscroll-behavior-x: contain; }
-.calendar-half { width: max-content; min-width: 100%; }
+.calendar-groups { position: relative; height: 188px; overflow: clip; }
+.calendar-half { width: 100%; min-width: 0; padding-top: 24px; }
+.calendar-grid-shell { margin-left: 28px; overflow: clip; touch-action: pan-y; }
+.calendar-grid-shell .react-activity-calendar__scroll-container { overflow: clip !important; padding-top: 0 !important; }
+.calendar-grid-shell .react-activity-calendar svg { transform: scaleX(var(--calendar-scale)); transform-origin: left top; }
+.calendar-months { position: absolute; left: 28px; right: 0; top: 0; height: 24px; color: #91989a; font-size: 12px; }
+.calendar-months span { position: absolute; white-space: nowrap; }
+.calendar-weekdays { position: absolute; left: 0; top: 24px; width: 24px; color: #91989a; font-size: 12px; }
+.calendar-weekdays span { position: absolute; left: 0; transform: translateY(-50%); }
 .react-activity-calendar { max-width: 100%; color: #9a9ea6 !important; }
 .react-activity-calendar svg { display: block; max-width: none; height: auto; overflow: visible; }
 .react-activity-calendar__scroll-container { overflow: visible !important; }
@@ -214,8 +221,8 @@ main { max-width: 1248px; margin: 22px auto 64px; }
 .trend-wrap { padding-bottom: 0; }
 .react-activity-calendar rect[data-trend-hover="true"] { stroke: #527d68 !important; stroke-width: 2 !important; filter: drop-shadow(0 0 1.5px #527d68); }
 .trend-range-control { grid-column: 1 / -1; grid-row: 3; min-width: 0; margin: 16px 0 0; padding: 0 4px; }
-.navigator-caption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 14px; margin-bottom: 8px; font-size: 12px; color: #7e877d; }
-.navigator-caption span:first-child { color: #56745e; white-space: nowrap; }
+.navigator-caption { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px 14px; margin-bottom: 8px; font-size: 12px; color: #7e877d; }
+.navigator-caption span { white-space: nowrap; }
 .navigator-track { position: relative; height: 44px; border: 1px solid #e6ebe0; border-radius: 6px; background: #fafbf7; cursor: default; touch-action: pan-y; }
 .navigator-track:focus-visible { outline: 2px solid #9fb89c; outline-offset: 4px; }
 .navigator-preview { width: 100%; height: 100%; display: block; overflow: hidden; border-radius: 5px; }
@@ -372,3 +379,13 @@ main { max-width: 1248px; margin: 22px auto 64px; }
 @media(prefers-reduced-motion:reduce) { .radar-point { transition: none; } }
 
 .market-signals, .market-signals *, .annual-calendar, .annual-calendar *, .compact-tooltip { cursor: default; }
+
+/* Text keeps the normal cursor; range manipulation retains its own affordance. */
+.market-signals .navigator-track, .market-signals .navigator-thumb, .market-signals .navigator-thumb * { cursor: ew-resize; }
+.market-signals .navigator-window, .market-signals .navigator-window *, .market-signals .navigator-pan-grip { cursor: grab; }
+.market-signals .navigator-window:active, .market-signals .navigator-window:active * { cursor: grabbing; }
+.market-signals .navigator-stops button { cursor: pointer; }
+.navigator-track { user-select: none; -webkit-user-select: none; }
+.market-signals .navigator-preview, .market-signals .navigator-preview * { cursor: inherit; pointer-events: none; }
+
+@media(max-width:760px) { .calendar-months,.calendar-weekdays { font-size: 11px; } }

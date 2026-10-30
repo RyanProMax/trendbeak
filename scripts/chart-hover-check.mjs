@@ -8,7 +8,7 @@ try {
  for(const width of [1440,1165,390,320]){
   const {page,context,errors}=await openPage(browser,width);
   assert.equal(await page.locator('.annual-calendar title,.annual-calendar [title],.market-signals title,.market-signals [title]').count(),0);
-  const cursors=await page.locator('.calendar-section,.calendar-section *, .market-signals,.market-signals *').evaluateAll(es=>[...new Set(es.map(e=>getComputedStyle(e).cursor))]);
+  const cursors=await page.locator('.calendar-section,.calendar-section *, .market-signals,.market-signals *').evaluateAll(es=>[...new Set(es.filter(e=>!e.closest('.trend-range-control')).map(e=>getComputedStyle(e).cursor))]);
   assert.deepEqual(cursors,['default']);
   const original=await calendarGeometry(page),selected=await page.locator('.global-selected-date').getAttribute('datetime');
   for(const n of[365,30,90,180,365]){
@@ -24,15 +24,10 @@ try {
     assert.ok(smallest>=12);
    }
   }
-  if(width<=390){
-   const scroll=page.locator('[data-calendar-market=CN] .calendar-groups');await scroll.scrollIntoViewIfNeeded();
-   const b=await scroll.boundingBox();await page.mouse.move(b.x+b.width/2,b.y+60);await page.mouse.wheel(520,0);
-   await page.waitForFunction(()=>document.querySelector('[data-calendar-market=CN] .calendar-groups').scrollLeft>100);
-   await page.waitForFunction(()=>Math.abs(document.querySelector('[data-calendar-market=CN] .calendar-groups').scrollLeft-document.querySelector('[data-calendar-market=US] .calendar-groups').scrollLeft)<2);
-   assert.equal(await page.locator('.global-selected-date').getAttribute('datetime'),selected);await layout(page,'horizontal grid');
-   await page.screenshot({path:out+'/'+width+'-calendar-scroll.png',fullPage:true});
-   await page.getByRole('button',{name:'90 日',exact:true}).click();
-  }
+  assert.equal(await page.locator('.navigator-start').evaluate(e=>getComputedStyle(e).cursor),'ew-resize');
+  assert.equal(await page.locator('.navigator-finish').evaluate(e=>getComputedStyle(e).cursor),'ew-resize');
+  assert.equal(await page.locator('.navigator-window').evaluate(e=>getComputedStyle(e).cursor),'grab');
+  if(width<=390)await page.getByRole('button',{name:'90 日',exact:true}).click();
   const positions=[];
   for(const market of['CN','US']){
    const panel=page.locator('[data-analysis-market='+market+'] .radar-signals');
@@ -75,7 +70,7 @@ try {
   assert.deepEqual(await page.evaluate(()=>({same:window.__rangeNode===document.querySelector('.navigator-window'),connected:window.__rangeNode.isConnected,capture:window.__capture})),{same:true,connected:true,capture:['got','lost']});
   assert.equal(await page.locator('.global-selected-date').getAttribute('datetime'),selected);await layout(page,'final');
   await page.screenshot({path:out+'/'+width+'-hover-final.png',fullPage:true});assert.deepEqual(errors,[]);
-  report.push({width,nativeTitlesAbsent:true,defaultCursor:true,actualPointHoverOrTap:true,labelSharesHighlight:true,allEightFactors:true,dynamicPositions:positions,diagramAndValuesUncovered:true,keyboardFocus:true,noDuplicateTrendDate:true,continuousSevenRows:true,calendarHeightAndScrollStable:true,dragCapturePreserved:true,sharedHorizontalScroll:width<=390,noErrors:true});
+  report.push({width,nativeTitlesAbsent:true,defaultCursor:true,actualPointHoverOrTap:true,labelSharesHighlight:true,allEightFactors:true,dynamicPositions:positions,diagramAndValuesUncovered:true,keyboardFocus:true,noDuplicateTrendDate:true,continuousSevenRows:true,calendarHeightAndScrollStable:true,dragCapturePreserved:true,resizeCursor:true,calendarFitsWidth:true,noErrors:true});
   await context.close();
  }
  await writeFile(out+'/chart-hover-results.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));

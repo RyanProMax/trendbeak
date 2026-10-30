@@ -1,8 +1,9 @@
-import { cloneElement, memo, useEffect, useId, useMemo, useRef, useState } from "react";
+import { cloneElement, memo, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { ActivityCalendar } from "react-activity-calendar";
 import { autoUpdate, flip, FloatingPortal, offset, shift, useDismiss, useFloating, useInteractions } from "@floating-ui/react";
 import type { CalendarDay, MarketSnapshot } from "../market-types";
 import { displayDate, number } from "../lib/market-format";
+import { calendarLayout, calendarIndexAt, calendarMonthLabels, CALENDAR_CELL, CALENDAR_GAP } from "../lib/calendar-layout";
 
 const COLORS = [
   "#3e7e65",
@@ -69,7 +70,7 @@ function YearHeatmap({
   const showTooltip = !!hoverDay;
   const { refs, floatingStyles, context } = useFloating({
     open: showTooltip,
-    onOpenChange: (open) => { if (!open) setHoverDate(null); },
+    onOpenChange: (open) => { if (!open) { inspected.current=null;setHoverDate(null);onHoverDate?.(null); } },
     placement: "top", strategy: "fixed",
     middleware: [offset(8), flip({ padding: 12 }), shift({ padding: 12 })],
     whileElementsMounted: autoUpdate,
@@ -85,41 +86,48 @@ function YearHeatmap({
     observer.observe(container.current);
     return () => observer.disconnect();
   }, []);
-  const startOffset =
-    (new Date(`${data[0].date}T12:00:00Z`).getUTCDay() + 6) % 7;
-  const weeks = Math.ceil((startOffset + data.length) / 7);
-  // One continuous grid, regardless of January. Preserve usable cells on narrow
-  // screens; only the grid scrolls when the selected interval cannot fit.
-  const size = Math.round(Math.min(20, Math.max(12, (width - 28 - (weeks - 1) * 3) / weeks)) * 100) / 100;
+  const layout=calendarLayout(data[0].date,data.length,width),months=calendarMonthLabels(data.map(day=>day.date),layout);
+  const grid=useRef<HTMLDivElement>(null),inspected=useRef<string|null>(null);
+  const nearest=(event:{clientX:number;clientY:number})=>{
+    const rect=grid.current!.getBoundingClientRect(),index=calendarIndexAt(event.clientX-rect.left,event.clientY-rect.top,layout);
+    return index===null?null:data[index];
+  };
+  const inspect=(day:typeof data[number]|null)=>{
+    const next=day?.date??null;if(inspected.current===next)return;
+    inspected.current=next;
+    if(day){const cell=grid.current?.querySelector<SVGRectElement>(`rect[data-date="${day.date}"]`);if(cell)refs.setReference(cell);}
+    setHoverDate(day?.date??null);onHoverDate?.(day?.date??null);
+  };
+  const inspectPointer=(event:PointerEvent<HTMLDivElement>)=>inspect(nearest(event));
   return (
     <section
       className="calendar-section"
       ref={container}
       aria-label={`${snapshot.instrument.name}，${displayDate(data[0].date,true)}至${displayDate(data.at(-1)!.date,true)}每日涨跌`}
-      data-start={data[0].date} data-end={data.at(-1)!.date} data-day-count={data.length} data-weeks={weeks}
+      data-start={data[0].date} data-end={data.at(-1)!.date} data-day-count={data.length} data-weeks={layout.weeks} style={{"--calendar-scale":layout.scale} as CSSProperties}
     >
-      <div className="calendar-groups" onScroll={event=>{
-        const current=event.currentTarget;
-        current.closest(".calendar-rows")?.querySelectorAll<HTMLElement>(".calendar-groups").forEach(other=>{
-          if(other!==current&&Math.abs(other.scrollLeft-current.scrollLeft)>1)other.scrollLeft=current.scrollLeft;
-        });
-      }}>
+      <div className="calendar-groups">
+          <div className="calendar-months" aria-hidden="true">{(showMonths||width<680)&&months.map(month=><span key={month.x} style={{left:month.x}}>{month.label}</span>)}</div>
+          <div className="calendar-weekdays" aria-hidden="true">{[0,2,4].map((row,i)=><span key={row} style={{top:row*23+10}}>{["一","三","五"][i]}</span>)}</div>
           <div className="calendar-half">
+          <div className="calendar-grid-shell" ref={grid} onPointerMove={inspectPointer} onPointerDown={inspectPointer}
+            onPointerLeave={()=>{if(!container.current?.querySelector(":focus-visible"))inspect(null);}}
+            onClickCapture={event=>{if(event.detail===0)return;const day=nearest(event);event.stopPropagation();if(day&&day.status!=="closed")onSelectDate(day.date);}}>
             <ActivityCalendar
               data={data}
               minLevel={-4}
               maxLevel={4}
               theme={{ light: COLORS }}
               colorScheme="light"
-              blockSize={size}
-              blockMargin={3}
+              blockSize={CALENDAR_CELL}
+              blockMargin={CALENDAR_GAP}
               blockRadius={2.5}
               fontSize={width < 680 ? 12 : 13}
               weekStart={1}
-              showMonthLabels={showMonths || width < 680}
+              showMonthLabels={false}
               showTotalCount={false}
               showColorLegend={false}
-              showWeekdayLabels={["mon", "wed", "fri"]}
+              showWeekdayLabels={false}
               labels={{
                 months: [
                   "1月",
@@ -163,13 +171,8 @@ function YearHeatmap({
                   },
                   strokeDasharray: missing ? "1.5 1.5" : undefined,
                   onClick: () => { if (!closed) onSelectDate(day.date); },
-                  onMouseEnter: (event) => {
-                    refs.setReference(event.currentTarget);
-                    setHoverDate(day.date); onHoverDate?.(day.date);
-                  },
-                  onMouseLeave: () => { setHoverDate(null); onHoverDate?.(null); },
-                  onFocus: (event) => { refs.setReference(event.currentTarget); setHoverDate(day.date); onHoverDate?.(day.date); },
-                  onBlur: () => { setHoverDate(null); onHoverDate?.(null); },
+                  onFocus: () => inspect(day),
+                  onBlur: () => inspect(null),
                   onKeyDown: (event) => {
                     if (closed) return;
                     const jump = (
@@ -203,6 +206,7 @@ function YearHeatmap({
                 });
               }}
             />
+          </div>
           </div>
       </div>
       {showTooltip && hoverDay && (
