@@ -112,6 +112,15 @@ export function parseUSSentiment(
   };
 }
 
+/** A failed refresh may retain validated past observations, never yesterday's
+ * score relabelled as today or an old intraday value presented as current. */
+export function sentimentFailure(market:Market,previous:SentimentData|undefined,now=Date.now()):SentimentData {
+  const today=marketDate(now,market),cutoff=new Date(Date.parse(today)-364*86400000).toISOString().slice(0,10);
+  return {...sources[market],...(previous?.historyUnavailable?{historyUnavailable:previous.historyUnavailable}:{}),
+    observations:previous?.source.url===sources[market].source.url?previous.observations.filter(point=>isDate(point.date)&&point.date>=cutoff&&point.date<today&&validScore(point.value)):[],
+    error:"贪恐数据暂不可用。"};
+}
+
 const cache = new Map<Market, { until: number; value: SentimentData }>();
 const pending = new Map<Market, Promise<SentimentData>>();
 export async function loadSentiment(market: Market): Promise<SentimentData> {
@@ -138,11 +147,7 @@ export async function loadSentiment(market: Market): Promise<SentimentData> {
           ? parseChinaSentiment(text)
           : parseUSSentiment(JSON.parse(text));
     } catch {
-      value = {
-        ...sources[market],
-        observations: [],
-        error: "贪恐数据暂不可用。",
-      };
+      value = sentimentFailure(market,saved?.value);
     }
     cache.set(market, {
       until:

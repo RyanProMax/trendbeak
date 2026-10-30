@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import type { Market, MarketSnapshot } from "../market-types";
 import { chartSegments, calendarForRange, shiftDate } from "../lib/chart-series";
-import { dateDistance, jumpWindow, latestWindow, minimumWindowDays, resizeWindow, shiftWindow, windowDays, type TrendWindow } from "../lib/trend-window";
+import { dateDistance, jumpWindow, minimumWindowDays, resizeWindow, shiftWindow, windowDays, type TrendWindow } from "../lib/trend-window";
 import { chartPath } from "../lib/chart-path";
 import { displayDate } from "../lib/market-format";
 
@@ -9,6 +9,7 @@ type Mode = "start" | "end" | "move" | "track";
 export default function TrendRangeControl({ bounds, value, benchmarks, onChange, onDragging }: {
  bounds: TrendWindow; value: TrendWindow; benchmarks: Record<Market,MarketSnapshot|null>; onChange:(window:TrendWindow)=>void; onDragging:(active:boolean)=>void;
 }) {
+ const rangeDate=(date:string)=>new Intl.DateTimeFormat("zh-CN",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:"UTC"}).format(new Date(date+"T12:00:00Z"));
  const help=useId(),track=useRef<HTMLDivElement>(null),[dragging,setDragging]=useState(false),frame=useRef<number|null>(null),queued=useRef<TrendWindow|null>(null);
  const gesture=useRef<{x:number;y:number;mode:Mode;window:TrendWindow;bounds:TrendWindow;active:boolean;vertical:boolean;span:number;pixels:number}|null>(null);
  const total=Math.max(1,dateDistance(bounds.start,bounds.end)),startIndex=dateDistance(bounds.start,value.start),endIndex=dateDistance(bounds.start,value.end),span=endIndex-startIndex,days=windowDays(value),minimum=minimumWindowDays(bounds);
@@ -47,14 +48,13 @@ export default function TrendRangeControl({ bounds, value, benchmarks, onChange,
   publish(next,true);
  };
  return <div className="trend-range-control" role="group" aria-label="两市日期范围" data-min={bounds.start} data-max={bounds.end} data-start={value.start} data-end={value.end} data-day-count={days}>
-  <div className="navigator-caption" aria-label="所选日期范围"><span><time dateTime={value.start}>{displayDate(value.start,true)}</time> — <time dateTime={value.end}>{displayDate(value.end,true)}</time></span></div>
   <div className={`navigator-track${dragging?" is-dragging":""}`} ref={track} onPointerDown={e=>begin(e,"track")} onPointerMove={move} onPointerUp={finish} onPointerCancel={cancel} onKeyDown={event=>{if(event.key==="Escape"&&gesture.current){event.preventDefault();cancel();}}}>
    <svg className="navigator-preview" viewBox="0 0 1000 44" preserveAspectRatio="none" aria-hidden="true">{previews.flatMap((segments,row)=>segments.map((s,i)=>s.single?<circle key={`${row}-${i}`} cx={s.x} cy={s.y} r="1"/>:<path key={`${row}-${i}`} d={s.path} vectorEffect="non-scaling-stroke"/>))}</svg>
    <div className="navigator-window" style={{left:position(startIndex),right:`calc(28px + ${(1-endIndex/total)*100}% - ${(1-endIndex/total)*56}px)`}} role="slider" tabIndex={0} aria-label="移动趋势区间" aria-valuemin={0} aria-valuemax={Math.max(0,total-span)} aria-valuenow={startIndex} aria-valuetext={`${displayDate(value.start,true)}至${displayDate(value.end,true)}，${days}日`} aria-describedby={help} onPointerDown={e=>begin(e,"move")} onKeyDown={e=>key(e,"move")}><span className="navigator-pan-grip" aria-hidden="true" /></div>
    <div className="navigator-thumb navigator-start" style={{left:position(startIndex)}} role="slider" tabIndex={0} aria-label="趋势起始日期" aria-valuemin={0} aria-valuemax={Math.max(0,endIndex-minimum+1)} aria-valuenow={startIndex} aria-valuetext={displayDate(value.start,true)} aria-describedby={help} onPointerDown={e=>begin(e,"start")} onKeyDown={e=>key(e,"start")}/>
    <div className="navigator-thumb navigator-finish" style={{left:position(endIndex)}} role="slider" tabIndex={0} aria-label="趋势结束日期" aria-valuemin={Math.min(total,startIndex+minimum-1)} aria-valuemax={total} aria-valuenow={endIndex} aria-valuetext={displayDate(value.end,true)} aria-describedby={help} onPointerDown={e=>begin(e,"end")} onKeyDown={e=>key(e,"end")}/>
   </div>
-  <div className="navigator-stops">{[365,180,90,30].map(count=><button key={count} type="button" aria-pressed={days===count&&value.end===bounds.end} onClick={()=>publish(latestWindow(bounds,count),true)}>{count} 日</button>)}</div>
-  <span className="sr-only" id={help}>拖动两端调整日期，拖动选区或下方握柄平移，点击轨道跳转。最少{minimum}自然日。方向键调整一天，Shift配合方向键调整七天，PageUp和PageDown调整三十天，Home和End到边界。快捷日期范围以最新观测为终点。</span>
+  <div className="navigator-caption" aria-label="所选日期范围"><time dateTime={value.start} aria-label={displayDate(value.start,true)}>{rangeDate(value.start)}</time><time dateTime={value.end} aria-label={displayDate(value.end,true)}>{rangeDate(value.end)}</time></div>
+  <span className="sr-only" id={help}>拖动两端调整日期，拖动选区或下方握柄平移，点击轨道跳转。最少{minimum}自然日。方向键调整一天，Shift配合方向键调整七天，PageUp和PageDown调整三十天，Home和End到边界。可选数据域限定最近365自然日。</span>
  </div>;
 }

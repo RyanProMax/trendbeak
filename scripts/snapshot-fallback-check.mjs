@@ -3,7 +3,7 @@ import {writeFile} from 'node:fs/promises';
 import {createServer} from 'vite';
 import React from 'react';
 import {renderToString} from 'react-dom/server';
-import {launch,openPage,layout,out,base} from './signal-check-utils.mjs';
+import {launch,openPage,layout,out,base,visibleDates} from './signal-check-utils.mjs';
 const vite=await createServer({configFile:false,appType:'custom',server:{middlewareMode:true,hmr:false}}),Document=(await vite.ssrLoadModule('/src/App.tsx')).default;
 const browser=await launch(),report=[];
 try{
@@ -26,7 +26,8 @@ try{
   await page.route(base+'/',route=>route.fulfill({contentType:'text/html',body:html}));
   await page.reload({waitUntil:'networkidle'});await warning.waitFor();
   assert.equal((await page.locator('#trendbeak-data').textContent()).includes('"snapshot":null'),true);
-  assert.equal(await page.locator('[data-calendar-market=CN] rect[data-date]').count(),width<=760?90:365);
+  const range=await page.locator('.trend-range-control').evaluate(e=>({start:e.dataset.start,end:e.dataset.end}));
+  assert.equal(await page.locator('[data-calendar-market=CN] rect[data-date]').count(),visibleDates(range.start,range.end).length);
   assert.equal(await warning.locator('time').getAttribute('datetime'),storedAt);
   await layout(page,'missing SSR restored');await page.screenshot({path:`${out}/${width}-cold-ssr-restored.png`,fullPage:true});
   const failedInstrument={market:'CN',symbol:'600000.SS',code:'600000',kind:'stock',name:'无缓存测试股票'};

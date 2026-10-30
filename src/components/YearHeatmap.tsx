@@ -3,7 +3,7 @@ import { ActivityCalendar } from "react-activity-calendar";
 import { autoUpdate, flip, FloatingPortal, offset, shift, useDismiss, useFloating, useInteractions } from "@floating-ui/react";
 import type { CalendarDay, MarketSnapshot } from "../market-types";
 import { displayDate, number } from "../lib/market-format";
-import { calendarLayout, calendarIndexAt, calendarMonthLabels, CALENDAR_CELL, CALENDAR_GAP } from "../lib/calendar-layout";
+import { calendarLayout, calendarIndexAt, calendarMonthLabels, CALENDAR_CELL, CALENDAR_GAP, weekdayIndex } from "../lib/calendar-layout";
 
 const COLORS = [
   "#3e7e65",
@@ -104,17 +104,17 @@ function YearHeatmap({
       className="calendar-section"
       ref={container}
       aria-label={`${snapshot.instrument.name}，${displayDate(data[0].date,true)}至${displayDate(data.at(-1)!.date,true)}每日涨跌`}
-      data-start={data[0].date} data-end={data.at(-1)!.date} data-day-count={data.length} data-weeks={layout.weeks} style={{"--calendar-scale":layout.scale} as CSSProperties}
+      data-start={data[0].date} data-end={data.at(-1)!.date} data-day-count={data.length} data-weeks={layout.weeks} data-visible-day-count={data.filter(day=>weekdayIndex(day.date)<5).length} style={{"--calendar-scale":layout.scale,"--calendar-height":layout.gridHeight+"px"} as CSSProperties}
     >
       <div className="calendar-groups">
           <div className="calendar-months" aria-hidden="true">{(showMonths||width<680)&&months.map(month=><span key={month.x} style={{left:month.x}}>{month.label}</span>)}</div>
-          <div className="calendar-weekdays" aria-hidden="true">{[0,2,4].map((row,i)=><span key={row} style={{top:row*23+10}}>{["一","三","五"][i]}</span>)}</div>
+          <div className="calendar-weekdays" aria-hidden="true">{(layout.scale<.35?[0,4]:[0,2,4]).map(row=><span key={row} style={{top:(row*23+10)*layout.scale}}>{["一","二","三","四","五"][row]}</span>)}</div>
           <div className="calendar-half">
           <div className="calendar-grid-shell" ref={grid} onPointerMove={inspectPointer} onPointerDown={inspectPointer}
             onPointerLeave={()=>{if(!container.current?.querySelector(":focus-visible"))inspect(null);}}
             onClickCapture={event=>{if(event.detail===0)return;const day=nearest(event);event.stopPropagation();if(day&&day.status!=="closed")onSelectDate(day.date);}}>
             <ActivityCalendar
-              data={data}
+              data={data.slice(layout.firstIndex,layout.lastIndex+1)}
               minLevel={-4}
               maxLevel={4}
               theme={{ light: COLORS }}
@@ -146,6 +146,7 @@ function YearHeatmap({
                 weekdays: ["日", "一", "二", "三", "四", "五", "六"],
               }}
               renderBlock={(block, activity) => {
+                if(weekdayIndex(activity.date)>4)return <g />;
                 const day = byDate.get(activity.date)!;
                 const missing = day.change === null && day.status !== "closed";
                 const closed = day.status === "closed";

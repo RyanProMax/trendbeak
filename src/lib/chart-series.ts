@@ -40,7 +40,6 @@ export function chartSegments(days: CalendarDay[], observations: ChartPoint[]): 
   return segments;
 }
 
-export const TREND_RANGES = [30, 90, 180, 365] as const;
 
 /** Window selection is independent of the inspected/calendar date. */
 export function trendSeries(snapshot: MarketSnapshot, benchmark: MarketSnapshot | null, end: string, range: number) {

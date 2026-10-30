@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   BENCHMARKS,
   type Instrument,
@@ -12,7 +12,7 @@ import YearHeatmap, { HeatLegend } from "./components/YearHeatmap";
 import TechnicalRadar from "./components/TechnicalRadar";
 import MarketTrend from "./components/MarketTrend";
 import TrendRangeControl from "./components/TrendRange";
-import { clampWindow, historyBounds, latestWindow, windowDays, parseTrendWindow, TREND_WINDOW_STORAGE_KEY, type TrendWindow } from "./lib/trend-window";
+import { clampWindow, historyBounds, latestWindow, windowDays, persistTrendWindow, restoreTrendWindow, type TrendWindow } from "./lib/trend-window";
 import { isExchangeClosed } from "./lib/exchange-calendar";
 import { calendarForRange, shiftDate } from "./lib/chart-series";
 import { rememberSnapshot, restoreSnapshot } from "./lib/browser-snapshots";
@@ -35,18 +35,29 @@ function Dashboard({ data }: { data: PageData }) {
   const [visibleSeries, setVisibleSeries] = useState({ mood: true, index: true });
   const [defaultDays,setDefaultDays] = useState(365);
   const [rangeReady,setRangeReady] = useState(false);
-  useEffect(()=>{
+  const bounds = useMemo(()=>historyBounds(Object.values(benchmarks)),[benchmarks]);
+  const scrollAnchor=useRef<number|null>(null);
+  useLayoutEffect(()=>{
     setDefaultDays(window.matchMedia("(max-width: 760px)").matches?90:365);
-    try { const saved=parseTrendWindow(window.sessionStorage.getItem(TREND_WINDOW_STORAGE_KEY));if(saved)setUserWindow(previous=>previous??saved); } catch { /* Storage is optional. */ }
+    try { const saved=restoreTrendWindow(window.sessionStorage,bounds);if(saved)setUserWindow(previous=>previous??saved); } catch { /* Optional storage. */ }
     setRangeReady(true);
   },[]);
-  const chooseWindow = useCallback((next:TrendWindow)=>{
-    setUserWindow(next);
-    try { window.sessionStorage.setItem(TREND_WINDOW_STORAGE_KEY,JSON.stringify(next)); } catch { /* Quota or private mode must not block controls. */ }
-  },[]);
   const calendarEnd = Object.values(markets).flatMap(({snapshot})=>snapshot?[snapshot.asOf]:[]).sort().at(-1);
-  const bounds = useMemo(()=>historyBounds(Object.values(benchmarks)),[benchmarks]);
   const trendWindow = bounds?clampWindow(userWindow??latestWindow(bounds,defaultDays),bounds):null;
+  const chooseWindow=useCallback((next:TrendWindow)=>{
+    if(!bounds)return;const normalized=clampWindow(next,bounds),track=document.querySelector(".navigator-track")?.getBoundingClientRect();
+    scrollAnchor.current=track&&window.scrollY>0&&track.bottom>0&&track.top<window.innerHeight&&(normalized.start!==trendWindow?.start||normalized.end!==trendWindow?.end)?track.top:null;
+    setUserWindow(normalized);
+    try { persistTrendWindow(window.sessionStorage,normalized,bounds); } catch { /* Optional storage. */ }
+  },[bounds?.start,bounds?.end,trendWindow?.start,trendWindow?.end]);
+  useLayoutEffect(()=>{
+    if(scrollAnchor.current!==null){const top=document.querySelector(".navigator-track")?.getBoundingClientRect().top;if(top!==undefined)window.scrollBy(0,top-scrollAnchor.current);scrollAnchor.current=null;}
+  },[trendWindow?.start,trendWindow?.end]);
+  useEffect(()=>{
+    if(!rangeReady||!userWindow||!bounds)return;const normalized=clampWindow(userWindow,bounds);
+    if(normalized.start!==userWindow.start||normalized.end!==userWindow.end)setUserWindow(normalized);
+    try{persistTrendWindow(window.sessionStorage,normalized,bounds);}catch{/* Optional storage. */}
+  },[rangeReady,userWindow,bounds?.start,bounds?.end]);
   const windowEnd = trendWindow?.end??calendarEnd;
   const range = trendWindow?windowDays(trendWindow):defaultDays;
   const alignedDays = useMemo(()=>Object.fromEntries((["CN","US"] as Market[]).map(market=>[market,

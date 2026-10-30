@@ -21,9 +21,8 @@ function fixture() {
     sentiment: { observations: [{ date: "2026-10-29", value: 36.5 }] },
   };
 }
-test("quick presets remain natural-day windows without limiting arbitrary ranges", () => {
-  assert.deepEqual([...series.TREND_RANGES],[30,90,180,365]);
-  for (const range of [...series.TREND_RANGES,7,64,111,520]) {
+test("natural-day windows preserve the chosen extent up to one year", () => {
+  for (const range of [7,30,64,90,111,180,365]) {
     const result=series.trendSeries(fixture(),fixture(),"2026-10-29",range);
     assert.equal((Date.parse(result.end)-Date.parse(result.start))/86400000,range-1);
     assert.equal(result.days.length,range);

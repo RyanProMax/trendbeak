@@ -93,7 +93,7 @@ after(async () => {
 const request = (path) =>
   app.request(`https://example.test${path}`);
 
-test("dashboard SSR renders both markets and 365 real day cells per market without D1", async () => {
+test("dashboard SSR renders both markets and weekday cells within a 365-day window without D1", async () => {
   const response = await request("/");
   assert.equal(response.status, 200);
   const document = new JSDOM(await response.text()).window.document;
@@ -106,7 +106,7 @@ test("dashboard SSR renders both markets and 365 real day cells per market witho
   );
   assert.equal(
     document.querySelectorAll(".calendar-section rect[data-date]").length,
-    730,
+    [...document.querySelectorAll(".calendar-section")].reduce((sum,e)=>{for(let t=Date.parse(e.dataset.start);t<=Date.parse(e.dataset.end);t+=86400000){const d=new Date(t).getUTCDay();if(d!==0&&d!==6)sum++;}return sum;},0),
   );
   assert.equal(document.querySelectorAll(".radar-axis").length, 8);
   assert.equal(document.querySelectorAll(".react-activity-calendar").length, 2);
