@@ -9,6 +9,7 @@ import type {
 } from "../market-types";
 import { number } from "./market-format";
 import { isExchangeClosed } from "./exchange-calendar";
+import { buildRadarReadings } from "./radar-metrics";
 
 const finite = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
@@ -218,6 +219,7 @@ export function buildHistory(
     .toISOString()
     .slice(0, 10);
   const history: Record<string, HistoricalReading> = {};
+  const radar = buildRadarReadings(bars, trading);
   bars.forEach((bar, index) => {
     if (bar.date < cutoff || bar.date > through) return;
     const prefix = bars.slice(0, index + 1);
@@ -227,6 +229,7 @@ export function buildHistory(
     );
     history[bar.date] = {
       price: bar.close,
+      radar: radar[bar.date],
       change: index ? (bar.close / bars[index - 1].close - 1) * 100 : null,
       values: Object.fromEntries(
         signals.map((s) => [s.id, s.value]),
@@ -290,7 +293,7 @@ export function signalsForDate(
     explanation:
       sentiment?.description ?? "反映整个市场的情绪，不是单只股票的评分。",
     unavailable: observation ? null : (sentiment?.error ?? "该日贪恐读数暂缺。"),
-    source: sentiment?.source,
+    source: observation?.source ?? sentiment?.source,
     previousLabel: "前次发布",
     note: sentiment?.historyUnavailable,
   };

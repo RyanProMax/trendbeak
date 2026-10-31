@@ -30,7 +30,7 @@ try {
   const positions=[];
   for(const market of['CN','US']){
    const panel=page.locator('[data-analysis-market='+market+'] .radar-signals');
-   for(const factor of['rsi','trend','range','change']){
+   for(const factor of['rsi','ema','volatility','activity']){
     await clearPopup(page);await panel.evaluate(e=>e.scrollIntoView({block:'center'}));
     const hit=panel.locator('[data-radar-hit='+factor+']'),axis=panel.locator('[data-radar-axis='+factor+']');
     const before=await panel.locator('.radar-stage').evaluate(e=>({y:e.getBoundingClientRect().y+scrollY,h:e.clientHeight}));

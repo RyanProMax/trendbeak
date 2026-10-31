@@ -1,4 +1,5 @@
 import type { Market, MarketSnapshot } from "../market-types";
+import { usHistoryChain } from "./us-history-seed";
 import { SNAPSHOT_SCHEMA, FRESH_MS, MAX_SNAPSHOT_AGE_MS, readSnapshot, snapshotKey, validRecord, type SnapshotRecord } from "../lib/snapshot-record";
 
 export interface SnapshotEdgeCache { match(key: Request): Promise<Response | undefined>; put(key: Request, response: Response): Promise<unknown> }
@@ -34,6 +35,12 @@ export function createSnapshotCache(clock = Date.now) {
           const { freshness: _freshness, ...snapshot } = await load();
           const saved: SnapshotRecord = { schema: SNAPSHOT_SCHEMA, storedAt: new Date(clock()).toISOString(), snapshot };
           if(!validRecord(saved,market,symbol,clock())) throw new Error("Invalid successful snapshot");
+          // Carry dated US observations across a cold isolate via the existing
+          // same-colo last-good. Quote freshness never refreshes observation time.
+          if(market === "US" && record?.snapshot.sentiment && snapshot.sentiment) {
+            try { snapshot.sentiment = await usHistoryChain.update(record.snapshot.sentiment,snapshot.sentiment,clock()); }
+            catch { /* Optional history must never disable a valid quote. */ }
+          }
           // Recheck just before writing: avoid an older slow request replacing a newer observation when visible.
           // Cache API has no atomic compare-and-swap; a cross-isolate race cannot be fully prevented here.
           try {

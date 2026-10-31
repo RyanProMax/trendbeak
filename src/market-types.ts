@@ -40,17 +40,38 @@ export type TechnicalValues = Record<
   "rsi" | "trend" | "volume" | "range",
   number | null
 >;
+export type RadarMetricId = "ema" | "volatility" | "activity";
+export interface RadarMetric {
+  value: number | null;
+  score: number | null;
+  asOf: string;
+  samples: number;
+}
+export interface RadarReadings {
+  version: 1;
+  ema: RadarMetric;
+  volatility: RadarMetric;
+  activity: RadarMetric;
+}
 export interface HistoricalReading {
   price: number;
   change: number | null;
+  radar?: RadarReadings;
   values: TechnicalValues;
   previous: TechnicalValues;
   range: { low: number; high: number } | null;
 }
+export interface SentimentObservation {
+  date: string; value: number; previous: number | null;
+  observedAt?: string;
+  dateKind?: "utc-date" | "market-time";
+  source?: { name: string; url: string };
+}
 export interface SentimentData {
+  historySeed?: { sha256: string; source: { name: string; url: string }; through: string; generatedAt: string };
   source: { name: string; url: string };
   description: string;
-  observations: { date: string; value: number; previous: number | null }[];
+  observations: SentimentObservation[];
   error?: string;
   historyUnavailable?: string;
 }

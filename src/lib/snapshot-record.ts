@@ -11,7 +11,19 @@ const nullable = (v: unknown) => v === null || finite(v);
 const text = (v: unknown) => typeof v === "string" && v.length > 0 && v.length < 500;
 const source = (v: any) => v && text(v.name) && typeof v.url === "string" && /^https:\/\//.test(v.url);
 const values = (v: any) => v && ["rsi", "trend", "volume", "range"].every(key => nullable(v[key]));
+const radar = (v: any, date: string) => !v || (v.version === 1 && ["ema", "volatility", "activity"].every(id => {
+  const m = v[id];
+  return m && nullable(m.value) && (id === "ema" || m.value === null || m.value >= 0) && nullable(m.score) &&
+    (m.score === null || (m.value !== null && m.score >= 0 && m.score <= 100 && m.samples >= 60)) &&
+    Number.isInteger(m.samples) && m.samples >= 0 && m.samples <= 252 && isDate(m.asOf) && m.asOf <= date && (id === "activity" || m.asOf === date);
+}));
 const timestamp = (v: unknown): v is string => typeof v === "string" && Number.isFinite(Date.parse(v)) && new Date(v).toISOString() === v;
+const observationTime = (p: any, market: Market, now: number) => {
+  if (p.observedAt === undefined && p.dateKind === undefined) return true;
+  if (!timestamp(p.observedAt) || Date.parse(p.observedAt) > now + 300000) return false;
+  if (p.dateKind === "utc-date") return Date.parse(p.observedAt) % 86400000 === 0 && p.date === p.observedAt.slice(0, 10);
+  return p.dateKind === "market-time" && p.date === marketDate(Date.parse(p.observedAt), market);
+};
 export const snapshotKey = (market: Market, symbol: string) => `v${SNAPSHOT_SCHEMA}:${market}:${symbol}`;
 
 /** Treat both edge bodies and browser storage as untrusted, versioned input. */
@@ -25,9 +37,10 @@ export function validSnapshot(v: any, market: Market, symbol: string, now: numbe
       !Array.isArray(v.days) || v.days.length !== 365 || !Array.isArray(v.signals) || v.signals.length < 4 || v.signals.length > 5 || !v.history || typeof v.history !== "object") return false;
   if (!v.days.every((d: any, i: number) => isDate(d?.date) && d.date <= today && (!i || v.days[i-1].date < d.date) && nullable(d.change) && ["trading", "closed", "missing"].includes(d.status))) return false;
   const rows = Object.entries(v.history);
-  if (!rows.length || rows.length > 800 || !rows.every(([date, row]: [string, any]) => isDate(date) && date <= today && finite(row?.price) && row.price > 0 && nullable(row.change) && values(row.values) && values(row.previous) && (row.range === null || (finite(row.range?.low) && finite(row.range?.high) && row.range.low <= row.range.high)))) return false;
+  if (!rows.length || rows.length > 800 || !rows.every(([date, row]: [string, any]) => isDate(date) && date <= today && finite(row?.price) && row.price > 0 && nullable(row.change) && values(row.values) && values(row.previous) && radar(row.radar, date) && (row.range === null || (finite(row.range?.low) && finite(row.range?.high) && row.range.low <= row.range.high)))) return false;
   if (v.history[v.asOf]?.price !== v.price || !v.signals.every((s: any) => ["sentiment", "rsi", "trend", "volume", "range"].includes(s?.id) && text(s.name) && typeof s.period === "string" && nullable(s.value) && nullable(s.previous) && finite(s.min) && finite(s.max) && s.min < s.max && typeof s.unit === "string" && Number.isInteger(s.digits) && Array.isArray(s.labels) && s.labels.length === 3 && s.labels.every(text) && text(s.explanation))) return false;
-  if (v.sentiment && (!source(v.sentiment.source) || !text(v.sentiment.description) || !Array.isArray(v.sentiment.observations) || v.sentiment.observations.length > 10_000 || !v.sentiment.observations.every((p: any, i: number) => isDate(p?.date) && p.date <= today && (!i || v.sentiment.observations[i-1].date < p.date) && finite(p.value) && p.value >= 0 && p.value <= 100 && nullable(p.previous)))) return false;
+  if (v.sentiment?.historySeed && (!/^[a-f0-9]{64}$/.test(v.sentiment.historySeed.sha256) || !source(v.sentiment.historySeed.source) || !isDate(v.sentiment.historySeed.through) || v.sentiment.historySeed.through > today || !timestamp(v.sentiment.historySeed.generatedAt) || Date.parse(v.sentiment.historySeed.generatedAt) > now)) return false;
+  if (v.sentiment && (!source(v.sentiment.source) || !text(v.sentiment.description) || !Array.isArray(v.sentiment.observations) || v.sentiment.observations.length > 10_000 || !v.sentiment.observations.every((p: any, i: number) => isDate(p?.date) && p.date <= today && (!i || v.sentiment.observations[i-1].date < p.date) && finite(p.value) && p.value >= 0 && p.value <= 100 && nullable(p.previous) && observationTime(p,market,now) && (p.source === undefined || source(p.source))))) return false;
   return true;
 }
 export function validRecord(v: any, market: Market, symbol: string, now = Date.now()): v is SnapshotRecord {

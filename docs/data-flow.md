@@ -54,7 +54,7 @@ RSI 需要至少 15 个交易日；MA20 至少 20 个交易日；量能比需要
 
 ## 图表交互与来源边界
 
-趋势图下读数只按日期查真实观测，周末/休市与缺失分开显示，不取相邻日替代。雷达呈现RSI、MA20偏离、52周位置、日涨跌，轴旁保持原单位，图外临时说明给出可视化刻度。MA20±10%、日涨跌±3%仅线性映射为0～100，RSI及区间位置直接映射；无权重和综合分，不改变独立的CN/US贪恐来源。D3 MonotoneX 仅用于显示经过真实点且不产生额外峰值的曲线，交易日缺口仍断开，不生成历史观测。
+趋势图下读数只按日期查真实观测，周末/休市与缺失分开显示，不取相邻日替代。雷达呈现RSI14、EMA20/EMA60趋势差、布林(20,2)带宽、RVOL20，轴旁保持原单位，图外临时说明给出绘图刻度和观测日期。RSI原0～100；其余用之前最多252个有效完整观测的经验中位秩（小于数+相等数/2）/样本数×100，不包含当前观测，至少60个，平值序列的50来自真实并列秩，缺历史不补50。EMA60从前60收盘价SMA初始化后按2/61递推，EMA20同理；带宽使用20个收盘价总体标准差；RVOL分母排除分子日，盘中回到最近完整日且不跳过缺量日。CN继续采用腾讯qfqday优先、US沿用Yahoo quote.close，四维与既有RSI使用同一价序列，不混入adjclose或其他标的；指数仅用其上游报告的同标的量，缺失或零量不补ETF。所有历史计算只见截至当日的前缀。EMA历史中位不代表多空零线，原始正负保留；波动与量能不是买卖方向。无权重和综合分，不改变独立的CN/US贪恐来源。新雷达字段可选且版本化，旧快照仍能兜底行情和RSI，但不会被解释成新指标；浏览器仍受2MiB和最多6份约束，较大快照可能更早逐出。D3 MonotoneX 仅用于显示经过真实点且不产生额外峰值的曲线，交易日缺口仍断开，不生成历史观测。
 
 交互只借鉴通用十字线、图例开关和缩略范围选择理念，没有复制参考站代码、UI 或调用其内部接口。[百分位方法说明](https://baifenwei.com/methodology/)未披露六项分值的完整公式与归一化窗口；[使用条款](https://baifenwei.com/terms/)要求商业用途书面许可。既有 A 股综合情绪来源沿用不变，其商业再使用许可尚未核验；本轮未增加第三方镜像依赖或扩大数据采集。
 
@@ -65,3 +65,9 @@ RSI 需要至少 15 个交易日；MA20 至少 20 个交易日；量能比需要
 缓存约束按 [Cloudflare Cache API 官方文档](https://developers.cloudflare.com/workers/runtime-apis/cache/)：不靠 stale-if-error / stale-while-revalidate 指令自动回退，物理保留期与业务新鲜期由代码明确分离。
 
 情绪请求失败时，进程中已验证的过去观测会保留；同日未刷新的观测不作为当前值返回，错误状态仍记录在接口中。这是已有历史的失败保护，不是新建历史库，也不补造美国全年情绪。2026-10-30只读核验：现转引接口有当前reading和无日期比较值；CNN历史请求返回418，来源受限。
+
+
+技术公式参考：[EMA](https://www.tradingview.com/support/solutions/43000592270-exponential-moving-average/)、[Bollinger BandWidth](https://www.tradingview.com/support/solutions/43000501972-bollinger-bandwidth-bbw/)、[Relative Volume](https://www.tradingview.com/support/solutions/43000635874-how-do-we-calculate-relative-volume-and-relative-volume-at-time/)。本产品选择20日量能基准，TradingView示例为10日；不宣称与其默认值完全相同。分位归一化是本产品绘图定义，不是新增情绪算法。
+
+
+US后续本地修正：转引成功刷新及现有边缘快照冷实例刷新保留已有、可追溯的过去日期，不再只剩最后一条；无日期比较不作为前日观测，新直接CNN读取器因正常请求418而未启用。具体证据与适配边界见 [cnn-history-adapter.md](cnn-history-adapter.md)。

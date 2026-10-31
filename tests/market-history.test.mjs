@@ -123,7 +123,7 @@ test("US relay never substitutes crypto, stale values or undated comparisons for
   };
   const result = sentiment.parseUSSentiment(payload, now);
   assert.deepEqual(result.observations, [
-    { date: "2026-10-28", value: 34.45, previous: 33.6 },
+    { date: "2026-10-28", value: 34.45, previous: null, observedAt: new Date(payload.stocks.reading.updatedAt).toISOString(), dateKind: "market-time", source: result.source },
   ]);
   assert.match(result.source.name, /转引 CNN/);
   assert.throws(() =>

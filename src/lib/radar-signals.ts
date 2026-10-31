@@ -2,9 +2,9 @@ import type { MarketSnapshot } from "../market-types";
 import { isExchangeClosed } from "./exchange-calendar";
 import { signalsForDate } from "./market-signals";
 
-export type RadarId = "rsi" | "trend" | "range" | "change";
+export type RadarId = "rsi" | "ema" | "volatility" | "activity";
 export interface RadarFactor {
-  id: RadarId; name: string; value: number | null; score: number | null;
+  id: RadarId; name: string; value: number | null; score: number | null; asOf: string;
   digits: number; unit: string; explanation: string; scale: string; unavailable: string | null;
 }
 export const RADAR_STOPS = [
@@ -12,22 +12,35 @@ export const RADAR_STOPS = [
   { value: 50, color: "#B49A4D" }, { value: 80, color: "#C86C5B" }, { value: 100, color: "#C65F50" },
 ] as const;
 const clamp = (value: number) => Math.max(0, Math.min(100, value));
-/** Display coordinates only. These factors never alter the published fear/greed reading. */
+/** Four different technical dimensions; no weights, combined score or claim of statistical independence. */
 export function radarFactors(snapshot: MarketSnapshot, date: string): RadarFactor[] {
-  const signals = signalsForDate(snapshot, date), reading = snapshot.history[date];
+  const rsi = signalsForDate(snapshot, date).find(item => item.id === "rsi"), reading = snapshot.history[date];
+  const metrics = reading?.radar?.version === 1 ? reading.radar : null;
+  const missing = isExchangeClosed(date, snapshot.instrument.market) ? "当天休市，无当日指标。" : "当天无交易数据。";
   const descriptors = [
-    { id: "rsi", name: "RSI 动量", digits: 1, unit: "", explanation: "Wilder 14 日；低于 30 为超卖，高于 70 为超买。", scale: "原始 RSI 直接绘图" },
-    { id: "trend", name: "均线偏离", digits: 1, unit: "%", explanation: "低于 MA20 在内侧，高于均线向外。低值不直接等于超卖。", scale: "−10% → 0 · 0% → 50 · +10% → 100" },
-    { id: "range", name: "52 周位置", digits: 0, unit: "%", explanation: "靠近一年低点在内侧，靠近高点在外侧；不是估值分位或超卖判断。", scale: "原始价格区间位置直接绘图" },
-    { id: "change", name: "当日涨跌", digits: 2, unit: "%", explanation: "沿用热力日历的涨跌幅范围；表示当天强弱，不单独判定超卖。", scale: "−3% → 0 · 0% → 50 · +3% → 100" },
+    { id: "rsi", name: "RSI 动量", digits: 1, unit: "", explanation: "Wilder RSI14；<30偏超卖，>70偏超买。" },
+    { id: "ema", name: "EMA 趋势", digits: 2, unit: "%", explanation: "（EMA20/EMA60−1）×100%；零为均线分界。" },
+    { id: "volatility", name: "布林波动", digits: 2, unit: "%", explanation: "布林带宽＝4σ20/SMA20×100%，σ用总体标准差。" },
+    { id: "activity", name: "量能活跃", digits: 2, unit: "×", explanation: "完整日量/前20日均量；盘中取最近完整日，仅表示活跃度。" },
   ] as const;
   return descriptors.map(descriptor => {
-    const signal = signals.find(item => item.id === descriptor.id);
-    const value = descriptor.id === "change" ? reading?.change ?? null : signal?.value ?? null;
-    const score = value === null ? null : clamp(descriptor.id === "trend" ? 50 + 5 * value : descriptor.id === "change" ? 50 + value / 6 * 100 : value);
-    const unavailable = value === null ? descriptor.id === "change" ? isExchangeClosed(date,snapshot.instrument.market) ? "当天休市，无日涨跌观测。" : "当天无交易数据。" : signal?.unavailable ?? "当天无指标数据。" : null;
-    return { ...descriptor, value, score, unavailable };
+    const metric = descriptor.id === "rsi" ? null : metrics?.[descriptor.id];
+    const value = descriptor.id === "rsi" ? rsi?.value ?? null : metric?.value ?? null;
+    const score = descriptor.id === "rsi" ? value === null ? null : clamp(value) : metric?.score ?? null;
+    const asOf = metric?.asOf ?? date;
+    const unavailable = !reading ? missing : value === null ? descriptor.id === "rsi" ? rsi?.unavailable ?? "历史日线不足15日。" : descriptor.id === "ema" ? "EMA需要至少60个交易日的日线。" : descriptor.id === "volatility" ? "布林带宽需要至少20个交易日的日线。" : "缺少最近完整日及此前20日的有效同标的成交量。" : null;
+    const scale = descriptor.id === "rsi" ? "原始RSI 0–100直接绘图。" : !metric ? "未取得此项历史计算结果，不补中间值。" : metric.samples < 60 ? `原值保留；历史${metric.samples}个，不足60个，不画点。` : `此前${metric.samples}个完整观测分位，不含本次。${descriptor.id === "ema" ? "中位≠零线。" : ""}`;
+    return { ...descriptor, value, score, asOf, unavailable, scale,
+      explanation: descriptor.explanation };
   });
+}
+/** Volatility/activity are direction-neutral; EMA color follows its actual sign, never its percentile. */
+export function radarFactorColor(factor: Pick<RadarFactor, "id" | "value" | "score">): string {
+  if (factor.value === null) return "#99a18f";
+  if (factor.id === "volatility") return "#8d9475";
+  if (factor.id === "activity") return "#6b8d8b";
+  if (factor.id === "ema") return factor.value < 0 ? "#4F9D77" : factor.value > 0 ? "#C86C5B" : "#9b9764";
+  return radarColor(factor.value);
 }
 export function radarColor(value: number): string {
   const score=clamp(value),next=RADAR_STOPS.findIndex(stop=>stop.value>=score);

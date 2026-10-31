@@ -1,5 +1,6 @@
 import type { Market, SentimentData } from "../market-types";
 import { isDate, marketDate } from "../lib/market-signals";
+import { usHistoryChain } from "./us-history-seed";
 
 const sources: Record<Market, Pick<SentimentData, "source" | "description">> = {
   CN: {
@@ -104,9 +105,10 @@ export function parseUSSentiment(
       {
         date: marketDate(time, "US"),
         value: reading.value,
-        previous: validScore(reading.history?.yesterday)
-          ? reading.history.yesterday
-          : null,
+        previous: null,
+        observedAt: new Date(time).toISOString(),
+        dateKind: "market-time",
+        source: sources.US.source,
       },
     ],
   };
@@ -145,9 +147,11 @@ export async function loadSentiment(market: Market): Promise<SentimentData> {
       value =
         market === "CN"
           ? parseChinaSentiment(text)
-          : parseUSSentiment(JSON.parse(text));
+          : await usHistoryChain.update(saved?.value, parseUSSentiment(JSON.parse(text)), Date.now());
     } catch {
       value = sentimentFailure(market,saved?.value);
+      if (market === "US") try { value = await usHistoryChain.update(saved?.value,value,Date.now()); }
+        catch { /* Optional baseline cannot turn unavailable sentiment into a quote failure. */ }
     }
     cache.set(market, {
       until:
