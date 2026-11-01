@@ -31,7 +31,7 @@ export async function sentimentView(db: D1Database | undefined, market: Market, 
     const task = (async () => {
         const report = SENTIMENT_SOURCES.cnn_benzinga;
         const sql = `WITH dated AS (SELECT source,date,score,updated_at,LAG(score) OVER(PARTITION BY source ORDER BY date) AS previous FROM sentiment_daily WHERE market=? AND source IN (?,?) AND date>=? AND date<=? ORDER BY source,date LIMIT 745)
-SELECT source,COUNT(*) AS count,MAX(updated_at) AS revision,json_group_array(json(CASE WHEN source='cnn_benzinga' THEN json_object('date',date,'value',score,'previous',NULL,'source',json_object('name',?,'url',?)) ELSE json_object('date',date,'value',score,'previous',previous) END)) AS observations FROM dated GROUP BY source`;
+SELECT source,COUNT(*) AS count,MAX(updated_at) AS revision,json_group_array(json(CASE WHEN source='cnn_benzinga' THEN json_object('date',date,'value',json(printf('%!.17g',score)),'previous',NULL,'source',json_object('name',?,'url',?)) ELSE json_object('date',date,'value',json(printf('%!.17g',score)),'previous',CASE WHEN previous IS NULL THEN NULL ELSE json(printf('%!.17g',previous)) END) END)) AS observations FROM dated GROUP BY source`;
         const r = await db.prepare(sql).bind(market, source, market === 'US' ? 'cnn_benzinga' : source, from, to, report.name, report.url).all<{
             source: string;
             count: number;

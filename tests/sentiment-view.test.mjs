@@ -4,6 +4,7 @@ import { createServer } from 'vite';
 import { preparedDB, fixtureNow } from './market-fixture.mjs';
 test('bounded D1 JSON projection equals the source-isolated dated observations and preserves revision/failure semantics', async () => { const now = Date.now; let clock = fixtureNow; Date.now = () => clock; const vite = await createServer({ configFile: false, logLevel: 'silent', appType: 'custom', server: { middlewareMode: true, hmr: false, ws: false } }), f = await preparedDB(vite); try {
     const { sentimentView } = await vite.ssrLoadModule('/src/server/sentiment-view.ts'), { loadSentiment } = await vite.ssrLoadModule('/src/server/sentiment-store.ts');
+    f.sqlite.prepare("UPDATE sentiment_daily SET score=? WHERE market='US' AND source='cnn_whit3rabbit' AND date='2026-06-01'").run(26.200000762939453);
     for (const market of ['CN', 'US']) {
         const expected = await loadSentiment(market, f.wrap(), 'https://test.example', '2026-10-30'), actual = await sentimentView(f.db, market, '2026-10-30');
         assert.deepEqual(JSON.parse(actual.json), expected);
