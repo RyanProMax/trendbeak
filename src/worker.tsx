@@ -1,6 +1,5 @@
 import { Hono } from "hono";
-import { renderToReadableStream } from "react-dom/server.edge";
-import Document from "./App";
+import { shell } from "./server/shell";
 import { BENCHMARKS, type Market } from "./market-types";
 import { readSentiment, sentimentQuery } from "./server/sentiment-store";
 import { DEFAULT_SENTIMENT_SOURCE, SENTIMENT_SOURCES, validSentimentSource } from "./lib/sentiment-sources";
@@ -45,11 +44,11 @@ app.get("/api/markets/:market", async (c) => {
   if (!validSymbol(market, symbol))
     return c.json({ error: "股票代码无效" }, 400);
   try {
-    const {snapshot,revision} = await loadMarket(market, symbol, c.env?.SENTIMENT_DB, new URL(c.req.url).origin);
+    const {body,revision} = await loadMarket(market, symbol, c.env?.SENTIMENT_DB, new URL(c.req.url).origin);
     const etag=`W/"snapshot-v1:${market}:${symbol}:${revision}"`;
     c.header("Cache-Control", "no-cache");c.header("ETag",etag);
     if(c.req.header('If-None-Match')?.split(',').map(s=>s.trim()).includes(etag))return c.body(null,304);
-    return c.json({ data: snapshot });
+    return c.body(body,200,{"Content-Type":"application/json; charset=UTF-8"});
   } catch (error) {
     c.header("Cache-Control", "no-store");
     if(error instanceof SnapshotMissing)return c.json({error:"该股票的历史数据尚未收录",code:"snapshot_missing",retryable:false},404);
@@ -76,13 +75,8 @@ app.get("/api/health", async (c) => {
 });
 
 app.get("/", async (c) => {
-  // A cold page is a cheap shell. Quote APIs independently read bounded snapshots;
-  // no data fetching, D1, indicator build or SVG rendering occurs in this request.
-  const markets=Object.fromEntries((["CN","US"] as Market[]).map(m=>[m,{instrument:BENCHMARKS[m],snapshot:null,error:null,retryable:true}])) as Record<Market,import("./market-types").MarketState>;
-  const stream = await renderToReadableStream(
-    <Document data={{ markets, requestUrl: `${productionOrigin}/` }} />,
-  );
-  return new Response(stream, {
+  // Built once without live data; no React render or date calculation on reads.
+  return new Response(shell, {
     headers: {
       "Content-Type": "text/html; charset=UTF-8",
       "Cache-Control": "no-cache",

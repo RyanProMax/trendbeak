@@ -55,6 +55,8 @@ const store = createSentimentStore(() => Date.now());
 export const readSentiment = store.read;
 const projections=new WeakMap<SentimentSnapshot,{reports?:SentimentSnapshot;data:SentimentData}>();
 const revisions=new WeakMap<SentimentData,string>();
+const encoded=new WeakMap<SentimentData,string>();
+export function sentimentJSON(data:SentimentData){let json=encoded.get(data);if(!json){json=JSON.stringify(data);encoded.set(data,json);}return json;}
 export const sentimentRevision=(data:SentimentData)=>revisions.get(data)??"unavailable";
 export async function loadSentiment(market: Market, db?: D1Database, origin?: string, through?:string): Promise<SentimentData> {
   const source = SENTIMENT_SOURCES[DEFAULT_SENTIMENT_SOURCE[market]], metadata = { source: { name: source.name, url: source.url }, description: source.description };
