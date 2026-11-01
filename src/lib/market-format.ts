@@ -1,10 +1,11 @@
-const shortDate = new Intl.DateTimeFormat("zh-CN",{month:"long",day:"numeric",timeZone:"UTC"});
-const fullDate = new Intl.DateTimeFormat("zh-CN",{year:"numeric",month:"long",day:"numeric",timeZone:"UTC"});
+const dates=new Map<boolean,Intl.DateTimeFormat>();
 const decimals = new Map<number,Intl.NumberFormat>();
 export function displayDate(date: string, full = false): string {
   const parsed = new Date(`${date}T12:00:00Z`);
   if (!Number.isFinite(parsed.getTime())) return "日期未知";
-  return (full?fullDate:shortDate).format(parsed);
+  let formatter=dates.get(full);
+  if(!formatter){formatter=new Intl.DateTimeFormat("zh-CN",{...(full?{year:"numeric"}:{}),month:"long",day:"numeric",timeZone:"UTC"});dates.set(full,formatter);}
+  return formatter.format(parsed);
 }
 
 export function number(

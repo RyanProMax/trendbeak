@@ -1,5 +1,6 @@
+import {readerDate} from "./market-clock";
 import type { Market, SentimentData } from "../market-types";
-import { isDate, marketDate } from "../lib/market-signals";
+import { isDate } from "../lib/market-signals";
 import { DEFAULT_SENTIMENT_SOURCE, SENTIMENT_SOURCES, validSentimentSource, type SentimentSource } from "../lib/sentiment-sources";
 import type { SnapshotEdgeCache } from "./snapshot-cache";
 
@@ -8,9 +9,9 @@ export interface SentimentQuery { market: Market; source: SentimentSource; from:
 export interface SentimentRow { market: Market; date: string; source: SentimentSource; score: number; updated_at: string }
 export interface SentimentSnapshot { storedAt: string; rows: SentimentRow[] }
 
-export function sentimentQuery(market: Market, source = DEFAULT_SENTIMENT_SOURCE[market], from?: string, to = marketDate(Date.now(), market)): SentimentQuery {
+export function sentimentQuery(market: Market, source = DEFAULT_SENTIMENT_SOURCE[market], from?: string, to = readerDate(Date.now(), market)): SentimentQuery {
   from ??= new Date(Date.parse(to) - 364 * 86_400_000).toISOString().slice(0, 10);
-  if (!validSentimentSource(market, source) || !isDate(from) || !isDate(to) || from > to || Date.parse(to)-Date.parse(from)>365*86_400_000 || to > marketDate(Date.now(), market)) throw new Error("Invalid sentiment query");
+  if (!validSentimentSource(market, source) || !isDate(from) || !isDate(to) || from > to || Date.parse(to)-Date.parse(from)>365*86_400_000 || to > readerDate(Date.now(), market)) throw new Error("Invalid sentiment query");
   return { market, source, from, to };
 }
 

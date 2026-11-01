@@ -26,8 +26,12 @@ export function isDate(value: unknown): value is string {
   );
 }
 
-const marketDates = { CN: new Intl.DateTimeFormat("en-CA", {year:"numeric",month:"2-digit",day:"2-digit",timeZone:"Asia/Shanghai"}), US: new Intl.DateTimeFormat("en-CA", {year:"numeric",month:"2-digit",day:"2-digit",timeZone:"America/New_York"}) };
-export function marketDate(time: number, market: "CN" | "US"): string { return marketDates[market].format(new Date(time)); }
+const marketDates = new Map<Market,Intl.DateTimeFormat>();
+export function marketDate(time:number,market:Market):string {
+  let formatter=marketDates.get(market);
+  if(!formatter){formatter=new Intl.DateTimeFormat("en-CA",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:market==="CN"?"Asia/Shanghai":"America/New_York"});marketDates.set(market,formatter);}
+  return formatter.format(new Date(time));
+}
 
 export function validateBars(input: DailyBar[], today: string): DailyBar[] {
   const seen = new Set<string>();
