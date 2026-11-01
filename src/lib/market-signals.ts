@@ -9,7 +9,7 @@ import type {
 } from "../market-types";
 import { number } from "./market-format";
 import { isExchangeClosed } from "./exchange-calendar";
-import { buildRadarReadings } from "./radar-metrics";
+import { updateHistory } from "./history-engine";
 
 const finite = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
@@ -26,14 +26,8 @@ export function isDate(value: unknown): value is string {
   );
 }
 
-export function marketDate(time: number, market: "CN" | "US"): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    timeZone: market === "CN" ? "Asia/Shanghai" : "America/New_York",
-  }).format(new Date(time));
-}
+const marketDates = { CN: new Intl.DateTimeFormat("en-CA", {year:"numeric",month:"2-digit",day:"2-digit",timeZone:"Asia/Shanghai"}), US: new Intl.DateTimeFormat("en-CA", {year:"numeric",month:"2-digit",day:"2-digit",timeZone:"America/New_York"}) };
+export function marketDate(time: number, market: "CN" | "US"): string { return marketDates[market].format(new Date(time)); }
 
 export function validateBars(input: DailyBar[], today: string): DailyBar[] {
   const seen = new Set<string>();
@@ -219,27 +213,8 @@ export function buildHistory(
     .toISOString()
     .slice(0, 10);
   const history: Record<string, HistoricalReading> = {};
-  const radar = buildRadarReadings(bars, trading);
-  bars.forEach((bar, index) => {
-    if (bar.date < cutoff || bar.date > through) return;
-    const prefix = bars.slice(0, index + 1);
-    const signals = calculateSignals(
-      prefix,
-      trading && index === bars.length - 1,
-    );
-    history[bar.date] = {
-      price: bar.close,
-      radar: radar[bar.date],
-      change: index ? (bar.close / bars[index - 1].close - 1) * 100 : null,
-      values: Object.fromEntries(
-        signals.map((s) => [s.id, s.value]),
-      ) as TechnicalValues,
-      previous: Object.fromEntries(
-        signals.map((s) => [s.id, s.previous]),
-      ) as TechnicalValues,
-      range: rangeBounds(prefix),
-    };
-  });
+  const computed = updateHistory(bars, trading);
+  bars.forEach((bar,index) => { if(bar.date >= cutoff && bar.date <= through) history[bar.date] = computed.rows[index]; });
   return history;
 }
 

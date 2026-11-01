@@ -13,7 +13,7 @@ export default function MarketCard({ state, date, reset, retry }: {
   const { instrument, snapshot, loading, error, pendingInstrument, failedInstrument } = state;
   const marketName = instrument.market === "CN" ? "A 股" : "美股";
   const quoteDate = date ?? snapshot?.asOf;
-  const reading = quoteDate ? snapshot?.history[quoteDate] : undefined;
+  const reading = quoteDate ? snapshot?.history[quoteDate] ?? (snapshot?.bars && quoteDate===snapshot.asOf?{price:snapshot.price,change:snapshot.change}:undefined) : undefined;
   const closed = snapshot?.days.find((day) => day.date === quoteDate)?.status === "closed";
   const stale = snapshot?.freshness?.state === "stale";
   const session = closed ? "休市" : !reading ? "无交易数据" : quoteDate === snapshot?.asOf && snapshot?.session === "trading" ? stale ? "盘中快照" : "盘中" : "收盘";

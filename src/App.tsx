@@ -17,13 +17,15 @@ import { isExchangeClosed } from "./lib/exchange-calendar";
 import { calendarForRange, shiftDate } from "./lib/chart-series";
 import { rememberSnapshot, restoreSnapshot } from "./lib/browser-snapshots";
 import { recordFromSnapshot, readSnapshot, validRecord } from "./lib/snapshot-record";
+import { expandSnapshot } from "./lib/expand-snapshot";
 import { displayDate } from "./lib/market-format";
 
 export type { PageData } from "./market-types";
 function browserStorage() { try { return window.localStorage; } catch { return null; } }
 function Dashboard({ data }: { data: PageData }) {
+  const [mounted,setMounted]=useState(false);
   const [markets, setMarkets] = useState<Record<Market, ViewState>>(
-    data.markets,
+    Object.fromEntries(Object.entries(data.markets).map(([m,s])=>[m,{...s,loading:!s.snapshot&&!s.error}])) as Record<Market,ViewState>,
   );
   const current = useRef(markets);
   current.current = markets;
@@ -38,6 +40,8 @@ function Dashboard({ data }: { data: PageData }) {
   const bounds = useMemo(()=>historyBounds(Object.values(benchmarks)),[benchmarks]);
   const scrollAnchor=useRef<number|null>(null);
   useLayoutEffect(()=>{
+    const expanded=Object.fromEntries((["CN","US"] as Market[]).map(m=>[m,{...data.markets[m],snapshot:data.markets[m].snapshot?expandSnapshot(data.markets[m].snapshot!):null,loading:!data.markets[m].snapshot&&!data.markets[m].error}])) as Record<Market,ViewState>;
+    setMarkets(expanded);setBenchmarks({CN:expanded.CN.snapshot,US:expanded.US.snapshot});setMounted(true);
     setDefaultDays(window.matchMedia("(max-width: 760px)").matches?90:365);
     try { const saved=restoreTrendWindow(window.sessionStorage,bounds);if(saved)setUserWindow(previous=>previous??saved); } catch { /* Optional storage. */ }
     setRangeReady(true);
@@ -121,6 +125,7 @@ function Dashboard({ data }: { data: PageData }) {
         payload.data.instrument.market !== market
       )
         throw new Error("Instrument mismatch");
+      payload.data = expandSnapshot(payload.data);
       const record = recordFromSnapshot(payload.data);
       if (!validRecord(record,market,instrument.symbol)) throw new Error("Invalid snapshot");
       payload.data = readSnapshot(record,Date.now(),payload.data.freshness?.via ?? "upstream",payload.data.freshness?.state === "stale");
@@ -178,8 +183,9 @@ function Dashboard({ data }: { data: PageData }) {
   useEffect(() => {
     const store = browserStorage();
     for(const market of ["CN", "US"] as Market[]) {
-      const initial = data.markets[market].snapshot;
+      const initial = data.markets[market].snapshot ? expandSnapshot(data.markets[market].snapshot!) : null;
       if(initial) rememberSnapshot(initial,store);
+      else if(data.markets[market].error===null)void load(data.markets[market].instrument);
       const backup = restoreSnapshot(market,data.markets[market].instrument.symbol,store);
       if(backup && (!initial || Date.parse(backup.freshness!.storedAt) > Date.parse(initial.freshness?.storedAt ?? initial.fetchedAt))) {
         const restored = { ...backup, sentiment: initial?.sentiment ?? backup.sentiment };
@@ -192,7 +198,7 @@ function Dashboard({ data }: { data: PageData }) {
     // Recover a transient empty SSR state once, without waiting a full minute.
     // A manual request or a successful quote supersedes this timer.
     const recoveryTimers = (["CN", "US"] as Market[]).flatMap((market) =>
-      !data.markets[market].snapshot && data.markets[market].retryable === true
+      !data.markets[market].snapshot && data.markets[market].error!==null && data.markets[market].retryable === true
         ? [window.setTimeout(() => {
             const state = current.current[market];
             if (!state.snapshot && !state.loading && !controllers.current[market]) void load(state.instrument);
@@ -207,6 +213,7 @@ function Dashboard({ data }: { data: PageData }) {
               benchmarkRequests.current[market] = fetch(`/api/markets/${market}`).then(async (response) => {
                 if (!response.ok) throw new Error("Benchmark unavailable");
                 const payload = await response.json() as { data: MarketSnapshot };
+                payload.data = expandSnapshot(payload.data);
                 const record = recordFromSnapshot(payload.data);
                 if (!validRecord(record,market,BENCHMARKS[market].symbol)) throw new Error("Invalid benchmark");
                 const snapshot = readSnapshot(record,Date.now(),payload.data.freshness?.via ?? "upstream",payload.data.freshness?.state === "stale");
@@ -223,12 +230,14 @@ function Dashboard({ data }: { data: PageData }) {
           }
         }
     };
-    const timer = window.setInterval(refresh, 60_000);
-    document.addEventListener("visibilitychange", refresh);
+    let lastRefresh=Date.now();
+    const boundedRefresh=()=>{if(Date.now()-lastRefresh<300_000)return;lastRefresh=Date.now();refresh();};
+    const timer = window.setInterval(boundedRefresh, 300_000);
+    document.addEventListener("visibilitychange", boundedRefresh);
     return () => {
       clearInterval(timer);
       recoveryTimers.forEach(clearTimeout);
-      document.removeEventListener("visibilitychange", refresh);
+      document.removeEventListener("visibilitychange", boundedRefresh);
       Object.values(controllers.current).forEach((controller) =>
         controller.abort(),
       );
@@ -256,8 +265,8 @@ function Dashboard({ data }: { data: PageData }) {
               const snapshot = markets[market].snapshot;
               return <div className="calendar-row" data-calendar-market={market} key={market}>
                 <MarketCard state={markets[market]} date={selectedDate ?? undefined} reset={() => void load(BENCHMARKS[market])} retry={() => void load(markets[market].failedInstrument ?? markets[market].instrument)} />
-                {snapshot ? <YearHeatmap snapshot={snapshot} days={alignedDays[market]} selectedDate={selectedDate ?? snapshot.asOf} onSelectDate={selectDate} onHoverDate={setHoveredDate} showMonths={index === 0 || !markets.CN.snapshot} />
-                  : <p className="calendar-unavailable">行情暂不可用</p>}
+                {snapshot && mounted ? <YearHeatmap snapshot={snapshot} days={alignedDays[market]} selectedDate={selectedDate ?? snapshot.asOf} onSelectDate={selectDate} onHoverDate={setHoveredDate} showMonths={index === 0 || !markets.CN.snapshot} />
+                  : snapshot ? <div className="calendar-loading" aria-label="正在绘制每日涨跌"/> : markets[market].loading ? <div className="calendar-loading" aria-label="正在读取每日涨跌"/> : <p className="calendar-unavailable">行情暂不可用</p>}
               </div>;
             })}
           </div>
@@ -269,16 +278,16 @@ function Dashboard({ data }: { data: PageData }) {
           </div>
           <div className="analysis-grid">{(["CN", "US"] as Market[]).map((market) => {
             const snapshot = markets[market].snapshot;
-            if (!snapshot) return <section className="analysis-unavailable" data-analysis-market={market} key={market} aria-label={`${market === "CN" ? "A 股" : "美股"}指标`}>行情恢复后显示指标</section>;
+            if (!snapshot) return <section className={markets[market].loading?"signals-loading":"analysis-unavailable"} data-analysis-market={market} key={market} aria-label={`${market === "CN" ? "A 股" : "美股"}指标`}>{markets[market].loading?"正在读取市场信号…":"行情恢复后显示指标"}</section>;
             const date = selectedDate ?? snapshot.asOf;
             return <section className="market-analysis" data-analysis-market={market} key={market}>
               <div className="signals" data-date={date} aria-label={`${displayDate(date, true)}指标`}>
                 <div className="analysis-heading"><h3>{market === "CN" ? "A 股" : "美股"}</h3></div>
-                <MarketTrend snapshot={snapshot} benchmark={benchmarks[market]} bounds={bounds ?? {start:shiftDate(windowEnd ?? snapshot.asOf,-364),end:windowEnd ?? snapshot.asOf}} windowEnd={windowEnd ?? snapshot.asOf} selectedDate={date} hoveredDate={hoveredDate} range={range} visible={visibleSeries} onHoverDate={setHoveredDate} onSelectDate={selectDate} canSelectDate={selectable} />
-                <TechnicalRadar snapshot={snapshot} date={date} />
+                {mounted ? <><MarketTrend snapshot={snapshot} benchmark={benchmarks[market]} bounds={bounds ?? {start:shiftDate(windowEnd ?? snapshot.asOf,-364),end:windowEnd ?? snapshot.asOf}} windowEnd={windowEnd ?? snapshot.asOf} selectedDate={date} hoveredDate={hoveredDate} range={range} visible={visibleSeries} onHoverDate={setHoveredDate} onSelectDate={selectDate} canSelectDate={selectable} />
+                <TechnicalRadar snapshot={snapshot} date={date} /></> : <div className="signals-loading" aria-label="正在绘制市场信号"/>}
               </div>
             </section>;
-          })}{bounds && trendWindow && <TrendRangeControl bounds={bounds} value={trendWindow} benchmarks={benchmarks} onChange={chooseWindow} onDragging={setNavigating} />}</div>
+          })}{mounted && bounds && trendWindow && <TrendRangeControl bounds={bounds} value={trendWindow} benchmarks={benchmarks} onChange={chooseWindow} onDragging={setNavigating} />}</div>
         </section>
       </main>
     </>

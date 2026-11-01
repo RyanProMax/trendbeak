@@ -9,6 +9,7 @@ import { createServer } from "vite";
 // Raw files and generated SQL stay private, outside public/build inputs.
 const args = process.argv.slice(2), mode = args.shift();
 function option(name) { const i = args.indexOf(name); if (i < 0) return undefined; const value = args[i + 1]; if (!value || value.startsWith("--")) throw Error(`Missing ${name}`); args.splice(i, 2); return value; }
+const fromOption=option("--from"),toOption=option("--to");
 const source = option("--source"), file = option("--file"), manifestPath = option("--manifest");
 const remote = args.includes("--remote"), dryRun = args.includes("--dry-run");
 if (args.some(arg => !["--remote", "--dry-run"].includes(arg)) || !["seed", "sync"].includes(mode) || !["baifenwei", "cnn_whit3rabbit", "cnn_benzinga"].includes(source) || file && manifestPath || mode === "seed" && !(file || manifestPath) || manifestPath && (source !== "cnn_whit3rabbit" || mode !== "seed") || mode === "seed" && source === "cnn_whit3rabbit" && !manifestPath || source === "cnn_benzinga" && (mode !== "seed" || !file)) {
@@ -61,16 +62,20 @@ try {
       observations = rows.map(row => ({ date: row.date, value: row.score }));
     } else observations = source === "baifenwei" ? parsers.parseChinaSentiment(bytes.toString(), now, true).observations : cnn.parseCNNHistory(JSON.parse(bytes), now).observations;
   }
-  const rows = observations.map(row => ({ date: row.date, score: row.value }));
-  const sql = importer.sentimentImportSQL(market, source, rows, mode, now);
-  if (!dryRun) {
+  const {isDate,marketDate}=await vite.ssrLoadModule("/src/lib/market-signals.ts");
+  const to=toOption??marketDate(now,market),from=fromOption??new Date(Date.parse(to)-14*86400000).toISOString().slice(0,10);
+  if(mode==='sync'&&(!isDate(from)||!isDate(to)||from>to||Date.parse(to)-Date.parse(from)>365*86400000||to>marketDate(now,market)))throw Error("Sync window must be at most 366 real, non-future dates");
+  if(mode==='seed'&&(fromOption||toOption))throw Error("Seed already uses the reviewed file; use sync for a correction window");
+  const rows = observations.filter(row=>mode==='seed'||row.date>=from&&row.date<=to).map(row => ({ date: row.date, score: row.value }));
+  const sql = rows.length?importer.sentimentImportSQL(market, source, rows, mode, now):"";
+  if (!dryRun && rows.length) {
     temporary = await mkdtemp(join(tmpdir(), "trendbeak-sentiment-"));
     const sqlFile = join(temporary, "import.sql"); await writeFile(sqlFile, sql, { mode: 0o600 });
     const result = spawnSync(process.execPath, ["node_modules/wrangler/bin/wrangler.js", "d1", "execute", "trendbeak-sentiment", remote ? "--remote" : "--local", "--file", sqlFile, "--yes"], { stdio: "inherit", env: { ...process.env, WRANGLER_SEND_METRICS: "false" } });
     if (result.error) throw result.error;
     if (result.status !== 0) throw Error("Database import did not complete; inspect D1 before retrying");
   }
-  console.log(JSON.stringify({ mode, source, market, target: remote ? "remote" : "local", dryRun, inputRows: rows.length, first: rows[0]?.date, last: rows.at(-1)?.date, rawSha256, verification }));
+  console.log(JSON.stringify({ mode, source, market, target: remote ? "remote" : "local", dryRun, inputRows: rows.length, window:mode==='sync'?{from,to}:undefined, first: rows[0]?.date, last: rows.at(-1)?.date, rawSha256, verification }));
 } finally {
   await vite.close();
   if (temporary) await rm(temporary, { recursive: true, force: true });

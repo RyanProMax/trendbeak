@@ -13,7 +13,7 @@ try{
   await page.waitForFunction(()=>localStorage.getItem('trendbeak:last-good:v1'));
   let failed=true,fresh=null;
   await page.route('**/api/markets/CN*',route=>failed?route.fulfill({status:503,json:{error:'injected source failure',retryable:false}}):route.fulfill({json:{data:fresh}}));
-  await page.clock.install({time:Date.now()});await page.clock.fastForward(61001);
+  await page.clock.install({time:Date.now()});await page.clock.fastForward(300001);
   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
   const warning=page.locator('[data-market=CN] .snapshot-stale');await warning.waitFor();
   assert.equal(await warning.locator('time').getAttribute('datetime'),storedAt);
@@ -41,7 +41,7 @@ try{
   await search.fill('600000');await page.getByRole('option').waitFor();await page.getByRole('option').click();await page.locator('[data-market=CN].stock-selected').waitFor();
   assert.equal(await page.locator('[data-market=CN] .quote').innerText(),'123.00');await warning.waitFor();assert.match(await page.locator('[data-market=CN] .instrument-name').innerText(),/无缓存测试股票/);
   await layout(page,'matching stock backup');
-  await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+  await page.clock.fastForward(300001);await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
   await page.waitForFunction(()=>document.querySelector('[data-analysis-market=CN] .trend-status')?.textContent.includes('大盘暂未更新'));
   await layout(page,'stale benchmark while stock selected');
   const now=await page.evaluate(()=>new Date().toISOString());fresh=structuredClone(cn);fresh.fetchedAt=now;fresh.freshness={...fresh.freshness,state:'fresh',storedAt:now,ageSeconds:0,via:'upstream'};failed=false;

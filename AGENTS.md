@@ -10,6 +10,15 @@
 - Store only real, dated, validated observations. Leave missing dates empty; never interpolate, fabricate, or substitute experimental algorithm output for published data.
 - Page and API reads use our database and expendable snapshots. Upstream synchronization runs separately; cache eviction or an upstream failure must not erase stored history.
 
+## Bounded reader work
+
+- This is a hard constraint: page, health, and API requests must not run full historical indicator rebuilds, scheduled jobs, or unbounded upstream retries. Read only the necessary bounded fields and date range, or a bounded snapshot.
+- Serve compact validated quote bars from snapshots. Compute historical indicators in a bounded browser/offline calculator, retaining state for appends and recomputing only the affected suffix on revisions. A changed price basis, inserted/deleted date, or source window reset must invalidate the affected state; never silently reuse incompatible values.
+- First backfills and deliberate full rebuilds must be explicit, bounded operations outside server reader requests. Do not add background queues, audit tables, speculative columns, paid resources, credentials, or new permissions without an actual requirement.
+- Validate external input and cache ingestion once. Trusted immutable memory snapshots use identity and age checks, without repeating whole-history validation or computation on a hit.
+- Bound payload size, rows, concurrency, refresh frequency and failure backoff. Cache expiry, eviction, failure and simultaneous readers must not create an unbounded computation or retry loop. Singleflight is local to an isolate; do not claim a distributed lock where none exists.
+- Health inspects existing snapshots without upstream fetching or rebuilding. Page visibility changes cannot bypass the refresh interval. Keep source-specific sentiment synchronization separate, updating only the explicit recent or requested correction window.
+
 ## Reader-facing quality
 
 - Reader-facing copy must contain only information that helps a reader understand the market, the evidence, or the data state.

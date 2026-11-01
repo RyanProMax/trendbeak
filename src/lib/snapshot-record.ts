@@ -2,7 +2,7 @@ import type { Market, MarketSnapshot } from "../market-types";
 import { isDate, marketDate } from "./market-signals";
 
 export const SNAPSHOT_SCHEMA = 1;
-export const FRESH_MS = 60_000;
+export const FRESH_MS = 300_000;
 export const MAX_SNAPSHOT_AGE_MS = 7 * 24 * 60 * 60_000;
 export interface SnapshotRecord { schema: number; storedAt: string; snapshot: MarketSnapshot }
 export type SnapshotVia = "upstream" | "memory" | "edge" | "browser";
@@ -26,10 +26,20 @@ const observationTime = (p: any, market: Market, now: number) => {
 };
 export const snapshotKey = (market: Market, symbol: string) => `v${SNAPSHOT_SCHEMA}:${market}:${symbol}`;
 
+/** Compact quote boundary. At most 640 real bars; no indicator computation or sorting. */
+export function validCompactSnapshot(v:any,market:Market,symbol:string,now:number):v is MarketSnapshot {
+  if(!v || v.instrument?.market!==market || v.instrument?.symbol!==symbol || !text(v.instrument.name) || !text(v.instrument.code) || !["stock","index"].includes(v.instrument.kind) || !timestamp(v.fetchedAt) || Date.parse(v.fetchedAt)>now || !isDate(v.asOf) || v.asOf>marketDate(now,market) || !["closed","trading"].includes(v.session) || !source(v.source) || !text(v.currency) || !nullable(v.change) || !Array.isArray(v.bars) || !v.bars.length || v.bars.length>640 || !Array.isArray(v.days) || v.days.length || !Array.isArray(v.signals) || v.signals.length || !v.history || Object.keys(v.history).length)return false;
+  if(v.sentiment){const today=marketDate(now,market),sentiment=v.sentiment,points=sentiment.observations,reports=sentiment.reportedObservations??[];
+    const validPoints=(points:any,reported=false)=>Array.isArray(points)&&points.length<=372&&points.every((p:any,i:number)=>isDate(p?.date)&&p.date<=today&&(!i||points[i-1].date<p.date)&&finite(p.value)&&p.value>=0&&p.value<=100&&nullable(p.previous)&&(!reported||source(p.source)));
+    if(!source(sentiment.source)||!text(sentiment.description)||!validPoints(points)||!validPoints(reports,true))return false;
+  }
+  return v.bars.every((b:any,i:number,all:any[])=>isDate(b?.date)&&b.date<=v.asOf&&(!i||all[i-1].date<b.date)&&[b.open,b.high,b.low,b.close].every(x=>finite(x)&&x>0)&&nullable(b.volume)&&(b.volume===null||b.volume>=0)&&b.low<=b.high&&b.low<=Math.min(b.open,b.close)+Math.max(.02,b.close*.00001)&&b.high>=Math.max(b.open,b.close)-Math.max(.02,b.close*.00001)) && v.bars.at(-1).date===v.asOf && v.bars.at(-1).close===v.price;
+}
 /** Treat both edge bodies and browser storage as untrusted, versioned input. */
 export function validSnapshot(v: any, market: Market, symbol: string, now: number): v is MarketSnapshot {
   if (!Number.isFinite(now) || !["CN", "US"].includes(market) || typeof symbol !== "string") return false;
   if (market === "CN" ? !/^\d{6}\.(SS|SZ)$/.test(symbol) : symbol !== "^GSPC" && !/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol)) return false;
+  if(v?.bars) return validCompactSnapshot(v,market,symbol,now);
   const today = marketDate(now, market);
   if (!v || v.instrument?.market !== market || v.instrument?.symbol !== symbol || !text(v.instrument.name) || !text(v.instrument.code) || !["stock", "index"].includes(v.instrument.kind) ||
       !isDate(v.asOf) || v.asOf > today || !timestamp(v.fetchedAt) || Date.parse(v.fetchedAt) > now ||

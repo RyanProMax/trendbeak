@@ -79,7 +79,7 @@ try {
       s.sentiment.observations.sort((a, b) => a.date.localeCompare(b.date));
     }
     await page.route("**/api/markets/*", route => { const market = new URL(route.request().url()).pathname.split("/").at(-1); return route.fulfill({ json: { data: data[market].snapshot } }); });
-    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+    await page.clock.install();await page.clock.fastForward(300001);await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
     // Wait for the React state to receive the fixture rather than the SSR script.
     await inspect(page, "US", dates[1], width < 760);
     await page.waitForFunction(() => document.querySelector("[data-analysis-market=US] .readout-price b")?.textContent === "999,999.99");

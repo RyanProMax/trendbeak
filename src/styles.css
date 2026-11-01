@@ -393,3 +393,7 @@ main { overflow-anchor: none; }
 .navigator-caption time { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .calendar-section,.calendar-section *,.trend-wrap,.trend-wrap *,.radar-signals,.radar-signals *,.radar-explanation,.radar-explanation *,.trend-range-control,.trend-range-control *,.compact-tooltip,.compact-tooltip * { user-select: none; -webkit-user-select: none; }
 .radar-observed-date { color:#899382; font-size:10px; line-height:1.5; white-space:nowrap; }
+
+/* Reserve the existing chart space while bounded data is expanded in the browser. */
+.calendar-loading{height:130px;min-width:0}.signals-loading{height:660px}
+@media(max-width:760px){.calendar-loading{height:114px}.signals-loading{height:660px}}

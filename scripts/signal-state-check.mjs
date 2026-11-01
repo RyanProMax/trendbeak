@@ -35,7 +35,7 @@ try{
   assert.equal(await page.locator(".signals").count(),2);release();gate=null;
   await page.locator("[data-market=US] .market-loading").waitFor({state:"hidden"});
   await layout(page,"long name");await page.screenshot({path:`${out}/${width}-long-name.png`,fullPage:true});
-  failed=true;await page.evaluate(()=>document.dispatchEvent(new Event("visibilitychange")));
+  failed=true;await page.clock.install();await page.clock.fastForward(300001);await page.evaluate(()=>document.dispatchEvent(new Event("visibilitychange")));
   await page.locator("[data-market=US] .snapshot-stale").waitFor();assert.equal(await page.locator(".signals").count(),2);
   await page.screenshot({path:`${out}/${width}-refresh-error.png`,fullPage:true});
   await page.locator("[data-market=US] .back-market").click();

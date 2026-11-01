@@ -7,7 +7,7 @@ import { readSentiment, sentimentQuery } from "./server/sentiment-store";
 import { DEFAULT_SENTIMENT_SOURCE, SENTIMENT_SOURCES, validSentimentSource } from "./lib/sentiment-sources";
 import type { SnapshotEdgeCache } from "./server/snapshot-cache";
 import {
-  loadDashboard,
+  loadHealth,
   loadMarket,
   searchInstruments,
   validSymbol,
@@ -35,11 +35,7 @@ app.get("/api/sentiment/:market", async (c) => {
   }
 });
 
-app.get("/api/markets", async (c) => {
-  const markets = await loadDashboard(new URL(c.req.url).origin, c.env?.SENTIMENT_DB);
-  c.header("Cache-Control", markets.CN.snapshot && markets.US.snapshot ? "no-cache" : "no-store");
-  return c.json({ data: markets });
-});
+app.get("/api/markets", (c) => { c.header("Cache-Control","no-store");return c.json({error:"请按市场读取行情",markets:["/api/markets/CN","/api/markets/US"]},410); });
 app.get("/api/markets/:market", async (c) => {
   const market = c.req.param("market");
   if (market !== "CN" && market !== "US")
@@ -70,34 +66,22 @@ app.get("/api/search", async (c) => {
   }
 });
 app.get("/api/health", async (c) => {
-  const markets = await loadDashboard(new URL(c.req.url).origin, c.env?.SENTIMENT_DB);
-  const availability = Object.fromEntries(
-    (["CN", "US"] as Market[]).map((market) => [
-      market,
-      {
-        available: !!markets[market].snapshot,
-        asOf: markets[market].snapshot?.asOf ?? null,
-        freshness: markets[market].snapshot?.freshness ?? null,
-      },
-    ]),
-  );
-  const healthy = !!markets.CN.snapshot && !!markets.US.snapshot && markets.CN.snapshot.freshness?.state !== "stale" && markets.US.snapshot.freshness?.state !== "stale";
-  c.header("Cache-Control", "no-store");
-  return c.json(
-    { data: { status: healthy ? "ok" : "degraded", markets: availability } },
-    healthy ? 200 : 503,
-  );
+  const data=await loadHealth(new URL(c.req.url).origin);
+  c.header("Cache-Control","no-store");
+  return c.json({data},data.status==='ok'?200:503);
 });
 
 app.get("/", async (c) => {
-  const markets = await loadDashboard(new URL(c.req.url).origin, c.env?.SENTIMENT_DB);
+  // A cold page is a cheap shell. Quote APIs independently read bounded snapshots;
+  // no data fetching, D1, indicator build or SVG rendering occurs in this request.
+  const markets=Object.fromEntries((["CN","US"] as Market[]).map(m=>[m,{instrument:BENCHMARKS[m],snapshot:null,error:null,retryable:true}])) as Record<Market,import("./market-types").MarketState>;
   const stream = await renderToReadableStream(
     <Document data={{ markets, requestUrl: `${productionOrigin}/` }} />,
   );
   return new Response(stream, {
     headers: {
       "Content-Type": "text/html; charset=UTF-8",
-      "Cache-Control": markets.CN.snapshot && markets.US.snapshot ? "no-cache" : "no-store",
+      "Cache-Control": "no-cache",
       "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
       "Referrer-Policy": "strict-origin-when-cross-origin",
       "X-Content-Type-Options": "nosniff",

@@ -84,6 +84,8 @@ export interface CalendarDay {
 }
 
 export interface MarketSnapshot {
+  /** Compact transport: expanded only in the browser or a controlled offline rebuild. */
+  bars?: DailyBar[];
   freshness?: { state: "fresh" | "stale"; storedAt: string; ageSeconds: number; freshTtlSeconds: number; maxAgeSeconds: number; via: "upstream" | "memory" | "edge" | "browser" };
   instrument: Instrument;
   asOf: string;

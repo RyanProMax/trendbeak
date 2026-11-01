@@ -4,7 +4,6 @@ import {
   type Instrument,
   type Market,
   type MarketSnapshot,
-  type MarketState,
 } from "../market-types";
 import {
   buildCalendar,
@@ -17,11 +16,12 @@ import { loadSentiment } from "./sentiment-store";
 import { SourceError, reportSourceFailure, isTransientSourceFailure } from "./source-errors";
 
 import { createSnapshotCache, type SnapshotEdgeCache } from "./snapshot-cache";
-const snapshotCache = createSnapshotCache(() => Date.now());
+const snapshotCache = createSnapshotCache(() => Date.now(), true);
 
 type JsonObject = Record<string, any>;
 export type FetchJson = (url: URL) => Promise<JsonObject>;
 const memoryCache = new Map<string, { until: number; value: unknown }>();
+const failures = new Map<string,{until:number;error:unknown}>();
 const pending = new Map<string, Promise<unknown>>();
 const NUMBER = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value);
@@ -45,8 +45,16 @@ async function fetchJson(url: URL): Promise<JsonObject> {
     throw new SourceError(`Market source returned ${response.status}`, url.hostname, "http", Date.now() - started, response.status, retryAfterMs);
   }
   let payload: unknown;
-  try { payload = await response.json(); }
+  try {
+    const limit=512_000;
+    if(Number(response.headers.get("Content-Length"))>limit){await response.body?.cancel();throw new SourceError("Market response exceeds byte budget",url.hostname,"shape",Date.now()-started,response.status);}
+    const reader=response.body?.getReader(), decoder=new TextDecoder();let bytes=0,text="";
+    if(!reader)throw new SyntaxError("Empty market response");
+    for(;;){const {done,value}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>limit){await reader.cancel();throw new SourceError("Market response exceeds byte budget",url.hostname,"shape",Date.now()-started,response.status);}text+=decoder.decode(value,{stream:true});}
+    payload=JSON.parse(text+decoder.decode());
+  }
   catch (error) {
+    if(error instanceof SourceError)throw error;
     const timeout = error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name);
     const syntax = error instanceof SyntaxError;
     throw new SourceError(timeout ? "Market source response body timed out" : syntax ? "Market source returned invalid JSON" : "Market source response body failed", url.hostname, timeout ? "timeout" : syntax ? "json" : "network", Date.now() - started, response.status);
@@ -64,6 +72,8 @@ async function cached<T>(
   const found = memoryCache.get(key);
   if (found && found.until > Date.now()) return found.value as T;
   if (pending.has(key)) return pending.get(key) as Promise<T>;
+  const failure=failures.get(key);if(failure&&failure.until>Date.now())throw failure.error;
+  if(pending.size>=8)throw new Error("Search request budget reached");
   const task = load()
     .then((value) => {
       // Bound memory even when many different search queries hit a warm worker.
@@ -72,6 +82,7 @@ async function cached<T>(
       memoryCache.set(key, { value, until: Date.now() + ttl });
       return value;
     })
+    .catch(error=>{if(failures.size>=150)failures.delete(failures.keys().next().value!);failures.set(key,{until:Date.now()+60_000,error});throw error;})
     .finally(() => pending.delete(key));
   pending.set(key, task);
   return task;
@@ -95,7 +106,7 @@ function cleanName(value: unknown): string | null {
 /** Symbol/exchange identity is taken from source records, never generated names. */
 export function parseSearch(payload: JsonObject): Instrument[] {
   const rows = payload.QuotationCodeTable?.Data;
-  if (!Array.isArray(rows)) throw new Error("Invalid search response");
+  if (!Array.isArray(rows) || rows.length>100) throw new Error("Invalid search response");
   const instruments = new Map<string, Instrument>();
   for (const row of rows) {
     const name = cleanName(row.Name),
@@ -153,6 +164,7 @@ export function parseTencent(
   payload: JsonObject,
   symbol: string,
   now = Date.now(),
+  compact = false,
 ): MarketSnapshot {
   if (!validSymbol("CN", symbol)) throw new Error("Invalid CN symbol");
   const key = `${symbol.endsWith(".SS") ? "sh" : "sz"}${symbol.slice(0, 6)}`;
@@ -167,6 +179,7 @@ export function parseTencent(
     !cleanName(quote[1])
   )
     throw new Error("CN identity mismatch");
+  if (rows.length > 640) throw new Error("Daily bar budget exceeded");
   const bars = validateBars(
     rows.map((row: unknown[]) => ({
       date: row[0],
@@ -211,6 +224,7 @@ export function parseTencent(
     "CNY",
     { name: "腾讯证券", url: `https://gu.qq.com/${key}` },
     now,
+    compact,
   );
 }
 
@@ -218,6 +232,7 @@ export function parseYahoo(
   payload: JsonObject,
   symbol: string,
   now = Date.now(),
+  compact = false,
 ): MarketSnapshot {
   const record = payload.chart?.result?.[0];
   const meta = record?.meta;
@@ -231,6 +246,7 @@ export function parseYahoo(
   const quote = record.indicators?.quote?.[0];
   if (!Array.isArray(record.timestamp) || !quote)
     throw new Error("Missing US daily bars");
+  if(record.timestamp.length > 640) throw new Error("Daily bar budget exceeded");
   const input: DailyBar[] = [];
   for (let index = 0; index < record.timestamp.length; index++) {
     if (!NUMBER(record.timestamp[index]))
@@ -283,6 +299,7 @@ export function parseYahoo(
       url: `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}/history/`,
     },
     now,
+    compact,
   );
 }
 
@@ -293,6 +310,7 @@ function makeSnapshot(
   currency: string,
   source: MarketSnapshot["source"],
   now: number,
+  compact = false,
 ): MarketSnapshot {
   const last = bars.at(-1)!,
     previous = bars.at(-2);
@@ -304,9 +322,10 @@ function makeSnapshot(
     price: last.close,
     change: previous ? (last.close / previous.close - 1) * 100 : null,
     currency,
-    days: buildCalendar(bars, marketDate(now, instrument.market), instrument.market),
-    signals: calculateSignals(bars, trading),
-    history: buildHistory(bars, marketDate(now, instrument.market), trading),
+    ...(compact ? { bars } : {}),
+    days: compact ? [] : buildCalendar(bars, marketDate(now, instrument.market), instrument.market),
+    signals: compact ? [] : calculateSignals(bars, trading),
+    history: compact ? {} : buildHistory(bars, marketDate(now, instrument.market), trading),
     source,
   };
 }
@@ -325,7 +344,7 @@ export async function loadMarket(
       const key = `${symbol.endsWith(".SS") ? "sh" : "sz"}${symbol.slice(0, 6)}`;
       const url = new URL("https://web.ifzq.gtimg.cn/appstock/app/fqkline/get");
       url.searchParams.set("param", `${key},day,,,640,qfq`);
-      return parseTencent(await read(url), symbol, now);
+      return parseTencent(await read(url), symbol, now, read === fetchJson);
     }
     let lastError: unknown;
     for (const host of [
@@ -340,7 +359,7 @@ export async function loadMarket(
         interval: "1d",
       }).toString();
       try {
-        return parseYahoo(await read(url), symbol, now);
+        return parseYahoo(await read(url), symbol, now, read === fetchJson);
       } catch (error) {
         if (error instanceof SourceError && ([403,418,429].includes(error.status ?? 0) || error.retryAfterMs > 0 || error.elapsedMs >= 8_000)) throw error;
         lastError = error;
@@ -366,30 +385,15 @@ export async function loadMarket(
     throw new Error("Market load did not complete");
   };
   if (read !== fetchJson) return load();
-  const [snapshot, sentiment] = await Promise.all([
-    snapshotCache.get(market, symbol, load, origin, typeof caches === "undefined" ? undefined : (caches as unknown as { default?: SnapshotEdgeCache }).default),
-    loadSentiment(market, sentimentDb, origin),
-  ]);
+  const snapshot = await snapshotCache.get(market, symbol, load, origin, typeof caches === "undefined" ? undefined : (caches as unknown as { default?: SnapshotEdgeCache }).default);
+  const sentiment = await loadSentiment(market, sentimentDb, origin);
   return { ...snapshot, sentiment };
 }
 
-export async function loadDashboard(origin = "https://trendbeak.com", sentimentDb?: D1Database): Promise<Record<Market, MarketState>> {
-  const results = await Promise.allSettled([
-    loadMarket("CN",undefined,undefined,undefined,origin,sentimentDb),
-    loadMarket("US",undefined,undefined,undefined,origin,sentimentDb),
-  ]);
-  return Object.fromEntries(
-    (["CN", "US"] as Market[]).map((market, index) => {
-      const result = results[index];
-      return [
-        market,
-        {
-          instrument: BENCHMARKS[market],
-          snapshot: result.status === "fulfilled" ? result.value : null,
-          error: result.status === "fulfilled" ? null : "行情暂不可用",
-          ...(result.status === "rejected" ? { retryable: isTransientSourceFailure(result.reason) } : {}),
-        },
-      ];
-    }),
-  ) as Record<Market, MarketState>;
+/** Health is a snapshot inspection, never an upstream refresh or sentiment query. */
+export async function loadHealth(origin:string) {
+  const edge=typeof caches==='undefined'?undefined:(caches as unknown as {default?:SnapshotEdgeCache}).default;
+  const records=await Promise.all((["CN","US"] as Market[]).map(m=>snapshotCache.peek(m,BENCHMARKS[m].symbol,origin,edge)));
+  const markets=Object.fromEntries((["CN","US"] as Market[]).map((m,i)=>[m,{available:!!records[i],asOf:records[i]?.asOf??null,freshness:records[i]?.freshness??null}]));
+  return {status:records.every(s=>s&&s.freshness?.state==='fresh')?'ok':'degraded',markets};
 }

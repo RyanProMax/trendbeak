@@ -108,19 +108,14 @@ test("dashboard SSR renders both markets and weekday cells within a 365-day wind
     document.querySelectorAll(".calendar-section rect[data-date]").length,
     [...document.querySelectorAll(".calendar-section")].reduce((sum,e)=>{for(let t=Date.parse(e.dataset.start);t<=Date.parse(e.dataset.end);t+=86400000){const d=new Date(t).getUTCDay();if(d!==0&&d!==6)sum++;}return sum;},0),
   );
-  assert.equal(document.querySelectorAll(".radar-axis").length, 8);
-  assert.equal(document.querySelectorAll(".react-activity-calendar").length, 2);
-  assert.equal(document.querySelectorAll(".market-signals title,.market-signals [title]").length, 0);
-  assert.equal(document.querySelectorAll("[aria-expanded]").length, 17); // Search, four labels and four point targets per market.
-  assert.equal(
-    document.querySelectorAll(".signal-detail,details,.sample-pill").length,
-    0,
-  );
+  assert.equal(document.querySelectorAll(".radar-axis,.react-activity-calendar,.trend-chart").length,0);
+  assert.equal(document.querySelectorAll(".calendar-loading,.signals-loading").length,4);
   const data = JSON.parse(
     document.querySelector("#trendbeak-data").textContent,
   );
-  assert.equal(data.markets.CN.snapshot.price, 100);
-  assert.equal(data.markets.US.snapshot.price, 100);
+  assert.equal(data.markets.CN.snapshot,null);
+  assert.equal(data.markets.US.snapshot,null);
+  assert.equal(seen.length,0,"cold page must never fetch upstream");
   document.querySelector("#trendbeak-data").remove();
   assert.doesNotMatch(
     document.body.textContent,
@@ -128,9 +123,10 @@ test("dashboard SSR renders both markets and weekday cells within a 365-day wind
   );
 });
 test("market and search routes reject unbounded or hostile input", async () => {
-  const response = await request("/api/markets");
+  assert.equal((await request("/api/markets")).status,410);
+  const response = await request("/api/markets/CN");
   assert.equal(response.status, 200);
-  assert.equal((await response.json()).data.CN.snapshot.days.length, 365);
+  const quote=(await response.json()).data;assert.equal(quote.days.length,0);assert.equal(quote.bars.length,400);assert.deepEqual(quote.history,{});
   const search = await request("/api/search?q=NVDA");
   assert.equal(search.status, 200);
   assert.equal((await search.json()).data[0].symbol, "NVDA");
@@ -149,6 +145,7 @@ test("failed individual quotes return no fabricated price and do not poison the 
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.deepEqual(await response.json(), { error: "行情暂不可用", retryable: true });
   assert.equal((await request("/api/markets/CN")).status, 200);
+  assert.equal((await request("/api/markets/US")).status,200);
   assert.equal((await request("/api/health")).status, 200);
 });
 test("removed product routes have no readers, writers or redirects", async () => {
@@ -162,7 +159,7 @@ test("market names and hydration data cannot escape HTML, including partial outa
   const { default: Document } = await vite.ssrLoadModule("/src/App.tsx");
   const attack =
     '</script><img src=x onerror="globalThis.marketXss=1"><script>globalThis.marketXss=1</script>';
-  const markets = (await (await request("/api/markets")).json()).data;
+  const markets = Object.fromEntries(await Promise.all(["CN","US"].map(async market=>{const snapshot=(await(await request("/api/markets/"+market)).json()).data;return [market,{instrument:snapshot.instrument,snapshot,error:null}]})));
   markets.CN.instrument.name = attack;
   markets.US.snapshot = null;
   markets.US.error = "行情暂不可用";

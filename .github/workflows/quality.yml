@@ -25,5 +25,7 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Build and test
         run: npm test
+      - name: Check bounded reader budgets
+        run: npm run test:budget
       - name: Check repository safety
         run: npm run security:check

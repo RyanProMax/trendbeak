@@ -12,6 +12,7 @@
     "build": "npm run check && vite build && vite build --mode client",
     "preview": "npm run build && wrangler pages dev dist",
     "pages:dev": "npm run preview",
+    "test:budget": "node scripts/server-budget-check.mjs",
     "security:check": "node scripts/check-public-repo.mjs",
     "sentiment:seed": "node scripts/sentiment-sync.mjs seed",
     "sentiment:sync": "node scripts/sentiment-sync.mjs sync",

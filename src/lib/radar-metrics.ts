@@ -47,13 +47,15 @@ export function buildRadarReadings(bars: DailyBar[], trading = false): Record<st
   const ema = closes.map((_, i) => fast[i] !== null && slow[i] !== null ? (fast[i]! / slow[i]! - 1) * 100 : null);
   const volatility = closes.map((_, i) => bollingerWidth(closes.slice(Math.max(0, i - 19), i + 1)));
   const activity = bars.map((_, i) => relativeVolume(bars.slice(Math.max(0, i - 20), i + 1)));
+  const histories = new Map<(number|null)[],number[]>();
   const metric = (values: (number | null)[], index: number): RadarMetric => {
     if (index < 0) return { value: null, score: null, samples: 0, asOf: bars[0].date };
     const value = values[index];
-    return { value, ...historicalRank(value, values.slice(0, index)), asOf: bars[index].date };
+    let history=histories.get(values);if(!history){history=[];histories.set(values,history);}
+    const result={value,...historicalRank(value,history),asOf:bars[index].date};
+    if(finite(value)){history.push(value);if(history.length>RADAR_HISTORY_LIMIT)history.shift();}return result;
   };
-  return Object.fromEntries(bars.map((bar, i) => [bar.date, { version: 1 as const,
-    ema: metric(ema, i), volatility: metric(volatility, i),
-    activity: metric(activity, trading && i === bars.length - 1 ? i - 1 : i),
-  }]));
+  let lastActivity:RadarMetric|undefined;
+  return Object.fromEntries(bars.map((bar,i)=>{const a=trading&&i===bars.length-1?(lastActivity??{value:null,score:null,samples:0,asOf:bar.date}):metric(activity,i);lastActivity=a;
+    return [bar.date,{version:1 as const,ema:metric(ema,i),volatility:metric(volatility,i),activity:a}];}));
 }

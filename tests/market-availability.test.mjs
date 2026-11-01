@@ -40,9 +40,9 @@ test("a cold valid quote survives noncritical sentiment failure and coalesces co
  await market.loadMarket("CN","600101.SS");assert.equal(priceRequests,1);
 });
 test("expired data returns last-good as stale and a later successful refresh clears the warning",async()=>{
- clock+=61001;mode=503;priceRequests=0;
- const fallback=await market.loadMarket("CN","600101.SS");assert.equal(fallback.freshness.state,"stale");assert.equal(fallback.fetchedAt,new Date(clock-61001).toISOString());assert.equal(priceRequests,2);
- clock+=15001;
+ clock+=301001;mode=503;priceRequests=0;
+ const fallback=await market.loadMarket("CN","600101.SS");assert.equal(fallback.freshness.state,"stale");assert.equal(fallback.fetchedAt,new Date(clock-301001).toISOString());assert.equal(priceRequests,2);
+ clock+=60001;
  mode="ok";const recovered=await market.loadMarket("CN","600101.SS");assert.equal(recovered.fetchedAt,new Date(clock).toISOString());assert.equal(priceRequests,3);
 });
 test("one quick transient 501, 503 or network failure is retried once and returns a validated fresh quote",async()=>{
@@ -58,12 +58,15 @@ test("denials, throttling, Retry-After and malformed responses are not retried",
  let usDenials=0;await assert.rejects(market.loadMarket("US","AAPL",async()=>{usDenials++;throw new source.SourceError("denied","test","http",10,403);}));assert.equal(usDenials,1);
  let timeouts=0;await assert.rejects(market.loadMarket("CN","600129.SS",async()=>{timeouts++;throw new source.SourceError("full timeout","test","timeout",8000);}));assert.equal(timeouts,1);
 });
-test("partial dashboard and first-page failures are no-store and expose only a bounded recovery hint",async()=>{
+test("API failures remain no-store while the cold page never invokes an upstream",async()=>{
  mode=503;priceRequests=0;
- const html=await app.request("https://example.test/");assert.equal(html.status,200);assert.equal(html.headers.get("cache-control"),"no-store");
- const body=await html.text();assert.match(body,/行情暂不可用/);assert.match(body,/"retryable":false/);
- const dashboard=await app.request("https://example.test/api/markets");assert.equal(dashboard.headers.get("cache-control"),"no-store");const d=await dashboard.json();assert.equal(d.data.CN.snapshot,null);assert.ok(d.data.US.snapshot);
+ const html=await app.request("https://example.test/");assert.equal(html.status,200);assert.equal(html.headers.get("cache-control"),"no-cache");
+ const body=await html.text();assert.match(body,/正在读取行情/);assert.match(body,/"retryable":true/);assert.equal(priceRequests,0);
+ const dashboard=await app.request("https://example.test/api/markets");assert.equal(dashboard.status,410);assert.equal(priceRequests,0);assert.equal((await app.request("https://example.test/api/markets/US")).status,200);
  const failed=await app.request("https://example.test/api/markets/CN");assert.equal(failed.status,503);assert.deepEqual(await failed.json(),{error:"行情暂不可用",retryable:false});
- clock+=15001;mode="ok";const healthy=await app.request("https://example.test/api/markets");assert.equal(healthy.headers.get("cache-control"),"no-cache");assert.ok((await healthy.json()).data.CN.snapshot);
+ clock+=60001;mode="ok";const healthy=await app.request("https://example.test/api/markets/CN");assert.equal(healthy.headers.get("cache-control"),"no-cache");assert.ok((await healthy.json()).data.bars);
  mode=403;const denied=await app.request("https://example.test/api/markets/CN?symbol=600199.SS");assert.equal(denied.status,503);assert.deepEqual(await denied.json(),{error:"行情暂不可用",retryable:false});
 });
+
+test('upstream byte budget aborts oversized declared and streamed bodies without retry or storing them',async()=>{let calls=0;const saved=globalThis.fetch;try{for(const declared of[true,false]){globalThis.fetch=async()=>{calls++;return new Response(' '.repeat(512001),{headers:declared?{'Content-Length':'512001'}:{}})};await assert.rejects(market.loadMarket('CN',declared?'600188.SS':'600189.SS'));}assert.equal(calls,2);}finally{globalThis.fetch=saved;}});
+test('compact quote boundary has a hard 640 bar budget and builds no historical indicators',()=>{const payload=cnFixture('600519.SS'),s=market.parseTencent(payload,'600519.SS',clock,true);assert.ok(s.bars.length);assert.deepEqual(s.history,{});assert.deepEqual(s.signals,[]);assert.deepEqual(s.days,[]);payload.data.sh600519.day=Array(641).fill(payload.data.sh600519.day[0]);assert.throws(()=>market.parseTencent(payload,'600519.SS',clock,true),/budget/);});

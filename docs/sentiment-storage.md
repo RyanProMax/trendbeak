@@ -58,9 +58,9 @@
 ## 读取与缓存
 
 - `GET /api/sentiment/CN` 默认 `baifenwei`；`GET /api/sentiment/US` 默认 `cnn_whit3rabbit`。
-- 可指定 `source`、`from`、`to`，例如 `/api/sentiment/US?source=cnn_whit3rabbit&from=2025-10-31&to=2026-10-30`。默认最近 740 自然日；查询全量可显式指定 `from=1993-01-01`。无效市场、日期、倒置范围或不匹配来源返回 400。
+- 可指定 `source`、`from`、`to`，例如 `/api/sentiment/US?source=cnn_whit3rabbit&from=2025-10-31&to=2026-10-30`。默认最近365自然日，单次最多366自然日、366行；全部历史按年度日期窗口分段读取，例如 `from=1993-08-27&to=1994-08-26`，禁止交互请求全表导出。无效市场、日期、倒置范围或不匹配来源返回 400。
 - 返回 `data.market/source/from/to/sourceInfo/storedAt/rows`；每个 row 明确返回 `market/date/source/score/updated_at`。`sourceInfo` 区分发布者与取得渠道。查询始终只选一个来源；缺失返回空数组，不返回伪造零。
-- `/api/markets`、`/api/markets/:market` 和首屏 SSR 的情绪也从同一数据库读取。行情与技术指标仍沿用既有价格链路；旧行情快照中的情绪不会覆盖或混入新结果。
+- `/api/markets`、`/api/markets/:market` 的情绪从同一数据库读取，返回372日以内（365日窗口加7日行情兜底余量），不因价格截止日滞后截掉较新的情绪。首屏 SSR 不查询数据库；技术指标在浏览器按真实日线增量计算。旧行情快照中的情绪不会覆盖或混入新结果。
 - 情绪快照独立于行情快照，内存最多 32 项/绑定，按市场、来源、日期范围隔离；同实例合并在途查询；Cache API 作为同源、同机房的可驱逐快照。两层 TTL 都为 5 分钟；缓存冷启动、损坏、过期或驱逐回 D1，不抓取上游。同步成功后可见延迟最多一个缓存周期；不新增 KV 或快照表。
 - D1 缺失或失败时情绪接口返回 `503/no-store`，页面可保留可用行情并显示情绪不可用；数据库故障不会触发上游抓取。数据库历史无缓存保留期限，正常上游失败不会删除任何历史。价格接口外层继续 `no-cache`。
 
@@ -117,3 +117,14 @@ pnpm sentiment:sync --source cnn_whit3rabbit --file /path/to/cnn-output.json --r
 ## 旧浏览器备份升级
 
 线上验收曾复现：服务器已返回 250 条新库观测，但时间较新的浏览器旧行情备份会把它覆盖成旧转引来源的 1 条。恢复行情备份现保留本次服务器的数据库情绪；旧来源的情绪不随行情备份恢复，行情本身仍可兜底。新增 `legacy-sentiment-check.mjs` 在 1440/390/320px 强制恢复较新的旧来源备份，确认可见曲线仍取新库观测。
+
+## 有界日常更新
+
+`sentiment:sync` 默认仅 upsert 最近15个自然日（今天及此前14日），相同分数不写入。上游若只提供完整文件，可在显式运行的离线命令内下载、验证，但不逐次将全历史提交数据库。修正更早历史时明确指定 `--from YYYY-MM-DD --to YYYY-MM-DD`，每次最多366日；大规模种子仍只能通过已核验文件显式运行，重复种子不覆盖修订。
+
+```sh
+npm run sentiment:sync -- --source baifenwei --dry-run
+npm run sentiment:sync -- --source baifenwei --from 2026-07-01 --to 2026-07-31 --dry-run
+```
+
+以上不创建调度；远端写入仍需显式 `--remote`，本轮性能修复没有执行远端数据更新。
