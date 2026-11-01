@@ -48,6 +48,7 @@ pnpm test:budget
 ## 接口
 
 - `GET /api/markets`：已停用批量读取（410），返回按市场接口地址，避免冷请求同时处理两个市场。
+- 按市场行情请求须带 `X-Trendbeak-Data: bars-v1`；旧客户端请求返回426并停止回源，情绪和健康接口无需此头。
 - `GET /api/markets/CN?symbol=600519.SS`：指定 A 股或沪深 300。
 - `GET /api/markets/US?symbol=NVDA`：指定美股或标普 500（`^GSPC`）。
 - `GET /api/search?q=英伟达`：名称与代码搜索。

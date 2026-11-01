@@ -1,3 +1,4 @@
+import { versioned } from "./request-version.mjs";
 import assert from "node:assert/strict";
 import test, {before, after} from "node:test";
 import {createServer} from "vite";
@@ -31,7 +32,7 @@ before(async()=>{
  };
  vite=await createServer({configFile:false,appType:"custom",server:{middlewareMode:true,hmr:false}});
  market=await vite.ssrLoadModule("/src/server/market-data.ts");source=await vite.ssrLoadModule("/src/server/source-errors.ts");
- app=(await import("../dist/_worker.js")).default;
+ app=versioned((await import("../dist/_worker.js")).default);
 });
 after(async()=>{globalThis.fetch=originalFetch;Date.now=originalNow;await vite?.close();});
 test("a cold valid quote survives noncritical sentiment failure and coalesces concurrent readers",async()=>{

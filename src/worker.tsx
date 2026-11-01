@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { renderToReadableStream } from "react-dom/server.edge";
 import Document from "./App";
+import { DATA_VERSION, VERSION_HEADER } from "./lib/client-version";
 import { isTransientSourceFailure } from "./server/source-errors";
 import { BENCHMARKS, type Market } from "./market-types";
 import { readSentiment, sentimentQuery } from "./server/sentiment-store";
@@ -43,6 +44,12 @@ app.get("/api/markets/:market", async (c) => {
   const symbol = c.req.query("symbol") ?? BENCHMARKS[market].symbol;
   if (!validSymbol(market, symbol))
     return c.json({ error: "股票代码无效" }, 400);
+  c.header("Vary",VERSION_HEADER);
+  c.header(VERSION_HEADER,DATA_VERSION);
+  if(c.req.header(VERSION_HEADER)!==DATA_VERSION){
+    c.header("Cache-Control","no-store");
+    return c.json({error:"页面版本已更新，请重新打开页面",retryable:false},426);
+  }
   try {
     const snapshot = await loadMarket(market, symbol, undefined, undefined, new URL(c.req.url).origin, c.env?.SENTIMENT_DB);
     c.header("Cache-Control", "no-cache");

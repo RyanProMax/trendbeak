@@ -1,3 +1,4 @@
+import { versioned } from "./request-version.mjs";
 import assert from "node:assert/strict";
 import test, { before, after } from "node:test";
 import { createServer } from "vite";
@@ -84,7 +85,7 @@ before(async () => {
     appType: "custom",
     server: { middlewareMode: true, hmr: false },
   });
-  app = (await vite.ssrLoadModule("/src/worker.tsx")).default;
+  app = versioned((await vite.ssrLoadModule("/src/worker.tsx")).default);
 });
 after(async () => {
   globalThis.fetch = realFetch;

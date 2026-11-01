@@ -1,8 +1,11 @@
 import "@fontsource-variable/dm-sans/wght.css";
 import "@fontsource-variable/noto-sans-sc/wght.css";
+import { acknowledgeClientVersion } from "./lib/client-version";
 import { hydrateRoot } from "react-dom/client";
 import Document, { type PageData } from "./App";
 import "./styles.css";
+
+if ("serviceWorker" in navigator) acknowledgeClientVersion();
 
 const payload = document.querySelector<HTMLScriptElement>("#trendbeak-data");
 

@@ -17,6 +17,7 @@ import { isExchangeClosed } from "./lib/exchange-calendar";
 import { calendarForRange, shiftDate } from "./lib/chart-series";
 import { rememberSnapshot, restoreSnapshot } from "./lib/browser-snapshots";
 import { recordFromSnapshot, readSnapshot, validRecord } from "./lib/snapshot-record";
+import { DATA_VERSION, fetchQuote } from "./lib/client-version";
 import { expandSnapshot } from "./lib/expand-snapshot";
 import { displayDate } from "./lib/market-format";
 
@@ -109,7 +110,7 @@ function Dashboard({ data }: { data: PageData }) {
     }));
     let retryable = false;
     try {
-      const response = await fetch(
+      const response = await fetchQuote(
         `/api/markets/${market}?symbol=${encodeURIComponent(instrument.symbol)}`,
         { signal: controller.signal },
       );
@@ -210,7 +211,7 @@ function Dashboard({ data }: { data: PageData }) {
           if (!current.current[market].loading) {
             void load(current.current[market].instrument);
             if (current.current[market].instrument.kind === "stock" && !benchmarkRequests.current[market]) {
-              benchmarkRequests.current[market] = fetch(`/api/markets/${market}`).then(async (response) => {
+              benchmarkRequests.current[market] = fetchQuote(`/api/markets/${market}`).then(async (response) => {
                 if (!response.ok) throw new Error("Benchmark unavailable");
                 const payload = await response.json() as { data: MarketSnapshot };
                 payload.data = expandSnapshot(payload.data);
@@ -339,7 +340,7 @@ export default function Document({ data }: { data: PageData }) {
           href="/apple-touch-icon.png?v=11"
           sizes="180x180"
         />
-        <link rel="stylesheet" href="/static/client.css" />
+        <link rel="stylesheet" href={`/static/client.css?v=${DATA_VERSION}`} />
         <title>每日市场信号 · trendbeak</title>
       </head>
       <body>
@@ -352,7 +353,7 @@ export default function Document({ data }: { data: PageData }) {
           type="application/json"
           dangerouslySetInnerHTML={{ __html: serialized }}
         />
-        <script type="module" src="/static/client.js" />
+        <script type="module" src={`/static/client.js?v=${DATA_VERSION}`} />
       </body>
     </html>
   );

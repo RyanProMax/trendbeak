@@ -1,3 +1,4 @@
+import { versioned } from "./request-version.mjs";
 import assert from "node:assert/strict";
 import test,{before,after} from "node:test";
 const real={fetch:globalThis.fetch,now:Date.now,caches:globalThis.caches};
@@ -20,7 +21,7 @@ before(async()=>{
   }
   return new Response('noncritical sentiment unavailable',{status:503});
  };
- warm=(await import('../dist/_worker.js?fallback-warm')).default;
+ warm=versioned((await import('../dist/_worker.js?fallback-warm')).default);
 });
 after(()=>{globalThis.fetch=real.fetch;Date.now=real.now;if(real.caches===undefined)delete globalThis.caches;else globalThis.caches=real.caches;});
 test('SSR/API share validated fresh records; public responses never leak the seven-day physical TTL',async()=>{
@@ -28,7 +29,7 @@ test('SSR/API share validated fresh records; public responses never leak the sev
  await warm.request('https://trendbeak.com/api/markets/US');const api=await warm.request('https://trendbeak.com/api/markets/CN');assert.equal(api.status,200);assert.equal(api.headers.get('cache-control'),'no-cache');const data=(await api.json()).data;assert.equal(data.freshness.state,'fresh');assert.equal(data.freshness.via,'upstream');assert.ok(stored.size>=2);
 });
 test('a new compiled Worker instance serves stale from edge on injected failures, including first-page SSR and health',async()=>{
- clock+=301000;fail=true;cold=(await import('../dist/_worker.js?fallback-cold')).default;
+ clock+=301000;fail=true;cold=versioned((await import('../dist/_worker.js?fallback-cold')).default);
  const api=await cold.request('https://trendbeak.pages.dev/api/markets/CN');assert.equal(api.status,200);const quote=(await api.json()).data;assert.equal(quote.freshness.state,'stale');assert.equal(quote.freshness.via,'edge');assert.equal(quote.fetchedAt,'2026-10-29T04:00:00.000Z');
  const page=await cold.request('https://trendbeak.com/');assert.equal(page.status,200);const html=await page.text();assert.match(html,/正在读取行情/);assert.doesNotMatch(html,/trend-chart|radar-axis/);
  const health=await cold.request('https://trendbeak.com/api/health');assert.equal(health.status,503);const h=(await health.json()).data;assert.equal(h.status,'degraded');assert.equal(h.markets.CN.available,true);assert.equal(h.markets.CN.freshness.state,'stale');
