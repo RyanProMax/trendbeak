@@ -346,14 +346,13 @@ main { max-width: 1248px; margin: 22px auto 64px; }
 .explanation-close:hover { color: #63765b; background: #f4f7f0; }
 .explanation-close:focus-visible { outline: 2px solid #a7b998; outline-offset: 1px; }
 .chart-readout-slot { height: 36px; margin: 0 0 0 34px; }
-.chart-readout { position: relative; display: grid; grid-template-columns: max-content max-content; justify-content: start; grid-template-rows: 32px; align-items: center; column-gap: 18px; height: 32px; padding: 0 26px 0 0; color: #7a8771; font-size: 14px; line-height: 24px; }
+.chart-readout { display: grid; grid-template-columns: max-content max-content; justify-content: start; grid-template-rows: 32px; align-items: center; column-gap: 18px; height: 32px; padding: 0; color: #7a8771; font-size: 14px; line-height: 24px; }
 .chart-readout .readout-item { display: grid; grid-template-columns: 16px max-content var(--readout-number-width,12ch); align-items: center; gap: 6px; min-width: 0; }
 .readout-emotion { grid-column: 1; grid-row: 1; --readout-number-width: 6ch; } .readout-price { grid-column: 2; grid-row: 1; }
 .readout-label { white-space: nowrap; }
 .chart-readout .readout-value { color: #59635d; text-align: left; white-space: nowrap; font-weight: 600; font-variant-numeric: tabular-nums; }
 .chart-readout i { display: inline-block; width: 16px; height: 2px; background: #59635d; }
 .chart-readout .readout-mood { background: var(--brand-ramp); }
-.chart-readout .explanation-close { top: 5px; right: 0; }
 .chart-readout-source { grid-column: 1 / -1; grid-row: 2; justify-self: start; color: #7a8771; font-size: 11px; line-height: 20px; }
 @media(max-width:1100px) {
   .chart-readout-slot { height: 60px; }

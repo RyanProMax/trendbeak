@@ -25,7 +25,7 @@ try{for(const width of[1440,1024,390,320]){
  let p=await point(page,'CN','2026-04-15');await page.mouse.move(p.x,p.y);await page.mouse.move(2,2);await selected(page,latest);
  // B: the first exit after a click preserves that selected date in both markets.
  p=await point(page,'CN','2026-04-15');await page.mouse.click(p.x,p.y);await page.mouse.move(2,2);await selected(page,'2026-04-15');
- assert.equal(await page.locator('.chart-readout').count(),2);await page.getByRole('combobox').focus();await selected(page,'2026-04-15');
+ assert.equal(await page.locator('.chart-readout').count(),2);assert.equal(await page.locator('.chart-readout button').count(),0);await page.getByRole('combobox').focus();await selected(page,'2026-04-15');
  for(const label of await page.locator('.readout-label').all()){const gap=await label.evaluate(e=>e.nextElementSibling.getBoundingClientRect().left-e.getBoundingClientRect().right);assert.ok(gap>=5&&gap<=7,'label/value gap must stay compact');}
  await layout(page,'clicked date '+width);await page.screenshot({path:`${out}/${width}-clicked-date-full.png`,fullPage:true});
  // C: re-entering to browse, without clicking again, clears the earlier lock on exit.
