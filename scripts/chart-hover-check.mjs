@@ -9,7 +9,7 @@ try {
   const {page,context,errors}=await openPage(browser,width);
   assert.equal(await page.locator('.annual-calendar title,.annual-calendar [title],.market-signals title,.market-signals [title]').count(),0);
   const cursors=await page.locator('.calendar-section,.calendar-section *, .market-signals,.market-signals *').evaluateAll(es=>[...new Set(es.filter(e=>!e.closest('.trend-range-control')).map(e=>getComputedStyle(e).cursor))]);
-  assert.deepEqual(cursors,['default']);
+  assert.ok(cursors.every(c=>['default','pointer'].includes(c)));assert.equal(await page.locator('.chart-hit-area').first().evaluate(e=>getComputedStyle(e).cursor),'pointer');assert.equal(await page.locator('.radar-axis').first().evaluate(e=>getComputedStyle(e).cursor),'pointer');
   const original=await calendarGeometry(page),selected=await page.locator('.global-selected-date').getAttribute('datetime');
   for(const n of[365,30,90,180,365]){
    await selectRange(page,n);
@@ -69,7 +69,7 @@ try {
   assert.deepEqual(await page.evaluate(()=>({same:window.__rangeNode===document.querySelector('.navigator-window'),connected:window.__rangeNode.isConnected,capture:window.__capture})),{same:true,connected:true,capture:['got','lost']});
   assert.equal(await page.locator('.global-selected-date').getAttribute('datetime'),selected);await layout(page,'final');
   await page.screenshot({path:out+'/'+width+'-hover-final.png',fullPage:true});assert.deepEqual(errors,[]);
-  report.push({width,nativeTitlesAbsent:true,defaultCursor:true,actualPointHoverOrTap:true,labelSharesHighlight:true,allEightFactors:true,dynamicPositions:positions,diagramAndValuesUncovered:true,keyboardFocus:true,noDuplicateTrendDate:true,squareFiveRows:true,dragAnchorStable:true,dragCapturePreserved:true,resizeCursor:true,calendarFitsWidth:true,noErrors:true});
+  report.push({width,nativeTitlesAbsent:true,semanticCursors:true,actualPointHoverOrTap:true,labelSharesHighlight:true,allEightFactors:true,dynamicPositions:positions,diagramAndValuesUncovered:true,keyboardFocus:true,noDuplicateTrendDate:true,squareFiveRows:true,dragAnchorStable:true,dragCapturePreserved:true,resizeCursor:true,calendarFitsWidth:true,noErrors:true});
   await context.close();
  }
  await writeFile(out+'/chart-hover-results.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));

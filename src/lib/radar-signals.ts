@@ -5,33 +5,44 @@ import { signalsForDate } from "./market-signals";
 export type RadarId = "rsi" | "ema" | "volatility" | "activity";
 export interface RadarFactor {
   id: RadarId; name: string; value: number | null; score: number | null; asOf: string;
-  digits: number; unit: string; explanation: string; scale: string; unavailable: string | null;
+  digits: number; unit: string; explanation: string; scale: string; unavailable: string | null; status: string; strengthLabel: string | null; position?: number | null;
 }
 export const RADAR_STOPS = [
   { value: 0, color: "#3D9271" }, { value: 20, color: "#4F9D77" },
   { value: 50, color: "#B49A4D" }, { value: 80, color: "#C86C5B" }, { value: 100, color: "#C65F50" },
 ] as const;
 const clamp = (value: number) => Math.max(0, Math.min(100, value));
+const direction=(value:number|null|undefined,up:string,down:string)=>value==null?"—":Math.abs(value)<1e-10?"持平":value>0?up:down;
+/** Descriptive page rules, not a probability or trading recommendation. */
+export function bandPositionState(position:number|null|undefined) {
+ if(position==null)return "—";
+ return position<0?"低于下轨":position===0?"位于下轨":position<=20?"靠近下轨":position<50?"中轨下方":position===50?"位于中轨":position<80?"中轨上方":position<100?"靠近上轨":position===100?"位于上轨":"高于上轨";
+}
 /** Four different technical dimensions; no weights, combined score or claim of statistical independence. */
 export function radarFactors(snapshot: MarketSnapshot, date: string): RadarFactor[] {
   const rsi = signalsForDate(snapshot, date).find(item => item.id === "rsi"), reading = snapshot.history[date];
   const metrics = reading?.radar?.version === 1 ? reading.radar : null;
   const missing = isExchangeClosed(date, snapshot.instrument.market) ? "当天休市，无当日指标。" : "当天无交易数据。";
   const descriptors = [
-    { id: "rsi", name: "RSI 动量", digits: 1, unit: "", explanation: "Wilder RSI14；<30偏超卖，>70偏超买。" },
-    { id: "ema", name: "EMA 趋势", digits: 2, unit: "%", explanation: "（EMA20/EMA60−1）×100%；零为均线分界。" },
-    { id: "volatility", name: "布林波动", digits: 2, unit: "%", explanation: "布林带宽＝4σ20/SMA20×100%，σ用总体标准差。" },
+    { id: "rsi", name: "RSI 动量", digits: 1, unit: "", explanation: "Wilder RSI14；30/70为常用观察线。" },
+    { id: "ema", name: "EMA 趋势", digits: 2, unit: "%", explanation: "（EMA20/EMA60−1）×100%；零为分界。" },
+    { id: "volatility", name: "布林状态", digits: 2, unit: "%", explanation: "%B＝（收盘价−下轨）/（上轨−下轨）×100%；带宽用总体标准差。20%/80%划分靠近轨道的位置。" },
     { id: "activity", name: "量能活跃", digits: 2, unit: "×", explanation: "完整日量/前20日均量；盘中取最近完整日，仅表示活跃度。" },
   ] as const;
   return descriptors.map(descriptor => {
     const metric = descriptor.id === "rsi" ? null : metrics?.[descriptor.id];
     const value = descriptor.id === "rsi" ? rsi?.value ?? null : metric?.value ?? null;
-    const score = descriptor.id === "rsi" ? value === null ? null : clamp(value) : metric?.score ?? null;
+    const score = descriptor.id === "rsi" ? value === null ? null : clamp(value) : descriptor.id==="ema"?metrics?.ema.strength??null:metric?.score??null;
     const asOf = metric?.asOf ?? date;
     const unavailable = !reading ? missing : value === null ? descriptor.id === "rsi" ? rsi?.unavailable ?? "历史日线不足15日。" : descriptor.id === "ema" ? "EMA需要至少60个交易日的日线。" : descriptor.id === "volatility" ? "布林带宽需要至少20个交易日的日线。" : "缺少最近完整日及此前20日的有效同标的成交量。" : null;
-    const scale = descriptor.id === "rsi" ? "原始RSI 0–100直接绘图。" : !metric ? "未取得此项历史计算结果，不补中间值。" : metric.samples < 60 ? `原值保留；历史${metric.samples}个，不足60个，不画点。` : `此前${metric.samples}个完整观测分位，不含本次。${descriptor.id === "ema" ? "中位≠零线。" : ""}`;
-    return { ...descriptor, value, score, asOf, unavailable, scale,
-      explanation: descriptor.explanation };
+    const scale = descriptor.id==="rsi"?"RSI原值0–100。":!metric||metric.samples<60?"历史分位需60个完整日。":descriptor.id==="ema"?`绝对偏离强度 · 此前${metric.samples}日`:descriptor.id==="volatility"?`20日2σ · 近轨20/80 · ${metric.samples}日分位`:`同标的历史分位 · ${metric.samples}日`;
+
+    const band=metrics?.bollinger,closed=isExchangeClosed(date,snapshot.instrument.market);
+    const status=closed?"休市":value===null?"—":descriptor.id==="rsi"?direction(reading?.previous.rsi==null?null:value-reading.previous.rsi,"上升","下降"):descriptor.id==="ema"?direction(value,"EMA20 > EMA60","EMA20 < EMA60"):descriptor.id==="activity"?value>1?"高于均量":value<1?"低于均量":"等于均量":`${bandPositionState(band?.position)} · ${direction(band?.widthChange,"扩张","收缩")}`;
+    const strengthLabel=closed||score===null||descriptor.id==="rsi"?null:`${descriptor.id==="activity"?"活跃度":descriptor.id==="volatility"?"波动强度":"分离强度"}${Math.round(score)}`;
+    const explanation=descriptor.id==="volatility"?`带宽${value===null?"—":value.toFixed(2)+"%"} · ${direction(band?.middleChange,"中轨上行","中轨下行")}`:descriptor.explanation;
+
+    return { ...descriptor, value, score, asOf, unavailable, scale,status,strengthLabel,...(descriptor.id==="volatility"?{position:band?.position??null}:{}), explanation };
   });
 }
 /** Volatility/activity are direction-neutral; EMA color follows its actual sign, never its percentile. */

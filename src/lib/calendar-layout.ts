@@ -4,7 +4,7 @@ export const weekdayIndex=(date:string)=>(new Date(date+"T12:00:00Z").getUTCDay(
 export function calendarLayout(start:string,count:number,width:number) {
  let firstIndex=0,lastIndex=count-1;while(firstIndex<count&&weekdayIndex(day(start,firstIndex))>4)firstIndex++;while(lastIndex>=firstIndex&&weekdayIndex(day(start,lastIndex))>4)lastIndex--;
  const offset=firstIndex<count?weekdayIndex(day(start,firstIndex)):0,weeks=lastIndex>=firstIndex?Math.floor((lastIndex-firstIndex+offset)/7)+1:0,logicalWidth=Math.max(0,weeks*CALENDAR_PITCH-CALENDAR_GAP);
- const gridWidth=Math.min(Math.max(1,width-28),logicalWidth),scale=logicalWidth?gridWidth/logicalWidth:1,gridHeight=weeks?(CALENDAR_PITCH*CALENDAR_ROWS-CALENDAR_GAP)*scale:0;
+ const gridWidth=Math.min(Math.max(1,width-34),logicalWidth),scale=logicalWidth?gridWidth/logicalWidth:1,gridHeight=weeks?(CALENDAR_PITCH*CALENDAR_ROWS-CALENDAR_GAP)*scale:0;
  return {offset,weeks,count,firstIndex,lastIndex,logicalWidth,gridWidth,scale,gridHeight};
 }
 export function calendarIndexAt(x:number,y:number,layout:ReturnType<typeof calendarLayout>):number|null {

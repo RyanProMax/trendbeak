@@ -1,17 +1,14 @@
+import{marketResponse}from"./server/market-response";
 import { Hono } from "hono";
 import {LinearRouter} from "hono/router/linear-router";
 import { shell } from "./server/shell";
-import { BENCHMARKS, type Market } from "./market-types";
 import { readSentiment, sentimentQuery } from "./server/sentiment-store";
 import { DEFAULT_SENTIMENT_SOURCE, SENTIMENT_SOURCES, validSentimentSource } from "./lib/sentiment-sources";
 import type { SnapshotEdgeCache } from "./server/snapshot-cache";
 import {
   loadHealth,
-  SnapshotMissing,
   markPrepared,
-  loadMarket,
   searchInstruments,
-  validSymbol,
 } from "./server/market-data";
 
 const app = new Hono<{ Bindings: { SENTIMENT_DB?: D1Database } }>({router:new LinearRouter()});
@@ -37,24 +34,7 @@ app.get("/api/sentiment/:market", async (c) => {
 });
 
 app.get("/api/markets", (c) => { c.header("Cache-Control","no-store");return c.json({error:"请按市场读取行情",markets:["/api/markets/CN","/api/markets/US"]},410); });
-app.get("/api/markets/:market", async (c) => {
-  const market = c.req.param("market");
-  if (market !== "CN" && market !== "US")
-    return c.json({ error: "不支持的市场" }, 400);
-  const symbol = c.req.query("symbol") ?? BENCHMARKS[market].symbol;
-  if (!validSymbol(market, symbol))
-    return c.json({ error: "股票代码无效" }, 400);
-  try {
-    const {body,etag} = await loadMarket(market,symbol,c.env?.SENTIMENT_DB,new URL(c.req.url).origin,c.req.header('If-None-Match'));
-    c.header("Cache-Control","no-cache");c.header("ETag",etag);
-    if(body===null)return c.body(null,304);
-    return c.body(body,200,{"Content-Type":"application/json; charset=UTF-8"});
-  } catch (error) {
-    c.header("Cache-Control", "no-store");
-    if(error instanceof SnapshotMissing)return c.json({error:"该股票的历史数据尚未收录",code:"snapshot_missing",retryable:false},404);
-    return c.json({ error: "行情暂不可用", retryable: false }, 503);
-  }
-});
+app.get("/api/markets/:market",c=>marketResponse(c.req.raw,c.env?.SENTIMENT_DB,new URL(c.req.url)));
 app.get("/api/search", async (c) => {
   const query = c.req.query("q")?.trim() ?? "";
   if (query.length > 60 || /[\u0000-\u001f]/.test(query))
@@ -93,4 +73,9 @@ app.onError((error, c) => {
   return c.json({ error: "暂时无法读取数据" }, 503);
 });
 app.notFound((c) => c.json({ error: "未找到页面" }, 404));
+const dispatch=app.fetch;
+app.fetch=(request,env,context)=>{
+ if(request.method==='GET'&&request.url.includes('/api/markets/')){const url=new URL(request.url);if(/^\/api\/markets\/[^/]+$/.test(url.pathname))return marketResponse(request,(env as {SENTIMENT_DB?:D1Database}|undefined)?.SENTIMENT_DB,url);}
+ return dispatch(request,env,context);
+};
 export default app;

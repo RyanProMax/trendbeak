@@ -1,4 +1,3 @@
-import build from "@hono/vite-build/cloudflare-pages";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
@@ -27,15 +26,15 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [
-      react(),
-      build({
-        entry: "src/worker.tsx",
-        emptyOutDir: true,
-      }),
-    ],
+    // This project exports one Worker and already owns public/_routes.json.
+    // Bundle it directly, without a generated second Hono/SmartRouter wrapper.
+    plugins: [react()],
+    ssr: { noExternal: true, target: "webworker" },
     build: {
       outDir: "dist",
+      ssr: "src/worker.tsx",
+      minify: true,
+      rollupOptions: { output: { entryFileNames: "_worker.js" } },
       emptyOutDir: true,
       copyPublicDir: true,
       target: "es2022",

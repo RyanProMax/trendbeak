@@ -34,8 +34,8 @@ try {
     assert.ok(await us.locator(".emotion-line").count());
     const reported = await inspect(page, "US", "2026-03-12", width < 760);
     assert.equal(await reported.locator(".readout-emotion b").innerText(), "21.2");
-    assert.equal(await reported.locator(".chart-readout-source").innerText(), "CNN／Benzinga同期报道补录");
-    assert.match(await reported.locator(".chart-readout-source").getAttribute("href"), /^https:\/\/www\.benzinga\.com\//);
+    assert.equal(await reported.locator(".chart-readout-source").count(),0);
+    assert.equal(initial.markets.US.snapshot.sentiment.reportedObservations.find(p=>p.date==="2026-03-12").value,21.2);
     await layout(page, width + " dated report");
     await page.screenshot({ path: `${out}/${width}-reported-readout-full.png`, fullPage: true });
     for (const market of ["CN", "US"]) {
@@ -59,9 +59,9 @@ try {
     }
     await page.screenshot({ path: `${out}/${width}-closed-readout-full.png`, fullPage: true });
     const gap = await inspect(page, "CN", "2026-07-27", width < 760);
-    assert.equal(await gap.locator(".readout-emotion b").innerText(), "暂无数据");
+    assert.equal(await gap.locator(".readout-emotion b").innerText(), "—");
     assert.notEqual(await gap.locator(".readout-price b").innerText(), "休市");
-    assert.match(await gap.locator(".chart-readout-source").innerText(), /百分位.*当日读数暂缺/);
+    assert.equal(await gap.locator(".chart-readout-source").count(),0);
     await layout(page, `${width} verified source gap`);
     await page.screenshot({ path: `${out}/${width}-open-gap-full.png`, fullPage: true });
 
@@ -89,7 +89,7 @@ try {
         const readout = await inspect(page, market, date, width < 760);
         const current = await geometry(readout);
         if (boxes) assert.deepEqual(current, boxes, `${width}px ${market} readout geometry shifted at ${date}`); else boxes = current;
-        if (date === dates[3]) { assert.equal(await readout.locator(".readout-emotion b").innerText(), "暂无数据"); assert.notEqual(await readout.locator(".readout-price b").innerText(), "休市"); }
+        if (date === dates[3]) { assert.equal(await readout.locator(".readout-emotion b").innerText(), "—"); assert.notEqual(await readout.locator(".readout-price b").innerText(), "休市"); }
         for (const value of await readout.locator(".readout-label,.readout-value").evaluateAll(es => es.map(e => ({ width: e.clientWidth, scroll: e.scrollWidth })))) assert.ok(value.scroll <= value.width + 1, "readout text clipped");
         await layout(page, `${width} ${market} ${date}`);
       }

@@ -89,7 +89,7 @@ function YearHeatmap({
   const layout=calendarLayout(data[0].date,data.length,width),months=calendarMonthLabels(data.map(day=>day.date),layout);
   const grid=useRef<HTMLDivElement>(null),inspected=useRef<string|null>(null);
   const nearest=(event:{clientX:number;clientY:number})=>{
-    const rect=grid.current!.getBoundingClientRect(),index=calendarIndexAt(event.clientX-rect.left,event.clientY-rect.top,layout);
+    const rect=grid.current!.getBoundingClientRect(),index=calendarIndexAt(event.clientX-rect.left-3,event.clientY-rect.top-3,layout);
     return index===null?null:data[index];
   };
   const inspect=(day:typeof data[number]|null)=>{
@@ -108,7 +108,7 @@ function YearHeatmap({
     >
       <div className="calendar-groups">
           <div className="calendar-months" aria-hidden="true">{(showMonths||width<680)&&months.map(month=><span key={month.x} style={{left:month.x}}>{month.label}</span>)}</div>
-          <div className="calendar-weekdays" aria-hidden="true">{(layout.scale<.35?[0,4]:[0,2,4]).map(row=><span key={row} style={{top:(row*23+10)*layout.scale}}>{["一","二","三","四","五"][row]}</span>)}</div>
+          <div className="calendar-weekdays" aria-hidden="true">{(layout.scale<.35?[0,4]:[0,2,4]).map(row=><span key={row} style={{top:3+(row*23+10)*layout.scale}}>{["一","二","三","四","五"][row]}</span>)}</div>
           <div className="calendar-half">
           <div className="calendar-grid-shell" ref={grid} onPointerMove={inspectPointer} onPointerDown={inspectPointer}
             onPointerLeave={()=>{if(!container.current?.querySelector(":focus-visible"))inspect(null);}}

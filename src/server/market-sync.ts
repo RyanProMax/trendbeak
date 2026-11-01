@@ -53,7 +53,7 @@ export function prepareMarketState(quote: MarketSnapshot, mode: 'init' | 'sync' 
         if (corporateAction)
             throw new RebuildRequired('Corporate action requires an explicit price-basis rebuild');
         const prior = previous!.calculation;
-        if (previous!.view.technicalSource !== TECHNICAL_SOURCE || !prior || prior.bars.length > 800 || prior.rows.length !== prior.bars.length || prior.states.length !== prior.bars.length)
+        if (previous!.view.technicalSource !== TECHNICAL_SOURCE || !prior || prior.bars.length > 800 || prior.rows.length !== prior.bars.length || prior.states.length !== prior.bars.length || prior.rows.some(row=>!row.radar?.bollinger || row.radar.ema.strength===undefined))
             throw new RebuildRequired('Invalid checkpoint; explicit rebuild required');
         const incomingDates = new Set(bars.map(b => b.date));
         if (prior.bars.some(b => b.date >= bars[0].date && b.date <= bars.at(-1)!.date && !incomingDates.has(b.date)))

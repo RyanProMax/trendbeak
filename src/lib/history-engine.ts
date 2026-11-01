@@ -1,5 +1,5 @@
 import type { DailyBar, HistoricalReading, RadarMetric, TechnicalValues } from "../market-types";
-import { bollingerWidth, relativeVolume, historicalRank } from "./radar-metrics";
+import { bollingerWidth, bollingerDetails, relativeVolume, historicalRank } from "./radar-metrics";
 
 interface State { gain: number | null; loss: number | null; fast: number | null; slow: number | null }
 export interface HistoryState { bars: DailyBar[]; rows: HistoricalReading[]; states: State[]; trading: boolean; processed: number }
@@ -30,7 +30,8 @@ export function updateHistory(bars: DailyBar[], trading=false, old?: HistoryStat
     const volume=relativeVolume(bars.slice(Math.max(0,i-20),i+1));
     const values:TechnicalValues={rsi:gain===null?null:gain===0&&loss===0?50:loss===0?100:100-100/(1+gain/loss!),trend:i<19?null:(b.close/mean(closes.slice(i-19,i+1))-1)*100,volume,range:range?(range.high===range.low?50:(b.close-range.low)/(range.high-range.low)*100):null};
     const metric=(id:keyof typeof ranks,value:number|null):RadarMetric=>{const result={value,...historicalRank(value,ranks[id]),asOf:b.date};if(value!==null){ranks[id].push(value);if(ranks[id].length>252)ranks[id].shift();}return result;};
-    const radar={version:1 as const,ema:metric('ema',fast===null||slow===null?null:(fast/slow-1)*100),volatility:metric('volatility',bollingerWidth(closes.slice(Math.max(0,i-19),i+1))),activity:metric('activity',volume)};
+    const rawEMA=fast===null||slow===null?null:(fast/slow-1)*100,strength=historicalRank(rawEMA===null?null:Math.abs(rawEMA),ranks.ema.map(Math.abs)).score;
+    const radar={version:1 as const,ema:{...metric('ema',rawEMA),strength},bollinger:bollingerDetails(closes.slice(Math.max(0,i-20),i+1)),volatility:metric('volatility',bollingerWidth(closes.slice(Math.max(0,i-19),i+1))),activity:metric('activity',volume)};
     const previous=rows[i-1]?.values??{rsi:null,trend:null,volume:null,range:null};
     const live=trading&&i===bars.length-1;
     if(live)radar.activity=i?{...rows[i-1].radar!.activity}:{value:null,score:null,samples:0,asOf:b.date};

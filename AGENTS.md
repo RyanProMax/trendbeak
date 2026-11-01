@@ -26,6 +26,8 @@
 - Reader-facing copy must contain only information that helps a reader understand the market, the evidence, or the data state.
 - Never expose implementation or debugging terms in the website UI, metadata intended for readers, or market labels. This includes `API Skill`, internal provider or operation IDs, agent/model names, schema or contract names, pipeline stages, debug flags, and internal scoring terminology.
 - Do not add helper prose that merely explains the page structure or the generation process.
+- Ordinary market views show real values and their actual dates, with neutral blanks for missing values. Keep technical failure/staleness diagnostics in logs and health output; do not add anomaly badges or repeated source caveats to ordinary readouts. Preserve source provenance in storage, APIs and the source documentation.
+- Keep indicator direction/state, historical strength and raw value distinct. Do not turn radar area, volatility or volume into a buy/sell score; compute historical metrics only in controlled incremental writers.
 - Prefer integrating related information into the component where it is used. Do not create a separate section that makes readers jump back to the corresponding signal when the status or result can live inside that signal.
 - All dates and timestamps shown to readers must use localized, human-readable formatting. Never render raw ISO timestamps.
 

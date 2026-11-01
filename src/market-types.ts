@@ -50,9 +50,10 @@ export interface RadarMetric {
 }
 export interface RadarReadings {
   version: 1;
-  ema: RadarMetric;
+  ema: RadarMetric & { strength?: number | null };
   volatility: RadarMetric;
   activity: RadarMetric;
+  bollinger?: { position: number | null; middleChange: number | null; widthChange: number | null };
 }
 export interface HistoricalReading {
   price: number;

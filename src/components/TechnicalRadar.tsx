@@ -18,7 +18,7 @@ export default function TechnicalRadar({snapshot,date}:{snapshot:MarketSnapshot;
   const colors=factors.map(radarFactorColor);
   const edges=segments.flatMap(segment=>segment.slice(1).map((end,i)=>[segment[i],end])).concat(factors.every(item=>item.score!==null)?[[3,0]]:[]);
   const closed=snapshot.days.some(day=>day.date===date&&day.status==="closed")||isExchangeClosed(date,snapshot.instrument.market);
-  const complete=factors.every(item=>item.score!==null),formatted=(value:typeof factors[number])=>value.value===null?(closed?"休市":"暂无数据"):`${number(value.value,value.digits,value.id==="ema")}${value.unit}`;
+  const complete=factors.every(item=>item.score!==null),formatted=(value:typeof factors[number])=>value.id==="volatility"&&!closed?value.position==null?"—":`位置${number(value.position,1)}%`:value.value===null?(closed?"休市":"—"):`${number(value.value,value.digits,value.id==="ema")}${value.unit}`;
   const close=(restore=false)=>{cancelClose();const target=trigger.current;pinned.current=null;setActive(null);if(restore&&target&&document.activeElement!==target){suppressFocus.current=true;target.focus({preventScroll:true});}};
   // Prefer a free corner near the inspected axis; narrow layouts flip outside the
   // diagram. Keep the entire diamond and every raw-value label unobscured.
@@ -63,7 +63,7 @@ export default function TechnicalRadar({snapshot,date}:{snapshot:MarketSnapshot;
     onKeyDown={event=>{if(event.key==="Tab")pinned.current=null;if(event.key==="Escape"&&active){event.preventDefault();event.stopPropagation();close(true);}}}>
     <div className="radar-stage" ref={stage}>
       <svg className="radar-graphic" viewBox={`0 0 ${width} 366`} role="img" aria-label="趋势、动量、波动和活跃度四个技术维度" aria-describedby={`${id}-desc`}>
-        <desc id={`${id}-desc`}>RSI使用原始0到100，其他半径为此前最多252个完整观测的历史分位。波动和量能不表示多空，四维不保证统计独立，不合成总分或面积分数。样本不足不画点，原始值仍保留；可聚焦或点击数据点查看口径和观测日期。</desc>
+        <desc id={`${id}-desc`}>RSI使用原始0到100，EMA半径为绝对均线偏离的历史分位，波动和量能半径为此前最多252个完整观测的历史分位。波动和量能不表示多空，四维不保证统计独立，不合成总分或面积分数。样本不足不画点，原始值仍保留；可聚焦或点击数据点查看口径和观测日期。</desc>
         <defs>{edges.map(([a,b])=>{const [x1,y1]=coordinates[a]!,[x2,y2]=coordinates[b]!;return <linearGradient key={`${a}-${b}`} id={`${id}-edge-${a}-${b}`} gradientUnits="userSpaceOnUse" x1={x1} y1={y1} x2={x2} y2={y2}><stop stopColor={colors[a]}/><stop offset="100%" stopColor={colors[b]}/></linearGradient>;})}</defs>
         <polygon points={polygon(100)} fill="#fcfdfb"/>
         {[25,50,75,100].map(score=><polygon key={score} points={polygon(score)} fill="none" stroke={score===50?"#dce2d6":"#e9ede5"} strokeWidth={score===50?1.1:.8}/>)}
@@ -76,14 +76,14 @@ export default function TechnicalRadar({snapshot,date}:{snapshot:MarketSnapshot;
       </svg>
       {factors.map((item,i)=><button key={item.id} type="button" className={`radar-axis axis-${i}`} data-radar-axis={item.id} style={{"--radar-color":colors[i],"--radar-bottom":`${cy+r+19}px`} as CSSProperties}
         aria-label={`${item.name}，原始值${formatted(item)}，查看说明`} {...interaction(item.id)}>
-        <span>{item.name}</span><b className="radar-value">{formatted(item)}</b>
+        <span>{item.name}</span><b className="radar-value">{formatted(item)}</b><small className="radar-summary">{item.status}{item.strengthLabel&&<><br/>{item.strengthLabel}</>}</small>
       </button>)}
       {factors.map((item,i)=>{if(item.score===null)return null;const [x,y]=point(i,item.score);return <button key={item.id} type="button" className="radar-point-target" data-radar-hit={item.id} style={{left:`${x/width*100}%`,top:y,clipPath:radarHitArea(i,coordinates)}} aria-label={`${item.name}数据点，原始值${formatted(item)}`} {...interaction(item.id)}/>;})}
     </div>
     {factor&&<FloatingPortal><div className="radar-explanation" id={`${id}-explanation`} role="dialog" aria-label={`${factor.name}说明`} data-radar-factor={factor.id} ref={refs.setFloating} style={{...floatingStyles,visibility:isPositioned?"visible":"hidden"}} {...getFloatingProps({onPointerEnter:cancelClose,onPointerLeave:leave,onKeyDown:(event:React.KeyboardEvent)=>{if(event.key==="Escape"){event.preventDefault();close(true);}}})}>
       <button className="explanation-close" type="button" aria-label="关闭指标说明" onClick={()=>close(true)}>×</button>
       <div className="radar-explanation-title"><strong><a href={snapshot.source.url} target="_blank" rel="noreferrer" aria-label={`${factor.name}，来源${snapshot.source.name}`}>{factor.name}</a></strong><b style={{color:radarFactorColor(factor)}}>{formatted(factor)}</b>{factor.id==="activity"&&factor.asOf!==date&&<time className="radar-observed-date" dateTime={factor.asOf} aria-label={`最近完整交易日 ${displayDate(factor.asOf,true)}`}>完整日 {displayDate(factor.asOf)}</time>}</div>
-      <p>{factor.unavailable??factor.explanation}</p>
+      <div className="radar-state">{factor.status}{factor.strengthLabel?` · ${factor.strengthLabel}`:""}</div><p>{factor.explanation}</p>
       <small>{factor.scale}</small>
     </div></FloatingPortal>}
   </section>;

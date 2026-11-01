@@ -41,13 +41,13 @@ try{
   assert.equal(await page.locator(".signals").count(),2);release();gate=null;
   await page.locator("[data-market=US] .market-loading").waitFor({state:"hidden"});
   await layout(page,"long name");await page.screenshot({path:`${out}/${width}-long-name.png`,fullPage:true});
-  failed=true;await page.clock.install();await page.clock.fastForward(300001);await page.evaluate(()=>document.dispatchEvent(new Event("visibilitychange")));
-  await page.locator("[data-market=US] .snapshot-stale").waitFor();assert.equal(await page.locator(".signals").count(),2);
+  failed=true;const failure=page.waitForResponse(r=>r.url().includes("/api/markets/US")&&r.status()===503);await page.clock.install();await page.clock.fastForward(300001);await page.evaluate(()=>document.dispatchEvent(new Event("visibilitychange")));
+  await failure;await page.waitForFunction(()=>!document.querySelector("[data-market=US]").hasAttribute("aria-busy"));assert.equal(await page.locator(".snapshot-stale").count(),0);assert.equal(await page.locator(".signals").count(),2);
   await page.screenshot({path:`${out}/${width}-refresh-error.png`,fullPage:true});
   await page.locator("[data-market=US] .back-market").click();
-  await page.getByRole("button",{name:"重试美股行情"}).waitFor();assert.equal(await page.locator(".signals").count(),2);
+  await page.getByRole("button",{name:"刷新美股行情"}).waitFor();assert.equal(await page.locator(".signals").count(),2);
   failed=false;quote.instrument=initial.markets.US.instrument;
-  await page.getByRole("button",{name:"重试美股行情"}).click();await page.locator("[data-market=US].stock-selected").waitFor({state:"hidden"});
+  await page.getByRole("button",{name:"刷新美股行情"}).click();await page.locator("[data-market=US].stock-selected").waitFor({state:"hidden"});
   await page.evaluate(()=>localStorage.setItem("trendbeak:search-history:v1",JSON.stringify(Array.from({length:12},(_,i)=>({market:"US",symbol:`T${i}`,code:`T${i}`,kind:"stock",name:`Test ${i}` })))));
   await page.reload({waitUntil:"networkidle"});await page.locator("main[data-range-ready=true]").waitFor();await page.locator(".radar-axis").nth(7).waitFor();await search.click();assert.equal(await page.getByRole("option").count(),10);await layout(page,"history ten");
   await page.screenshot({path:`${out}/${width}-history-ten.png`,fullPage:true});

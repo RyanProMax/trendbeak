@@ -162,6 +162,7 @@ function Dashboard({ data }: { data: PageData }) {
       return true;
     } catch {
       if (!controller.signal.aborted) {
+        if(!missing)console.warn("Market read failed",{market,symbol:instrument.symbol});
         const previous = current.current[market].snapshot;
         const record = previous ? recordFromSnapshot(previous) : null;
         const saved = (previous?.freshness?.via==="database"&&validSnapshot(previous,market,instrument.symbol,Date.now())||validRecord(record,market,instrument.symbol)) ? readSnapshot(record!,Date.now(),previous?.freshness?.via==="database"?"database":"memory",true) : restoreSnapshot(market,instrument.symbol,browserStorage());
@@ -268,7 +269,7 @@ function Dashboard({ data }: { data: PageData }) {
               return <div className="calendar-row" data-calendar-market={market} key={market}>
                 <MarketCard state={markets[market]} date={selectedDate ?? undefined} reset={() => void load(BENCHMARKS[market])} retry={() => void load(markets[market].failedInstrument ?? markets[market].instrument)} />
                 {snapshot && mounted ? <YearHeatmap snapshot={snapshot} days={alignedDays[market]} selectedDate={selectedDate ?? snapshot.asOf} onSelectDate={selectDate} onHoverDate={setHoveredDate} showMonths={index === 0 || !markets.CN.snapshot} />
-                  : snapshot ? <div className="calendar-loading" aria-label="正在绘制每日涨跌"/> : markets[market].loading ? <div className="calendar-loading" aria-label="正在读取每日涨跌"/> : <p className="calendar-unavailable">行情暂不可用</p>}
+                  : snapshot ? <div className="calendar-loading" aria-label="正在绘制每日涨跌"/> : markets[market].loading ? <div className="calendar-loading" aria-label="正在读取每日涨跌"/> : <p className="calendar-unavailable">—</p>}
               </div>;
             })}
           </div>
@@ -280,12 +281,12 @@ function Dashboard({ data }: { data: PageData }) {
           </div>
           <div className="analysis-grid">{(["CN", "US"] as Market[]).map((market) => {
             const snapshot = markets[market].snapshot;
-            if (!snapshot) return <section className={markets[market].loading?"signals-loading":"analysis-unavailable"} data-analysis-market={market} key={market} aria-label={`${market === "CN" ? "A 股" : "美股"}指标`}>{markets[market].loading?"正在读取市场信号…":"行情恢复后显示指标"}</section>;
+            if (!snapshot) return <section className={markets[market].loading?"signals-loading":"analysis-unavailable"} data-analysis-market={market} key={market} aria-label={`${market === "CN" ? "A 股" : "美股"}指标`}>{markets[market].loading?"正在读取市场信号…":"—"}</section>;
             const date = selectedDate ?? snapshot.asOf;
             return <section className="market-analysis" data-analysis-market={market} key={market}>
               <div className="signals" data-date={date} aria-label={`${displayDate(date, true)}指标`}>
                 <div className="analysis-heading"><h3>{market === "CN" ? "A 股" : "美股"}</h3></div>
-                {mounted ? <><MarketTrend snapshot={snapshot} benchmark={benchmarks[market]} bounds={bounds ?? {start:shiftDate(windowEnd ?? snapshot.asOf,-364),end:windowEnd ?? snapshot.asOf}} windowEnd={windowEnd ?? snapshot.asOf} selectedDate={date} hoveredDate={hoveredDate} range={range} visible={visibleSeries} onHoverDate={setHoveredDate} onSelectDate={selectDate} canSelectDate={selectable} />
+                {mounted ? <><MarketTrend snapshot={snapshot} benchmark={benchmarks[market]} bounds={bounds ?? {start:shiftDate(windowEnd ?? snapshot.asOf,-364),end:windowEnd ?? snapshot.asOf}} windowEnd={windowEnd ?? snapshot.asOf} selectedDate={date} hoveredDate={hoveredDate} range={range} visible={visibleSeries} onHoverDate={setHoveredDate} onSelectDate={selectDate} dateSelected={selectedDate!==null} onClearDate={()=>setSelectedDate(null)} canSelectDate={selectable} />
                 <TechnicalRadar snapshot={snapshot} date={date} /></> : <div className="signals-loading" aria-label="正在绘制市场信号"/>}
               </div>
             </section>;

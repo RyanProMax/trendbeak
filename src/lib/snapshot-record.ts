@@ -10,8 +10,9 @@ const finite = (v: unknown): v is number => typeof v === "number" && Number.isFi
 const nullable = (v: unknown) => v === null || finite(v);
 const text = (v: unknown) => typeof v === "string" && v.length > 0 && v.length < 500;
 const source = (v: any) => v && text(v.name) && typeof v.url === "string" && /^https:\/\//.test(v.url);
+const extraRadar = (v:any) => (v.ema?.strength===undefined || nullable(v.ema.strength)&&(v.ema.strength===null || v.ema.strength>=0&&v.ema.strength<=100&&v.ema.samples>=60)) && (v.bollinger===undefined || v.bollinger&&["position","middleChange","widthChange"].every(k=>nullable(v.bollinger[k])));
 const values = (v: any) => v && ["rsi", "trend", "volume", "range"].every(key => nullable(v[key]));
-const radar = (v: any, date: string) => !v || (v.version === 1 && ["ema", "volatility", "activity"].every(id => {
+const radar = (v: any, date: string) => !v || (v.version === 1 && extraRadar(v) && ["ema", "volatility", "activity"].every(id => {
   const m = v[id];
   return m && nullable(m.value) && (id === "ema" || m.value === null || m.value >= 0) && nullable(m.score) &&
     (m.score === null || (m.value !== null && m.score >= 0 && m.score <= 100 && m.samples >= 60)) &&

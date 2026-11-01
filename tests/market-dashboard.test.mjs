@@ -177,7 +177,7 @@ test("market names and hydration data cannot escape HTML, including partial outa
   assert.equal(document.querySelectorAll(".signals").length, 1);
   assert.equal(
     document.querySelector("[data-market=US] .market-empty").textContent,
-    "行情暂不可用重试",
+    "—重试",
   );
   assert.equal(
     JSON.parse(document.querySelector("#trendbeak-data").textContent).markets

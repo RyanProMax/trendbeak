@@ -19,7 +19,7 @@ export function calendarForRange(snapshot: MarketSnapshot, end: string, count = 
 }
 
 export function sentimentState(value: number | null) {
-  if (value === null) return "暂无数据";
+  if (value === null) return "—";
   return value < 25 ? "极度恐惧" : value < 45 ? "恐惧" : value <= 55 ? "中性" : value <= 75 ? "贪婪" : "极度贪婪";
 }
 

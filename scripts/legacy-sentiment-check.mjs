@@ -13,8 +13,8 @@ try {
     let release;const gate=new Promise(resolve=>release=resolve);
     await page.route('**/api/markets/US*',async route=>{await gate;await route.continue();});
     await page.reload({waitUntil:'domcontentloaded'});
-    await page.locator('[data-market=US] .snapshot-stale').waitFor();
-    assert.equal(await page.locator('[data-market=US] .snapshot-stale').count(),1,'the valid legacy quote is usable while fresh data loads');
+    await page.locator('[data-market=US] .quote').waitFor();
+    assert.equal(await page.locator('[data-market=US] .snapshot-stale').count(),0,'valid dated backups do not add technical anomaly labels');
     release();await page.waitForLoadState('networkidle');await page.locator('main[data-range-ready=true]').waitFor();
     const chart=page.locator('[data-analysis-market=US] .trend-chart'), server=initial.markets.US.snapshot;
     const start=await chart.getAttribute('data-start'),end=await chart.getAttribute('data-end');

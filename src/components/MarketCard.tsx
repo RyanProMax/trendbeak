@@ -1,6 +1,6 @@
 import { ArrowLeft, RotateCw } from "lucide-react";
 import type { Instrument, MarketState } from "../market-types";
-import { number, tone, displayDate, displayUpdate } from "../lib/market-format";
+import { number, tone, displayDate } from "../lib/market-format";
 
 export type ViewState = MarketState & {
   loading?: boolean;
@@ -15,8 +15,7 @@ export default function MarketCard({ state, date, reset, retry }: {
   const quoteDate = date ?? snapshot?.asOf;
   const reading = quoteDate ? snapshot?.history[quoteDate] ?? (snapshot?.bars && quoteDate===snapshot.asOf?{price:snapshot.price,change:snapshot.change}:undefined) : undefined;
   const closed = snapshot?.days.find((day) => day.date === quoteDate)?.status === "closed";
-  const stale = snapshot?.freshness?.state === "stale";
-  const session = closed ? "休市" : !reading ? "无交易数据" : quoteDate === snapshot?.asOf && snapshot?.session === "trading" ? stale ? "盘中快照" : "盘中" : "收盘";
+  const session = closed ? "休市" : !reading ? "—" : quoteDate === snapshot?.asOf && snapshot?.session === "trading" ? "盘中" : "收盘";
   const switching = !!pendingInstrument && pendingInstrument.symbol !== instrument.symbol;
   return <section className={`market-card${instrument.kind === "stock" ? " stock-selected" : ""}${switching ? " is-switching" : ""}`}
     data-market={instrument.market} aria-label={`${marketName}市场信号`} aria-busy={loading || undefined}>
@@ -28,10 +27,9 @@ export default function MarketCard({ state, date, reset, retry }: {
           <div className={`quote-change ${tone(reading?.change ?? null)}`}>{number(reading?.change ?? null, 2, true)}{reading?.change != null ? "%" : ""}</div>
           {instrument.kind === "stock" && <button className="back-market" onClick={reset}><ArrowLeft size={13} />返回大盘</button>}
         </div>
-        <div className="quote-session"><time dateTime={quoteDate}>{displayDate(quoteDate!)}</time><span> · {session}</span></div>
-        {stale && <div className="snapshot-stale" role="status"><span>暂未更新 · 最近更新<time dateTime={snapshot.freshness!.storedAt}>{displayUpdate(snapshot.freshness!.storedAt,instrument.market)}</time><span className="update-zone">（{instrument.market === "CN" ? "北京时间" : "美东时间"}）</span></span><button onClick={retry} aria-label={`重试${marketName}行情`}><RotateCw size={13} /></button></div>}
-        {error && (!stale || failedInstrument?.symbol !== instrument.symbol) && <div className="market-refresh-error" role="status">{failedInstrument && failedInstrument.symbol !== instrument.symbol ? `${error==="该股票的历史数据尚未收录"?"尚未收录":"暂未载入"}${failedInstrument.name}，仍显示${instrument.name}` : "更新暂不可用，显示上次行情"}<button onClick={retry} aria-label={`重试${marketName}行情`}><RotateCw size={14} /></button></div>}
-      </> : <div className="market-empty" role="status"><span>{loading ? "正在读取行情…" : error??"行情暂不可用"}</span>{!loading && <button onClick={retry}><RotateCw size={14} />重试</button>}</div>}
+        <div className="quote-session"><time dateTime={quoteDate}>{displayDate(quoteDate!)}</time><span> · {session}</span><button className="quote-refresh" onClick={retry} aria-label={`刷新${marketName}行情`}><RotateCw size={13} /></button></div>
+        {error && failedInstrument && failedInstrument.symbol !== instrument.symbol && <div className="market-refresh-error" role="status">{`${error==="该股票的历史数据尚未收录"?"尚未收录":"暂未载入"}${failedInstrument.name}，仍显示${instrument.name}`}</div>}
+      </> : <div className="market-empty" role="status"><span>{loading ? "正在读取行情…" : "—"}</span>{!loading && <button onClick={retry}><RotateCw size={14} />重试</button>}</div>}
     </div>
   </section>;
 }

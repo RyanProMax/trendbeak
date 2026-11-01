@@ -25,6 +25,15 @@ export function bollingerWidth(closes: number[]): number | null {
   return 4 * Math.sqrt(variance) / center * 100;
 }
 
+/** Percent B is deliberately not clamped; a zero-width band has no position. */
+export function bollingerDetails(closes:number[]) {
+ const window=closes.slice(-20),previous=closes.slice(-21,-1);
+ if(window.length<20||window.some(v=>!finite(v)||v<=0))return{position:null,middleChange:null,widthChange:null};
+ const center=mean(window),sigma=Math.sqrt(mean(window.map(v=>(v-center)**2))),width=4*sigma/center*100;
+ const prior=previous.length===20?mean(previous):null,oldWidth=bollingerWidth(previous);
+ return{position:sigma>0?(window.at(-1)!-(center-2*sigma))/(4*sigma)*100:null,middleChange:prior===null?null:(center/prior-1)*100,widthChange:oldWidth===null?null:width-oldWidth};
+}
+
 /** Same-instrument volume only. Missing/zero vendor volume is not an invented observation. */
 export function relativeVolume(bars: DailyBar[]): number | null {
   if (bars.length < 21) return null;
@@ -57,5 +66,6 @@ export function buildRadarReadings(bars: DailyBar[], trading = false): Record<st
   };
   let lastActivity:RadarMetric|undefined;
   return Object.fromEntries(bars.map((bar,i)=>{const a=trading&&i===bars.length-1?(lastActivity??{value:null,score:null,samples:0,asOf:bar.date}):metric(activity,i);lastActivity=a;
-    return [bar.date,{version:1 as const,ema:metric(ema,i),volatility:metric(volatility,i),activity:a}];}));
+    const strength=historicalRank(ema[i]===null?null:Math.abs(ema[i]!), (histories.get(ema)??[]).map(Math.abs)).score;
+    return [bar.date,{version:1 as const,ema:{...metric(ema,i),strength},volatility:metric(volatility,i),activity:a,bollinger:bollingerDetails(closes.slice(Math.max(0,i-20),i+1))}];}));
 }
