@@ -44,10 +44,9 @@ app.get("/api/markets/:market", async (c) => {
   if (!validSymbol(market, symbol))
     return c.json({ error: "股票代码无效" }, 400);
   try {
-    const {body,revision} = await loadMarket(market, symbol, c.env?.SENTIMENT_DB, new URL(c.req.url).origin);
-    const etag=`W/"snapshot-v1:${market}:${symbol}:${revision}"`;
-    c.header("Cache-Control", "no-cache");c.header("ETag",etag);
-    if(c.req.header('If-None-Match')?.split(',').map(s=>s.trim()).includes(etag))return c.body(null,304);
+    const {body,etag} = await loadMarket(market,symbol,c.env?.SENTIMENT_DB,new URL(c.req.url).origin,c.req.header('If-None-Match'));
+    c.header("Cache-Control","no-cache");c.header("ETag",etag);
+    if(body===null)return c.body(null,304);
     return c.body(body,200,{"Content-Type":"application/json; charset=UTF-8"});
   } catch (error) {
     c.header("Cache-Control", "no-store");

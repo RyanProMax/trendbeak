@@ -1,3 +1,4 @@
+import {refreshMarketHTTP} from './prepare-market-http.mjs';
 import { readFile, stat } from 'node:fs/promises';
 import { createServer } from 'vite';
 import { connectD1 } from './d1-client.mjs';
@@ -6,7 +7,7 @@ function option(name) { const i = args.indexOf(name); if (i < 0)
     return; const value = args[i + 1]; if (!value || value.startsWith('--'))
     throw Error('Missing ' + name); args.splice(i, 2); return value; }
 const market = option('--market'), symbol = option('--symbol'), file = option('--file'), fetchedAt = option('--fetched-at'), remote = args.includes('--remote'), dryRun = args.includes('--dry-run');
-if (!['schema', 'init', 'sync', 'rebuild'].includes(mode) || args.some(a => !['--remote', '--dry-run'].includes(a)) || mode !== 'schema' && (!['CN', 'US'].includes(market) || !symbol))
+if (!['schema', 'init', 'sync', 'rebuild','prepare'].includes(mode) || args.some(a => !['--remote', '--dry-run'].includes(a)) || mode !== 'schema' && (!['CN', 'US'].includes(market) || mode!=='prepare'&&!symbol))
     throw Error('Usage: market-sync.mjs schema | init|sync|rebuild --market CN|US --symbol SYMBOL [--file reviewed-input.json [--fetched-at ACTUAL_FETCH_TIMESTAMP]] [--dry-run] [--remote]');
 const connection = await connectD1(remote);
 let vite;
@@ -22,8 +23,10 @@ try {
     else {
         vite = await createServer({ configFile: false, appType: 'custom', server: { middlewareMode: true, hmr: false, ws: false } });
         const [job, source] = await Promise.all([vite.ssrLoadModule('/src/server/market-sync.ts'), vite.ssrLoadModule('/src/server/market-data.ts')]);
-        if (!source.validSymbol(market, symbol))
+        if (symbol&&!source.validSymbol(market, symbol))
             throw Error('Invalid instrument');
+        if(mode==='prepare'){console.log(JSON.stringify({mode,target:remote?'remote':'local',dryRun,responses:await refreshMarketHTTP(db,vite,market,symbol,dryRun)}));}
+        else {
         const key = `${market}/${symbol}`, r = await db.prepare('SELECT payload, updated_at FROM market_snapshot WHERE key = ?').bind(key).all();
         if (!r.success)
             throw Error('Snapshot lookup failed');
@@ -57,13 +60,16 @@ try {
             if (quote.instrument?.market !== market || quote.instrument?.symbol !== symbol)
                 throw Error('Input identity mismatch');
             const split = !!Object.keys(input.chart?.result?.[0]?.events?.splits ?? {}).length;
-            const prepared = job.prepareMarketState(quote, mode, previous, now, split);
+            const calculated = job.prepareMarketState(quote, mode, previous, now, split);
+            const {attachHTTP}=await vite.ssrLoadModule('/src/server/market-http.ts');
+            const prepared=await attachHTTP(db,calculated,now);
             let writes = 0;
             if (!dryRun && prepared.text !== record?.payload) {
                 await job.writeMarketState(db, prepared, record?.updated_at, now);
                 writes = 1;
             }
             console.log(JSON.stringify({ mode, key, target: remote ? 'remote' : 'local', dryRun, upstreamCalls, requestedWindow: mode === 'sync' ? (market === 'CN' ? url.searchParams.get('param') : url.searchParams.get('range')) : 'explicit bounded initialization/rebuild', inputBars: quote.bars.length, retainedBars: prepared.payload.calculation.bars.length, viewRows: Object.keys(prepared.payload.view.history).length, payloadBytes: prepared.bytes, dbReads: 1, dbWrites: writes, computedRows: prepared.processed, source: prepared.payload.view.source, technicalSource: prepared.payload.view.technicalSource }));
+        }
         }
     }
 }

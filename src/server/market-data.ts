@@ -12,7 +12,6 @@ import {
   marketDate,
   validateBars,
 } from "../lib/market-signals";
-import { sentimentView } from "./sentiment-view";
 import { SourceError, reportSourceFailure, isTransientSourceFailure } from "./source-errors";
 
 import { readMarketSnapshot, SnapshotMissing } from "./market-snapshot-store";
@@ -330,12 +329,9 @@ function makeSnapshot(
 }
 
 /** HTTP readers only read existing durable views; never initialize or update quotes. */
-export async function loadMarket(market:Market,symbol=BENCHMARKS[market].symbol,db?:D1Database,origin="https://trendbeak.com"){
+export async function loadMarket(market:Market,symbol=BENCHMARKS[market].symbol,db?:D1Database,origin="https://trendbeak.com",ifNone?:string){
   if(!validSymbol(market,symbol))throw Error("Invalid instrument");
-  const record=await readMarketSnapshot(db,market,symbol,origin);
-  const end=await marketWindowEnd(db)??record.asOf,sentiment=await sentimentView(db,market,end);
-  const body=`{"data":${record.payload.slice(0,-1)},"freshness":${JSON.stringify(record.freshness)},"sentiment":${sentiment.json}}}`;
-  return {body,revision:`${record.updatedAt}:${sentiment.revision}:${end}`};
+  return readMarketSnapshot(db,market,symbol,origin,ifNone);
 }
 export { SnapshotMissing };
 export async function loadHealth(origin:string,db?:D1Database){
@@ -345,6 +341,3 @@ export async function loadHealth(origin:string,db?:D1Database){
   }catch{return {status:'degraded',markets:empty};}
 }
 export async function markPrepared(instruments:Instrument[],db?:D1Database):Promise<Instrument[]>{if(!db||!instruments.length)return instruments;try{const keys=instruments.map(i=>`${i.market}/${i.symbol}`),r=await db.prepare(`SELECT key FROM market_snapshot WHERE key IN (${keys.map(()=>'?').join(',')})`).bind(...keys).all<{key:string}>();if(!r.success)return instruments;const ready=new Set(r.results.map(r=>r.key));return instruments.map(i=>({...i,prepared:ready.has(`${i.market}/${i.symbol}`)}));}catch{return instruments;}}
-
-const ends=new WeakMap<D1Database,{until:number;value?:string;pending?:Promise<string|undefined>}>();
-async function marketWindowEnd(db?:D1Database):Promise<string|undefined>{if(!db)return;const hit=ends.get(db);if(hit?.pending)return hit.pending;if(hit&&hit.until>Date.now())return hit.value;const task=(async()=>{try{const r=await db.prepare("SELECT MAX(json_extract(payload, '$.view.asOf')) AS latest FROM market_snapshot WHERE key IN (?, ?)").bind('CN/000300.SS','US/^GSPC').all<{latest:string}>();return r.results[0]?.latest;}catch{return undefined;}})();ends.set(db,{until:0,pending:task});const value=await task;ends.set(db,{until:Date.now()+300000,value});return value;}

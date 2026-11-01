@@ -1,3 +1,5 @@
+import{connectD1}from'./d1-client.mjs';
+import{refreshMarketHTTP}from'./prepare-market-http.mjs';
 import { readFile, writeFile, mkdtemp, rm } from "node:fs/promises";
 import { resolve, dirname, join } from "node:path";
 import { tmpdir } from "node:os";
@@ -15,6 +17,7 @@ const remote = args.includes("--remote"), dryRun = args.includes("--dry-run");
 if (args.some(arg => !["--remote", "--dry-run"].includes(arg)) || !["seed", "sync"].includes(mode) || !["baifenwei", "cnn_whit3rabbit", "cnn_benzinga"].includes(source) || file && manifestPath || mode === "seed" && !(file || manifestPath) || manifestPath && (source !== "cnn_whit3rabbit" || mode !== "seed") || mode === "seed" && source === "cnn_whit3rabbit" && !manifestPath || source === "cnn_benzinga" && (mode !== "seed" || !file)) {
   throw Error("Usage: sentiment-sync.mjs seed|sync --source baifenwei|cnn_whit3rabbit|cnn_benzinga [--file PATH | --manifest PATH] [--remote] [--dry-run]. CNN archive seeds require the verified bundle manifest; Benzinga accepts a reviewed single-record local seed only.");
 }
+if(remote&&!dryRun&&!/^[a-f0-9]{32}$/.test(process.env.CLOUDFLARE_ACCOUNT_ID??""))throw Error("Specify the existing CLOUDFLARE_ACCOUNT_ID before remote writes");
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
 const vite = await createServer({ configFile: false, appType: "custom", server: { middlewareMode: true, hmr: false, ws: false } });
 let temporary;
@@ -74,6 +77,7 @@ try {
     const result = spawnSync(process.execPath, ["node_modules/wrangler/bin/wrangler.js", "d1", "execute", "trendbeak-sentiment", remote ? "--remote" : "--local", "--file", sqlFile, "--yes"], { stdio: "inherit", env: { ...process.env, WRANGLER_SEND_METRICS: "false" } });
     if (result.error) throw result.error;
     if (result.status !== 0) throw Error("Database import did not complete; inspect D1 before retrying");
+    const connection=await connectD1(remote);try{console.log(JSON.stringify({httpResponses:await refreshMarketHTTP(connection.db,vite,market)}));}catch(error){throw Error('Sentiment import completed; response preparation failed. Run market:prepare for '+market+'; '+String(error));}finally{await connection.close();}
   }
   console.log(JSON.stringify({ mode, source, market, target: remote ? "remote" : "local", dryRun, inputRows: rows.length, window:mode==='sync'?{from,to}:undefined, first: rows[0]?.date, last: rows.at(-1)?.date, rawSha256, verification }));
 } finally {

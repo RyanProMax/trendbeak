@@ -6,8 +6,11 @@ try{
  for(const width of [1440,390]){
   const {page,context,initial,errors}=await openPage(browser,width);
   const search=page.getByRole("combobox");
+  // Unprepared-stock interaction is deterministic; provider uptime is checked
+  // separately with the prepared NVDA path, without retrying a third party.
+  await page.route("**/api/search?*",r=>new URL(r.request().url()).searchParams.get('q')==='600519'?r.fulfill({json:{data:[{market:'CN',symbol:'600519.SS',code:'600519',name:'贵州茅台',kind:'stock',prepared:false}]}}):r.continue());
   let successfulSearches=0,unpreparedSearches=0;
-  for(const [query,market,name] of [["600519","CN","贵州茅台"],["英伟达","US","英伟达"]]){
+  for(const [query,market,name] of [["600519","CN","贵州茅台"],["NVDA","US","英伟达"]]){
     await page.evaluate(()=>scrollTo(0,0));await search.fill(query);
     const option=page.getByRole("option").filter({hasText:name}).first();await option.waitFor();await layout(page,"search "+market);
     await page.screenshot({path:`${out}/${width}-search-${market}.png`,fullPage:true});
@@ -51,7 +54,7 @@ try{
   await page.goto(base+"/offline",{waitUntil:"networkidle"});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth),width);
   await page.screenshot({path:`${out}/${width}-offline.png`,fullPage:true});
   assert.deepEqual(errors,[]);
-  report.push({width,realSearches:2,successfulSearches,unpreparedSearches,marketSwitch:true,benchmarkPreserved:true,atomicSwitch:true,longName:true,refreshFailureKeepsData:true,retry:true,recentSearches:10,offline:true,consoleErrors:errors});
+  report.push({width,realSearches:1,unpreparedMetadataFixture:1,successfulSearches,unpreparedSearches,marketSwitch:true,benchmarkPreserved:true,atomicSwitch:true,longName:true,refreshFailureKeepsData:true,retry:true,recentSearches:10,offline:true,consoleErrors:errors});
   await context.close();
  }
  await writeFile(`${out}/state-results.json`,JSON.stringify(report,null,2));console.log(JSON.stringify(report));

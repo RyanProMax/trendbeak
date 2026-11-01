@@ -6,6 +6,7 @@ import { validCompactSnapshot, validSnapshot } from "../lib/snapshot-record";
 import { snapshotKey } from "./market-snapshot-store";
 export const TECHNICAL_SOURCE = 'trendbeak_technical_v1';
 export interface MarketState {
+    http?:{body:string};
     calculation: Omit<HistoryState, 'processed'>;
     view: MarketSnapshot;
 }

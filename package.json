@@ -14,6 +14,7 @@
     "pages:dev": "npm run preview",
     "test:budget": "node scripts/server-budget-check.mjs",
     "security:check": "node scripts/check-public-repo.mjs",
+    "market:prepare": "node scripts/market-sync.mjs prepare",
     "market:schema": "node scripts/market-sync.mjs schema",
     "market:init": "node scripts/market-sync.mjs init",
     "market:sync": "node scripts/market-sync.mjs sync",

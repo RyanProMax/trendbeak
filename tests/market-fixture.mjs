@@ -30,5 +30,5 @@ export async function preparedDB(vite, now = fixtureNow, { nvda = false } = {}) 
         }
     }
     fixture.sqlite.prepare('INSERT INTO sentiment_daily(market,date,source,score,updated_at) VALUES(?,?,?,?,?)').run('US', '2026-03-12', 'cnn_benzinga', 21.2, new Date(now).toISOString());
-    return fixture;
+    const{attachHTTP}=await vite.ssrLoadModule('/src/server/market-http.ts');for(const row of fixture.sqlite.prepare('SELECT key,payload FROM market_snapshot').all()){const p=await attachHTTP(fixture.db,{key:row.key,payload:JSON.parse(row.payload),text:row.payload,bytes:Buffer.byteLength(row.payload),processed:0},now);fixture.sqlite.prepare('UPDATE market_snapshot SET payload=? WHERE key=?').run(p.text,row.key);}fixture.stats.reads=0;fixture.stats.sql=[];return fixture;
 }

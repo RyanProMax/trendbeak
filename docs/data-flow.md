@@ -89,3 +89,18 @@ npm run market:rebuild -- --market US --symbol NVDA --dry-run
 后续预览仍发现新实例日期本地化初始化的 CPU 峰值。读接口只需沪市/纽约日界，使用当前时区规则的常量时间换算；2007 年前保留 IANA 历史转换。测试对照 IANA 检查历史、闰日、UTC 午夜及夏令时切换。共享显示格式器改为真正用到时才初始化，避免 Worker 导入时加载与读取无关的格式器；页面文案与日期展示保持一致。纽约当前规则依据 [NIST](https://www.nist.gov/pml/time-and-frequency-division/popular-links/daylight-saving-time-dst)，时区法规变化时需更新规则与相应测试。
 
 最终读链进一步收敛：行情取消可驱逐边缘副本，只保留 5 分钟、最多 32 标的的实例内不可变 JSON 字节缓存；冷/驱逐实例必定单次按主键回 D1，避免边缘全体解析或加密校验的冷 CPU 峰值。完整视图仍在独立写入器校验；读取检查版本、标的来源、日期、字节界限。情绪的市场展示投影由 D1 在明确日期/来源窗口内原生 JSON 聚合和 LAG 生成，每次最多 745 个输入、每来源最多 372 条，Worker 只接收至多两个 JSON 字符串，不逐行重新编码/验证；独立情绪行接口仍保留原来来源与范围校验。此调整不增加表、不更新历史数据、不把指标重算转到数据库。
+
+## 预生成 HTTP 响应
+
+`payload.http.body` 由独立命令生成，保存当前实际兼容消费者需要的完整数据 JSON（不包含随读取变化的新鲜度）。`view` 用于情绪修订时重新组成响应，避免重新计算指标；`http.body` 用于 HTTP 原样读取。读请求只追加小型新鲜度元数据，不解析或序列化整个 body，也不读情绪表。没有预留版本字段：已有 `updated_at` 就是 CAS 与 ETag 的版本。冷 304 只 `SELECT updated_at`，不投影或接收 body。
+
+```sh
+npm run market:prepare -- --market CN
+npm run market:prepare -- --market US
+# 单标的与只读审阅
+npm run market:prepare -- --market US --symbol NVDA --dry-run
+```
+
+准备命令最多处理一个市场32个明确已存在标的，超过则要求显式指定。重复且内容未变不写入。行情 init/sync/rebuild 会先组好响应再一次 CAS 替换；情绪 seed/sync 成功后刷新该市场的响应，失败会明确报告“情绪已导入，响应准备失败”，可独立重跑 prepare，读路径不代劳。刷新保留价格取回时间、计算检查点和所有来源，不触发上游或技术指标计算。远端仍需显式 `--remote` 与现有账户ID。
+
+视觉中未准备的茅台交互使用已核验股票身份的受控搜索输入；NVDA使用实际搜索与已准备行情，分别验证第三方搜索可用性与本地状态交互，避免外部搜索超时阻断所有布局检查。
