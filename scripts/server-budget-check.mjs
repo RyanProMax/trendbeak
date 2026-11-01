@@ -50,6 +50,10 @@ try {
         assert.ok(page.bytes < 20000);
         assert.equal(f.stats.reads, 0);
         await measure('cold health: two metadata records', () => request('/api/health'));
+        const stockSearch=await measure('prepared NVDA search: metadata only, no suggestion source',()=>request('/api/search?q=NVDA'));
+        assert.equal(stockSearch.status,200);assert.equal(stockSearch.d1Reads,1);assert.ok(stockSearch.bytes<1024);
+        const indexSearch=await measure('prepared CN code search: at most two candidate keys',()=>request('/api/search?q=000300'));
+        assert.equal(indexSearch.status,200);assert.equal(indexSearch.d1Reads,1);assert.ok(indexSearch.bytes<2048);
         await measure('cold CN: materialized view and bounded sentiment', () => request('/api/markets/CN'));
         await measure('cold US: materialized view and bounded sentiment', () => request('/api/markets/US'));
         const first = await request('/api/markets/US'), etag = first.headers.get('etag'), data = (await first.json()).data;

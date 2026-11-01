@@ -40,10 +40,11 @@ app.get("/api/search", async (c) => {
   if (query.length > 60 || /[\u0000-\u001f]/.test(query))
     return c.json({ error: "搜索词无效" }, 400);
   try {
-    const instruments = await markPrepared(await searchInstruments(query),c.env?.SENTIMENT_DB);
+    const instruments = await markPrepared(await searchInstruments(query,undefined,c.env?.SENTIMENT_DB),c.env?.SENTIMENT_DB);
     c.header("Cache-Control", "public, max-age=60, s-maxage=300");
     return c.json({ data: instruments });
-  } catch {
+  } catch (error) {
+    console.error("Instrument search failed", error instanceof Error ? error.message : String(error));
     c.header("Cache-Control", "no-store");
     return c.json({ error: "搜索暂不可用" }, 503);
   }

@@ -15,6 +15,7 @@ import {
 import { SourceError, reportSourceFailure, isTransientSourceFailure } from "./source-errors";
 
 import { readMarketSnapshot, SnapshotMissing } from "./market-snapshot-store";
+import { dailySnapshotCurrent } from '../lib/daily-freshness';
 
 type JsonObject = Record<string, any>;
 export type FetchJson = (url: URL) => Promise<JsonObject>;
@@ -140,9 +141,25 @@ export function parseSearch(payload: JsonObject): Instrument[] {
 export async function searchInstruments(
   query: string,
   read: FetchJson = fetchJson,
+  db?: D1Database,
 ): Promise<Instrument[]> {
   const text = query.trim();
   if (!text || text.length > 60 || /[\u0000-\u001f]/.test(text)) return [];
+  const symbol=text.toUpperCase();
+  const keys=/^\d{6}$/.test(symbol)?[`CN/${symbol}.SS`,`CN/${symbol}.SZ`]
+    :/^\d{6}\.(SS|SZ)$/.test(symbol)?[`CN/${symbol}`]
+    :validSymbol('US',symbol)?[`US/${symbol===BENCHMARKS.US.code?BENCHMARKS.US.symbol:symbol}`]:[];
+  if(db&&keys.length){
+    const result=await db.prepare(`SELECT key, CASE WHEN length(CAST(json_extract(payload, '$.view.instrument') AS BLOB))<=1024 THEN json_extract(payload, '$.view.instrument') END AS instrument FROM market_snapshot WHERE key IN (${keys.map(()=>'?').join(',')}) LIMIT 2`).bind(...keys).all<{key:string;instrument:string}>();
+    if(!result.success)throw Error('Prepared instrument lookup failed');
+    const local=result.results.map(row=>{
+      if(!keys.includes(row.key)||typeof row.instrument!=='string'||row.instrument.length>1024)throw Error('Invalid prepared instrument');
+      const item=JSON.parse(row.instrument);
+      if(!['CN','US'].includes(item.market)||!validSymbol(item.market,item.symbol)||`${item.market}/${item.symbol}`!==row.key||!cleanName(item.name)||!cleanName(item.code)||!['index','stock'].includes(item.kind))throw Error('Invalid prepared instrument');
+      return {market:item.market,symbol:item.symbol,code:item.code,name:item.name,kind:item.kind,prepared:true} as Instrument;
+    });
+    if(local.length)return local;
+  }
   const load = async () => {
     const url = new URL("https://searchapi.eastmoney.com/api/suggest/get");
     url.search = new URLSearchParams({
@@ -336,8 +353,8 @@ export async function loadMarket(market:Market,symbol=BENCHMARKS[market].symbol,
 export { SnapshotMissing };
 export async function loadHealth(origin:string,db?:D1Database){
   const empty=Object.fromEntries((["CN","US"] as Market[]).map(m=>[m,{available:false,asOf:null,freshness:null}]));if(!db)return {status:"degraded",markets:empty};
-  try{const r=await db.prepare("SELECT key, json_extract(payload, '$.view.asOf') AS asOf, json_extract(payload, '$.view.fetchedAt') AS fetchedAt FROM market_snapshot WHERE key IN (?, ?)").bind('CN/000300.SS','US/^GSPC').all<{key:string;asOf:string;fetchedAt:string}>();if(!r.success)throw Error('Health read failed');
-    const markets=Object.fromEntries((["CN","US"] as Market[]).map(m=>{const row=r.results.find(r=>r.key===`${m}/${BENCHMARKS[m].symbol}`),age=row?Math.max(0,Date.now()-Date.parse(row.fetchedAt)):Infinity;return [m,row?{available:true,asOf:row.asOf,freshness:{state:age<300000?'fresh':'stale',storedAt:row.fetchedAt,ageSeconds:Math.floor(age/1000),freshTtlSeconds:300,maxAgeSeconds:604800,via:'database'}}:empty[m]];}));return {status:Object.values(markets).every((s:any)=>s.available&&s.freshness.state==='fresh')?'ok':'degraded',markets};
+  try{const r=await db.prepare("SELECT key, json_extract(payload, '$.view.asOf') AS asOf, json_extract(payload, '$.view.fetchedAt') AS fetchedAt, json_extract(payload, '$.view.session') AS session FROM market_snapshot WHERE key IN (?, ?)").bind('CN/000300.SS','US/^GSPC').all<{key:string;asOf:string;fetchedAt:string;session:string}>();if(!r.success)throw Error('Health read failed');
+    const markets=Object.fromEntries((["CN","US"] as Market[]).map(m=>{const row=r.results.find(r=>r.key===`${m}/${BENCHMARKS[m].symbol}`),age=row?Math.max(0,Date.now()-Date.parse(row.fetchedAt)):Infinity;return [m,row?{available:true,asOf:row.asOf,freshness:{state:dailySnapshotCurrent(m,row.asOf,row.fetchedAt,row.session,Date.now())?'fresh':'stale',storedAt:row.fetchedAt,ageSeconds:Math.floor(age/1000),freshTtlSeconds:300,maxAgeSeconds:604800,via:'database'}}:empty[m]];}));return {status:Object.values(markets).every((s:any)=>s.available&&s.freshness.state==='fresh')?'ok':'degraded',markets};
   }catch{return {status:'degraded',markets:empty};}
 }
-export async function markPrepared(instruments:Instrument[],db?:D1Database):Promise<Instrument[]>{if(!db||!instruments.length)return instruments;try{const keys=instruments.map(i=>`${i.market}/${i.symbol}`),r=await db.prepare(`SELECT key FROM market_snapshot WHERE key IN (${keys.map(()=>'?').join(',')})`).bind(...keys).all<{key:string}>();if(!r.success)return instruments;const ready=new Set(r.results.map(r=>r.key));return instruments.map(i=>({...i,prepared:ready.has(`${i.market}/${i.symbol}`)}));}catch{return instruments;}}
+export async function markPrepared(instruments:Instrument[],db?:D1Database):Promise<Instrument[]>{if(!db||!instruments.length||instruments.every(i=>i.prepared===true))return instruments;try{const keys=instruments.map(i=>`${i.market}/${i.symbol}`),r=await db.prepare(`SELECT key FROM market_snapshot WHERE key IN (${keys.map(()=>'?').join(',')})`).bind(...keys).all<{key:string}>();if(!r.success)return instruments;const ready=new Set(r.results.map(r=>r.key));return instruments.map(i=>({...i,prepared:ready.has(`${i.market}/${i.symbol}`)}));}catch{return instruments;}}

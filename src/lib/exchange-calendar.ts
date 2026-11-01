@@ -4,6 +4,10 @@ import type { Market } from "../market-types";
 
 const usHolidays = new Set(usCalendar.closedDates);
 
+export function hasExchangeCalendar(date:string,market:Market):boolean {
+  return market==='CN'?date.startsWith(`${chinaCalendar.year}-`):date>=usCalendar.verifiedFrom&&date<=usCalendar.verifiedThrough;
+}
+
 /** Unknown weekday gaps remain missing; an absent quote alone is not a holiday. */
 export function isExchangeClosed(date: string, market?: Market): boolean {
   const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();

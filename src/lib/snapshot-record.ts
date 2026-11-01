@@ -1,5 +1,6 @@
 import type { Market, MarketSnapshot } from "../market-types";
 import { isDate, marketDate } from "./market-signals";
+import { dailySnapshotCurrent } from './daily-freshness';
 
 export const SNAPSHOT_SCHEMA = 1;
 export const FRESH_MS = 300_000;
@@ -61,7 +62,8 @@ export function validRecord(v: any, market: Market, symbol: string, now = Date.n
     validSnapshot(v.snapshot, market, symbol, now) && Date.parse(v.snapshot.fetchedAt) <= Date.parse(v.storedAt) && now - Date.parse(v.snapshot.fetchedAt) < MAX_SNAPSHOT_AGE_MS;
 }
 export function readSnapshot(record: SnapshotRecord, now: number, via: SnapshotVia, stale = false): MarketSnapshot {
-  return { ...record.snapshot, freshness: { state: stale || now - Date.parse(record.storedAt) >= FRESH_MS ? "stale" : "fresh", storedAt: record.storedAt,
+  const current=via==='database'?dailySnapshotCurrent(record.snapshot.instrument.market,record.snapshot.asOf,record.snapshot.fetchedAt,record.snapshot.session,now):now-Date.parse(record.storedAt)<FRESH_MS;
+  return { ...record.snapshot, freshness: { state: stale || !current ? "stale" : "fresh", storedAt: record.storedAt,
     ageSeconds: Math.max(0, Math.floor((now - Date.parse(record.storedAt)) / 1000)), freshTtlSeconds: FRESH_MS / 1000, maxAgeSeconds: MAX_SNAPSHOT_AGE_MS / 1000, via } };
 }
 export function recordFromSnapshot(snapshot: MarketSnapshot): SnapshotRecord {
