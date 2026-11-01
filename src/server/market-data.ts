@@ -12,7 +12,7 @@ import {
   marketDate,
   validateBars,
 } from "../lib/market-signals";
-import { loadSentiment, sentimentRevision, sentimentJSON } from "./sentiment-store";
+import { sentimentView } from "./sentiment-view";
 import { SourceError, reportSourceFailure, isTransientSourceFailure } from "./source-errors";
 
 import { readMarketSnapshot, SnapshotMissing } from "./market-snapshot-store";
@@ -333,9 +333,9 @@ function makeSnapshot(
 export async function loadMarket(market:Market,symbol=BENCHMARKS[market].symbol,db?:D1Database,origin="https://trendbeak.com"){
   if(!validSymbol(market,symbol))throw Error("Invalid instrument");
   const record=await readMarketSnapshot(db,market,symbol,origin);
-  const end=await marketWindowEnd(db)??record.asOf,sentiment=await loadSentiment(market,db,origin,end);
-  const body=`{"data":${record.payload.slice(0,-1)},"freshness":${JSON.stringify(record.freshness)},"sentiment":${sentimentJSON(sentiment)}}}`;
-  return {body,revision:`${record.updatedAt}:${sentimentRevision(sentiment)}:${end}`};
+  const end=await marketWindowEnd(db)??record.asOf,sentiment=await sentimentView(db,market,end);
+  const body=`{"data":${record.payload.slice(0,-1)},"freshness":${JSON.stringify(record.freshness)},"sentiment":${sentiment.json}}}`;
+  return {body,revision:`${record.updatedAt}:${sentiment.revision}:${end}`};
 }
 export { SnapshotMissing };
 export async function loadHealth(origin:string,db?:D1Database){

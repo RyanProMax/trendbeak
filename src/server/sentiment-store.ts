@@ -55,10 +55,6 @@ export function createSentimentStore(clock = Date.now) {
 const store = createSentimentStore(() => Date.now());
 export const readSentiment = store.read;
 const projections=new WeakMap<SentimentSnapshot,{reports?:SentimentSnapshot;data:SentimentData}>();
-const revisions=new WeakMap<SentimentData,string>();
-const encoded=new WeakMap<SentimentData,string>();
-export function sentimentJSON(data:SentimentData){let json=encoded.get(data);if(!json){json=JSON.stringify(data);encoded.set(data,json);}return json;}
-export const sentimentRevision=(data:SentimentData)=>revisions.get(data)??"unavailable";
 export async function loadSentiment(market: Market, db?: D1Database, origin?: string, through?:string): Promise<SentimentData> {
   const source = SENTIMENT_SOURCES[DEFAULT_SENTIMENT_SOURCE[market]], metadata = { source: { name: source.name, url: source.url }, description: source.description };
   try {
@@ -73,7 +69,6 @@ export async function loadSentiment(market: Market, db?: D1Database, origin?: st
     const reportSource=SENTIMENT_SOURCES.cnn_benzinga;
     const reportedObservations=reports?.rows.map(r=>({date:r.date,value:r.score,previous:null,source:{name:reportSource.name,url:reportSource.url}}));
     const data={...metadata,observations:snapshot.rows.map((r,i,all)=>({date:r.date,value:r.score,previous:all[i-1]?.score??null})),...(reportedObservations?.length?{reportedObservations}:{})};
-    const revision=[...snapshot.rows,...(reports?.rows??[])].reduce((max,r)=>r.updated_at>max?r.updated_at:max,'')||'empty';
-    revisions.set(data,revision+(market==='US'&&!reports?':report-unavailable':''));projections.set(snapshot,{reports,data});return data;
+    projections.set(snapshot,{reports,data});return data;
   } catch { return { ...metadata, observations: [], error: "贪恐数据暂不可用。" }; }
 }

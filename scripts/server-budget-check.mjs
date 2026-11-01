@@ -43,7 +43,7 @@ try {
     }
     else if (process.env.BUDGET_BURST) {
         await measure('four simultaneous cold readers, two markets; group CPU, not per-request', async () => { const responses = await Promise.all(['CN', 'CN', 'US', 'US'].map(m => request('/api/markets/' + m))); const texts = await Promise.all(responses.map(r => r.text())); assert.ok(responses.every(r => r.status === 200)); return new Response(texts.join('')); });
-        assert.equal(f.stats.reads, 6);
+        assert.equal(f.stats.reads, 5);
     }
     else {
         const page = await measure('cold SSR shell', () => request('/'));

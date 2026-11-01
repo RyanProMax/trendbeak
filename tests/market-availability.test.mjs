@@ -35,7 +35,4 @@ test('D1 failure after expiry preserves the last immutable view and backs off; e
 finally {
     fixture.stats.fail = false;
 } });
-test('invalid or corrupted edge envelopes fall back to validated D1 bytes without a source request', async()=>{
- const source=store.createMarketSnapshotStore(()=>clock),known=await source.read(fixture.db,'CN','000300.SS');
- for(const corrupt of ['source','body']){const headers={'X-Snapshot-Key':known.key,'X-Snapshot-Updated':known.updatedAt,'X-Snapshot-Date':known.asOf,'X-Snapshot-Fetched':known.fetchedAt,'X-Snapshot-Source':corrupt==='source'?'https://other.example/mislabel':known.sourceUrl,'X-Snapshot-Checksum':known.checksum,'X-Snapshot-Technical':'trendbeak_technical_v1'};const body=corrupt==='body'?known.payload.replace('"price":','"wrong":'):known.payload;const edge={match:async()=>new Response(body,{headers}),put:async()=>{}};const cache=store.createMarketSnapshotStore(()=>clock),before=fixture.stats.reads,result=await cache.read(fixture.db,'CN','000300.SS','https://test.example',edge);assert.equal(fixture.stats.reads-before,1);assert.equal(result.payload,known.payload);assert.equal(upstream,0);}
-});
+test('wrong durable provenance is rejected without an upstream fetch',async()=>{const original=fixture.sqlite.prepare("SELECT payload FROM market_snapshot WHERE key='CN/000300.SS'").get().payload;try{fixture.sqlite.prepare("UPDATE market_snapshot SET payload=json_set(payload,'$.view.source.url','https://other.example/mislabel') WHERE key='CN/000300.SS'").run();await assert.rejects(store.createMarketSnapshotStore(()=>clock).read(fixture.db,'CN','000300.SS'),/metadata/);assert.equal(upstream,0);}finally{fixture.sqlite.prepare("UPDATE market_snapshot SET payload=? WHERE key='CN/000300.SS'").run(original);}});
