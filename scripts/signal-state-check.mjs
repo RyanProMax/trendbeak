@@ -22,7 +22,7 @@ try{
     assert.match(await page.locator(`[data-analysis-market=${market}] .index-end`).getAttribute("aria-label"),market==="CN"?/沪深 300/:/标普 500/);
     await layout(page,"stock selected");
   }
-  await page.reload({waitUntil:"networkidle"});await search.click();
+  await page.reload({waitUntil:"networkidle"});await page.locator("main[data-range-ready=true]").waitFor();await page.locator(".radar-axis").nth(7).waitFor();await search.click();
   assert.equal(await page.getByRole("option").count(),successfulSearches);
   await page.getByRole("button",{name:"清空",exact:true}).click();
   assert.equal(await page.evaluate(()=>localStorage.getItem("trendbeak:search-history:v1")),null);
@@ -49,7 +49,7 @@ try{
   failed=false;quote.instrument=initial.markets.US.instrument;
   await page.getByRole("button",{name:"重试美股行情"}).click();await page.locator("[data-market=US].stock-selected").waitFor({state:"hidden"});
   await page.evaluate(()=>localStorage.setItem("trendbeak:search-history:v1",JSON.stringify(Array.from({length:12},(_,i)=>({market:"US",symbol:`T${i}`,code:`T${i}`,kind:"stock",name:`Test ${i}` })))));
-  await page.reload({waitUntil:"networkidle"});await search.click();assert.equal(await page.getByRole("option").count(),10);await layout(page,"history ten");
+  await page.reload({waitUntil:"networkidle"});await page.locator("main[data-range-ready=true]").waitFor();await page.locator(".radar-axis").nth(7).waitFor();await search.click();assert.equal(await page.getByRole("option").count(),10);await layout(page,"history ten");
   await page.screenshot({path:`${out}/${width}-history-ten.png`,fullPage:true});
   await page.goto(base+"/offline",{waitUntil:"networkidle"});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth),width);
   await page.screenshot({path:`${out}/${width}-offline.png`,fullPage:true});
