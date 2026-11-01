@@ -72,6 +72,7 @@ export interface SentimentData {
   source: { name: string; url: string };
   description: string;
   observations: SentimentObservation[];
+  reportedObservations?: (SentimentObservation & { source: { name: string; url: string } })[];
   error?: string;
   historyUnavailable?: string;
 }

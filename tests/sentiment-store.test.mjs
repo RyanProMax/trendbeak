@@ -4,16 +4,17 @@ import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import { createServer } from "vite";
 
-let vite, importer, store, sql;
+let vite, importer, store, sql, extension;
 const clock = Date.parse("2026-11-01T08:00:00Z");
 before(async () => {
   sql = readFileSync("migrations/0001_sentiment_daily.sql", "utf8");
+  extension = readFileSync("migrations/0002_sentiment_benzinga.sql", "utf8");
   vite = await createServer({ configFile: false, appType: "custom", server: { middlewareMode: true, hmr: false, ws: false } });
   importer = await vite.ssrLoadModule("/src/server/sentiment-import.ts");
   store = await vite.ssrLoadModule("/src/server/sentiment-store.ts");
 });
 after(async () => { await vite?.close(); });
-function database() { const sqlite = new DatabaseSync(":memory:"); sqlite.exec(sql); return sqlite; }
+function database() { const sqlite = new DatabaseSync(":memory:"); sqlite.exec(sql); sqlite.exec(extension); return sqlite; }
 function adapter(sqlite) {
   return { reads: 0, prepare(query) { return { bind: (...values) => ({ all: async () => { this.reads++; return { success: true, results: sqlite.prepare(query).all(...values) }; } }) }; } };
 }
@@ -51,6 +52,24 @@ test("whole import rejects duplicates, future dates, and invalid values before p
   assert.throws(() => importer.sentimentImportSQL("bad-market", "self_v0_2", [{ date: "2026-03-11", score: 10 }], "seed", clock));
   for (const rows of [[], [{ date: "2026-02-30", score: 10 }], [{ date: "2026-11-02", score: 10 }], [{ date: "2026-03-11", score: NaN }], [{ date: "2026-03-11", score: 10 }, { date: "2026-03-11", score: 11 }]]) assert.throws(() => importer.sentimentImportSQL("US", "cnn_whit3rabbit", rows, "seed", clock));
 });
+test("source CHECK migration preserves old fields and values; report seed is isolated and idempotent", () => {
+  const db = new DatabaseSync(":memory:"); db.exec(sql);
+  write(db, "US", "cnn_whit3rabbit", [{ date: "2026-03-11", score: 25.1 }, { date: "2026-03-13", score: 20 }]);
+  write(db, "CN", "baifenwei", [{ date: "2026-03-12", score: 30 }]);
+  const before = db.prepare("SELECT * FROM sentiment_daily ORDER BY market,date,source").all();
+  db.exec("BEGIN"); db.exec(extension); db.exec("COMMIT");
+  assert.deepEqual(db.prepare("SELECT * FROM sentiment_daily ORDER BY market,date,source").all(), before);
+  write(db, "US", "cnn_benzinga", [{ date: "2026-03-12", score: 21.2 }]);
+  const report = db.prepare("SELECT * FROM sentiment_daily WHERE source='cnn_benzinga'").get();
+  write(db, "US", "cnn_benzinga", [{ date: "2026-03-12", score: 21.2 }], "seed", clock + 1000);
+  assert.deepEqual(db.prepare("SELECT * FROM sentiment_daily WHERE source='cnn_benzinga'").get(), report);
+  assert.deepEqual(db.prepare("SELECT * FROM sentiment_daily WHERE source<>'cnn_benzinga' ORDER BY market,date,source").all(), before);
+  assert.equal(db.prepare("SELECT count(*) AS n FROM sentiment_daily WHERE source='cnn_whit3rabbit' AND date='2026-03-12'").get().n, 0);
+  assert.equal(db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type='table'").get().n, 1);
+  assert.equal(db.prepare("PRAGMA table_info(sentiment_daily)").all().length, 5);
+  assert.throws(() => db.prepare("INSERT INTO sentiment_daily(market,date,source,score) VALUES('CN','2026-03-12','cnn_benzinga',21.2)").run());
+  db.close();
+});
 test("snapshot hits, cold edge hits, expiration, eviction, singleflight, and source isolation", async () => {
   const sqlite = database();
   write(sqlite, "US", "cnn_whit3rabbit", [{ date: "2026-03-11", score: 20 }]);
@@ -79,6 +98,13 @@ test("API returns dates, scores and actual source from D1 only, validates filter
   const response = await app.request(url, {}, { SENTIMENT_DB: db }); assert.equal(response.status, 200);
   const { data } = await response.json(); assert.equal(data.source, "cnn_whit3rabbit"); assert.equal(data.rows.length, 1); assert.equal(data.rows[0].source, "cnn_whit3rabbit"); assert.equal(data.rows[0].score, 20); assert.equal(data.sourceInfo.publisher, "CNN"); assert.match(data.sourceInfo.channel, /非 CNN 直连/);
   const own = await app.request(url + "&source=self_v0_2", {}, { SENTIMENT_DB: db }); assert.equal((await own.json()).data.rows[0].score, 90);
+  write(sqlite, "US", "cnn_benzinga", [{ date: "2026-03-12", score: 21.2 }]);
+  const report = await app.request(url + "&source=cnn_benzinga", {}, { SENTIMENT_DB: db });
+  assert.equal(report.status, 200); const reportData = (await report.json()).data;
+  assert.deepEqual(reportData.rows.map(r => [r.date, r.score, r.source]), [["2026-03-12", 21.2, "cnn_benzinga"]]);
+  assert.equal(reportData.sourceInfo.name, "CNN／Benzinga同期报道补录"); assert.match(reportData.sourceInfo.description, /不能确认精确收盘采样时刻/);
+  const unchanged = (await (await app.request(url, {}, { SENTIMENT_DB: db })).json()).data;
+  assert.equal(unchanged.source, "cnn_whit3rabbit"); assert.equal(unchanged.rows.length, 1); assert.equal(unchanged.rows[0].date, "2026-03-11");
   for (const path of ["/api/sentiment/XX", "/api/sentiment/CN?source=cnn_whit3rabbit", "/api/sentiment/US?from=2026-02-30", "/api/sentiment/US?from=2026-04-01&to=2026-03-01"]) assert.equal((await app.request("https://test.example" + path, {}, { SENTIMENT_DB: db })).status, 400);
   const missing = await app.request(url); assert.equal(missing.status, 503); assert.equal(missing.headers.get("Cache-Control"), "no-store");
   sqlite.close();

@@ -43,6 +43,26 @@ test("missing sessions split paths and a singleton emotion observation remains a
   assert.deepEqual(result.moodSegments.map(points => points.length), [1]);
   assert.deepEqual(result.mood.map(point => point.date), ["2026-10-29"]);
 });
+test("dated report fills only the inspected explicit gap with its source, never the default curve", () => {
+  const snapshot = fixture(), report = { date: "2026-10-28", value: 21.2, previous: null, source: { name: "CNN／Benzinga同期报道补录", url: "https://www.benzinga.com/example" } };
+  snapshot.sentiment.reportedObservations = [report];
+  const reading = series.trendReading(snapshot, snapshot, report.date);
+  assert.equal(reading.mood, 21.2); assert.deepEqual(reading.moodSource, report.source);
+  assert.equal(series.trendSeries(snapshot, snapshot, snapshot.asOf, 30).mood.some(p => p.date === report.date), false);
+  snapshot.sentiment.observations.push({ date: report.date, value: 22 });
+  assert.equal(series.trendReading(snapshot, snapshot, report.date).mood, 22);
+  assert.equal(series.trendReading(snapshot, snapshot, report.date).moodSource, undefined);
+});
+test("closed state follows each market's calendar or explicit closed day; missing weekdays stay missing", () => {
+  const us = fixture();
+  assert.equal(series.trendReading(us, us, "2026-07-03").closed, true);
+  assert.equal(series.trendReading(us, us, "2026-03-12").closed, false);
+  us.days.push({ date: "2026-10-30", status: "closed" });
+  assert.equal(series.trendReading(us, us, "2026-10-30").closed, true);
+  const cn = { ...fixture(), instrument: { market: "CN" } };
+  assert.equal(series.trendReading(cn, cn, "2026-10-01").closed, true);
+  assert.equal(series.trendReading(cn, cn, "2026-07-03").closed, false);
+});
 test("monotone display paths preserve observations and introduce no extra extrema", () => {
   const points = [2, 8, 4, 5, 1].map((value, date) => ({ date: String(date), value }));
   const path = paths.chartPath(points, Number, value => value);

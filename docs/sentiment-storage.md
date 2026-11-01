@@ -22,6 +22,7 @@
 | --- | --- | --- |
 | `baifenwei` | 百分位 | 百分位公开 CSV |
 | `cnn_whit3rabbit` | CNN | `whit3rabbit/fear-greed-data` 社区存档，非 CNN 直连 |
+| `cnn_benzinga` | CNN | CNN／Benzinga同期报道补录，非 CNN 直连，独立查询 |
 | `self_v0_2` | trendbeak | 自有算法 v0.2，当前未导入实验数据 |
 
 没有把 Fear & Greed 当前转引读数混入社区存档曲线，没有导入其他历史拼接数据或自算实验分数。
@@ -32,10 +33,23 @@
 | --- | ---: | --- | --- |
 | 百分位 | 8,036 | 1993 年 8 月 27 日 | 2026 年 10 月 30 日 |
 | CNN 社区存档 | 250 | 2025 年 10 月 31 日 | 2026 年 10 月 30 日 |
+| CNN／Benzinga同期报道补录 | 1 | 2026 年 3 月 12 日 | 2026 年 3 月 12 日 |
 
 百分位完整 CSV SHA-256：`c85b3c05efe9f5b07bf150aedb69b9d35403e5debc3d79e7b28c4e933978253f`。全部日期、重复、未来日期及分数验证通过；不是仅导入页面显示的一年。
 
-美股固定版本 `30e3b4291bc09d60425f413da59d4acc64327d07`，原文件 SHA-256 `50fbe2ec9cd2ad42cfa993237ffff9eae920780b8e830e315282527b5d31d264`。窗口内原始 251 条含同日重复，解析后 250 个唯一日期；对照输入的 251 个交易日，仅缺 2026 年 3 月 12 日，该日仍无记录。没有插值，也没有用无日期 `previous_close` 或比较值补日。
+美股固定版本 `30e3b4291bc09d60425f413da59d4acc64327d07`，原文件 SHA-256 `50fbe2ec9cd2ad42cfa993237ffff9eae920780b8e830e315282527b5d31d264`。窗口内原始 251 条含同日重复，解析后 250 个唯一日期；对照输入的 251 个交易日，仅缺 2026 年 3 月 12 日，该来源该日仍无记录。没有插值，也没有用无日期 `previous_close` 或比较值补日。
+
+另以 `cnn_benzinga` 独立保存 2026 年 3 月 12 日的 21.2。[Benzinga 3 月 13 日凌晨报道](https://www.benzinga.com/markets/market-summary/26/03/51233977/dow-tumbles-more-than-700-points-investor-sentiment-declines-fear-greed-index-in-extreme-f)明确回顾周四 CNN 读数为 21.2、此前 25.1；[MoneyDJ 3 月 16 日报道](https://www.moneydj.com/funddj/ya/yp050000.djhtm?a=%7B9A86335F-7848-4642-8DAC-20A2FFBF99BD%7D)独立记载 3 月 13 日为 20、低于 3 月 12 日的 21，只佐证整数附近，精确小数仅 Benzinga 支持。无法确认精确收盘采样时刻或当前回溯版本，因此标签为“CNN／Benzinga同期报道补录”，不宣称官方最终全精度。Yahoo 转载不算独立证据；3 月 12 日上午的 23.0 是盘中读数，不混用。未采用其他回算值。
+
+这条报道不写入 `cnn_whit3rabbit`，不改变默认曲线。按日期检查读数时，只有默认来源明确没有该日观测，才在读数处展示这条已核验报道，并附上“CNN／Benzinga同期报道补录”链接；不把它接入默认曲线，不覆盖默认来源已有观测。市场响应把报道放在独立的 `reportedObservations`，默认 `/api/sentiment/US` 仍严格只返回社区存档。可选报道读取失败不影响主曲线。全部原行和值、时间戳已在来源约束迁移前后逐行比较一致；总计 8,287 行，原社区存档仍 250 行、3 月 12 日仍缺。来源证据集中保存在本说明，不逐行增加冗余字段。
+
+### 日期交互与剩余缺口
+
+图下读数改为固定列宽分配、右对齐的等宽数字；手机固定为两行，缺失、休市、有值和报道来源都使用预留高度。行情侧栏也为长价格换行预留固定高度，避免点击选日把图表整体向下推。按对应市场的交易日历或明确的 `closed` 状态，已确认休市时情绪与大盘统一显示“休市”；开市缺数显示“暂无数据”及对应来源，不以无值推断休市。
+
+对照 2025 年 10 月 31 日至 2026 年 10 月 30 日的实际价格日，本地美股默认情绪仅缺 3 月 12 日，已有上述独立报道读数；A 股缺 2026 年 7 月 27 日。百分位原始完整 CSV、该站图表实际使用的[完整日频 JSON](https://baifenwei.com/data/fear-greed/series-full-1.json)及[同源图表 JSON](https://baifenwei.com/data/fear-greed/series-1.json)均从 7 月 24 日直接跳到 7 月 28 日，公开检索也未找到该日实际分数。不是日期转换、数据库漏导入或缓存丢失；该日有价格且非已知休市，因此仍保留真实缺失，不使用其他算法、插值或前值补数。
+
+2026 年 11 月 1 日只读核对线上 `/api/markets/US`：仍是 Fear & Greed 转引源、1 个观测，未含新库历史。线上没有全年美股情绪曲线的原因是本分支尚未发布；本地新库接口为 250 个默认观测及 1 条独立报道。实现、测试和私有入库均不等于已发布。
 
 导入命令重算原文件、交易日历、解析器、artifact 文件 hash，并用当前相同解析器重建规范化内容；bundle checksum 为 `17a155a0db8761f1a59aea98e42792f441ebb95b9ad828120a66ac0fd52fbfa0`。原文件与 bundle 保留在本机私有目录，不进入 Git、静态目录或构建包；SQL 只在系统临时目录生成并清理。
 
@@ -58,8 +72,11 @@
 
 ```sh
 pnpm exec wrangler d1 execute trendbeak-sentiment --local --file migrations/0001_sentiment_daily.sql --yes
+pnpm exec wrangler d1 execute trendbeak-sentiment --local --file migrations/0002_sentiment_benzinga.sql --yes
 # 新的远端空库才需要把 --local 改成 --remote；当前远端已建表并导入。
 ```
+
+`0002` 仅扩充现有 `source` CHECK 中允许的真实来源；SQLite 需用复制、替换表的迁移保留全部五列值，最终仍只有原五列单表。远端通过 D1 文件导入事务执行，未增加业务表或字段。
 
 首次种子只补缺：
 
@@ -68,7 +85,10 @@ pnpm sentiment:seed --source baifenwei --file /path/to/fear-greed-full.csv --dry
 pnpm sentiment:seed --source baifenwei --file /path/to/fear-greed-full.csv --remote
 pnpm sentiment:seed --source cnn_whit3rabbit --manifest /path/to/candidate-bundle/manifest.json --dry-run
 pnpm sentiment:seed --source cnn_whit3rabbit --manifest /path/to/candidate-bundle/manifest.json --remote
+pnpm sentiment:seed --source cnn_benzinga --file /path/to/reviewed-report.json --remote
 ```
+
+报道文件只含一个已核验观测，例如 `[{"date":"2026-03-12","score":21.2}]`。同样使用补缺幂等流程；不自动抓取新闻，不加入每日同步，也不允许该来源走 `sync` 覆盖旧报道。定向读取 `/api/sentiment/US?source=cnn_benzinga&from=2026-03-12&to=2026-03-12`；默认接口仍查询社区存档。
 
 不带 `--remote` 写本地 D1；`--dry-run` 只验证，不调用写库。重复 seed 使用 `ON CONFLICT DO NOTHING`，因此后续修订不会被旧种子覆盖。
 
@@ -88,8 +108,8 @@ pnpm sentiment:sync --source cnn_whit3rabbit --file /path/to/cnn-output.json --r
 
 ## 验证与发布下一步
 
-构建、120 项回归与公开仓库安全检查通过。新增 SQLite 实测覆盖五列结构、非法日期/分数、种子幂等、种子不覆盖修订、同值同步不改时间、多源隔离、缺日保留、API source 返回、缓存命中/冷启动/过期/驱逐/重建、上游不可用时数据库仍可读。
+构建、124 项回归与公开仓库安全检查通过。新增 SQLite 实测覆盖五列结构、非法日期/分数、种子幂等、种子不覆盖修订、同值同步不改时间、多源隔离、缺日保留、API source 返回、缓存命中/冷启动/过期/驱逐/重建、上游不可用时数据库仍可读。
 
-本地 Pages 实际绑定 D1，完整 API 返回 8,036/250 行。1440/390px 及额外 320px 全页、当前/历史选日和所有展开核心说明的自动布局检查通过；图表日期联动、图例、范围及读数关闭均验收，UI 组件未改。截图保留在系统临时目录。
+本地 Pages 实际绑定 D1，默认完整 API 返回 8,036/250 行，报道定向接口另返回 1 行。完整 `test:visual` 通过；1440/390px 及额外 320px 全页、当前/历史选日和所有展开核心说明已完成自动布局及截图审阅。新增 `readout-stability-check.mjs` 还覆盖 1024px、长短数字、正负行情、缺失/有值、跨市场休市、鼠标/触摸拖动与手机跨图焦点，读数容器和各列几何位置固定；休市雷达的四个展开状态也验收通过。四项指标算法沿用既有实现，截图仅保留在本机临时目录，未上传 Space。
 
-发布前仍需核对公开使用边界，再审阅并提交分支、按既有 Pages 发布流程发布（本次未执行）。`wrangler.jsonc` 已声明正确 D1 binding，发布时随配置生效；生产和预览绑定均应在发布后复查。之后从线上情绪接口核对行数、来源和真实缺日；再按已确定的私有执行环境配置每日任务。尚未验证生产绑定、线上 API 和真正调度执行。
+发布前仍需核对公开使用边界、审阅本地分支，再按既有 Pages 发布流程发布（本次未执行）。`wrangler.jsonc` 已声明正确 D1 binding，发布时随配置生效；生产和预览绑定均应在发布后复查。之后从线上情绪接口核对行数、来源和真实缺日；再按已确定的私有执行环境配置每日任务。尚未验证生产绑定、线上 API 和真正调度执行。

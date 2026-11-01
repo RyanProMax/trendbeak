@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 
 import { autoUpdate, FloatingPortal, useDismiss, useFloating, useInteractions, type Middleware } from "@floating-ui/react";
 import type { MarketSnapshot } from "../market-types";
 import { displayDate, number } from "../lib/market-format";
+import { isExchangeClosed } from "../lib/exchange-calendar";
 import { radarFactorColor, radarFactors, radarSegments, radarHitArea, type RadarId } from "../lib/radar-signals";
 
 export default function TechnicalRadar({snapshot,date}:{snapshot:MarketSnapshot;date:string}) {
@@ -16,7 +17,8 @@ export default function TechnicalRadar({snapshot,date}:{snapshot:MarketSnapshot;
   const polygon=(score:number)=>factors.map((_,i)=>point(i,score).join(",")).join(" ");
   const colors=factors.map(radarFactorColor);
   const edges=segments.flatMap(segment=>segment.slice(1).map((end,i)=>[segment[i],end])).concat(factors.every(item=>item.score!==null)?[[3,0]]:[]);
-  const complete=factors.every(item=>item.score!==null),formatted=(value:typeof factors[number])=>value.value===null?"暂无数据":`${number(value.value,value.digits,value.id==="ema")}${value.unit}`;
+  const closed=snapshot.days.some(day=>day.date===date&&day.status==="closed")||isExchangeClosed(date,snapshot.instrument.market);
+  const complete=factors.every(item=>item.score!==null),formatted=(value:typeof factors[number])=>value.value===null?(closed?"休市":"暂无数据"):`${number(value.value,value.digits,value.id==="ema")}${value.unit}`;
   const close=(restore=false)=>{cancelClose();const target=trigger.current;pinned.current=null;setActive(null);if(restore&&target&&document.activeElement!==target){suppressFocus.current=true;target.focus({preventScroll:true});}};
   // Prefer a free corner near the inspected axis; narrow layouts flip outside the
   // diagram. Keep the entire diamond and every raw-value label unobscured.

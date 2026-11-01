@@ -55,10 +55,13 @@ export function trendSeries(snapshot: MarketSnapshot, benchmark: MarketSnapshot 
 
 /** Exact-date observations only: never substitute a neighbouring session. */
 export function trendReading(snapshot: MarketSnapshot, benchmark: MarketSnapshot | null, date: string) {
+  const observation = snapshot.sentiment?.observations.find(point => point.date === date);
+  const reported = !observation ? snapshot.sentiment?.reportedObservations?.find(point => point.date === date) : undefined;
   return {
     date,
-    mood: snapshot.sentiment?.observations.find((point) => point.date === date)?.value ?? null,
+    mood: observation?.value ?? reported?.value ?? null,
     price: benchmark?.history[date]?.price ?? null,
-    closed: isExchangeClosed(date, snapshot.instrument.market),
+    closed: (benchmark ?? snapshot).days.find(day => day.date === date)?.status === "closed" || isExchangeClosed(date, snapshot.instrument.market),
+    ...(reported ? { moodSource: reported.source } : {}),
   };
 }

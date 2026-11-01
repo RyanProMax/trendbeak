@@ -15,6 +15,13 @@ export const SENTIMENT_SOURCES = {
     channel: "whit3rabbit/fear-greed-data 社区存档，非 CNN 直连",
     description: "CNN 发布的美股市场情绪综合指数，综合动量、市场宽度、波动、期权等七项指标。经社区存档取得，非 CNN 直连；只展示有日期的真实观测，缺日留空，非个股评分。",
   },
+  cnn_benzinga: {
+    name: "CNN／Benzinga同期报道补录",
+    url: "https://www.benzinga.com/markets/market-summary/26/03/51233977/dow-tumbles-more-than-700-points-investor-sentiment-declines-fear-greed-index-in-extreme-f",
+    publisher: "CNN",
+    channel: "Benzinga 同期报道，非 CNN 直连",
+    description: "Benzinga 同期报道中的 CNN 情绪读数。不能确认精确收盘采样时刻或当前回溯版本，不代表官方最终全精度数据。",
+  },
   self_v0_2: {
     name: "自有情绪算法",
     url: "https://trendbeak.com",
@@ -27,5 +34,5 @@ export const SENTIMENT_SOURCES = {
 export type SentimentSource = keyof typeof SENTIMENT_SOURCES;
 export const DEFAULT_SENTIMENT_SOURCE: Record<Market, SentimentSource> = { CN: "baifenwei", US: "cnn_whit3rabbit" };
 export function validSentimentSource(market: Market, source: string): source is SentimentSource {
-  return (market === "CN" || market === "US") && (source === DEFAULT_SENTIMENT_SOURCE[market] || source === "self_v0_2");
+  return (market === "CN" || market === "US") && (source === DEFAULT_SENTIMENT_SOURCE[market] || source === "self_v0_2" || market === "US" && source === "cnn_benzinga");
 }

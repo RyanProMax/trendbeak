@@ -53,7 +53,12 @@ export async function loadSentiment(market: Market, db?: D1Database, origin?: st
   const source = SENTIMENT_SOURCES[DEFAULT_SENTIMENT_SOURCE[market]], metadata = { source: { name: source.name, url: source.url }, description: source.description };
   try {
     const edge = typeof caches === "undefined" ? undefined : (caches as unknown as { default?: SnapshotEdgeCache }).default;
-    const snapshot = await readSentiment(db, sentimentQuery(market), origin, edge);
-    return { ...metadata, observations: snapshot.rows.map((r, i, all) => ({ date: r.date, value: r.score, previous: all[i-1]?.score ?? null, source: metadata.source })) };
+    const query = sentimentQuery(market), snapshot = await readSentiment(db, query, origin, edge);
+    let reportedObservations: SentimentData["reportedObservations"];
+    if (market === "US") try {
+      const reports = await readSentiment(db, { ...query, source: "cnn_benzinga" }, origin, edge), source = SENTIMENT_SOURCES.cnn_benzinga;
+      reportedObservations = reports.rows.map(r => ({ date: r.date, value: r.score, previous: null, source: { name: source.name, url: source.url } }));
+    } catch { /* An optional report cannot disable the main series. */ }
+    return { ...metadata, observations: snapshot.rows.map((r, i, all) => ({ date: r.date, value: r.score, previous: all[i-1]?.score ?? null, source: metadata.source })), ...(reportedObservations?.length ? { reportedObservations } : {}) };
   } catch { return { ...metadata, observations: [], error: "贪恐数据暂不可用。" }; }
 }

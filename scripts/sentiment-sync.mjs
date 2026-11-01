@@ -11,8 +11,8 @@ const args = process.argv.slice(2), mode = args.shift();
 function option(name) { const i = args.indexOf(name); if (i < 0) return undefined; const value = args[i + 1]; if (!value || value.startsWith("--")) throw Error(`Missing ${name}`); args.splice(i, 2); return value; }
 const source = option("--source"), file = option("--file"), manifestPath = option("--manifest");
 const remote = args.includes("--remote"), dryRun = args.includes("--dry-run");
-if (args.some(arg => !["--remote", "--dry-run"].includes(arg)) || !["seed", "sync"].includes(mode) || !["baifenwei", "cnn_whit3rabbit"].includes(source) || file && manifestPath || mode === "seed" && !(file || manifestPath) || manifestPath && (source !== "cnn_whit3rabbit" || mode !== "seed") || mode === "seed" && source === "cnn_whit3rabbit" && !manifestPath) {
-  throw Error("Usage: sentiment-sync.mjs seed|sync --source baifenwei|cnn_whit3rabbit [--file PATH | --manifest PATH] [--remote] [--dry-run]. CNN seeds require the verified bundle manifest.");
+if (args.some(arg => !["--remote", "--dry-run"].includes(arg)) || !["seed", "sync"].includes(mode) || !["baifenwei", "cnn_whit3rabbit", "cnn_benzinga"].includes(source) || file && manifestPath || mode === "seed" && !(file || manifestPath) || manifestPath && (source !== "cnn_whit3rabbit" || mode !== "seed") || mode === "seed" && source === "cnn_whit3rabbit" && !manifestPath || source === "cnn_benzinga" && (mode !== "seed" || !file)) {
+  throw Error("Usage: sentiment-sync.mjs seed|sync --source baifenwei|cnn_whit3rabbit|cnn_benzinga [--file PATH | --manifest PATH] [--remote] [--dry-run]. CNN archive seeds require the verified bundle manifest; Benzinga accepts a reviewed single-record local seed only.");
 }
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
 const vite = await createServer({ configFile: false, appType: "custom", server: { middlewareMode: true, hmr: false, ws: false } });
@@ -55,7 +55,11 @@ try {
     }
     if (bytes.length > 4_000_000) throw Error("Sentiment input too large");
     rawSha256 = hash(bytes);
-    observations = source === "baifenwei" ? parsers.parseChinaSentiment(bytes.toString(), now, true).observations : cnn.parseCNNHistory(JSON.parse(bytes), now).observations;
+    if (source === "cnn_benzinga") {
+      const rows = JSON.parse(bytes);
+      if (!Array.isArray(rows) || rows.length !== 1) throw Error("Provide exactly one reviewed report observation");
+      observations = rows.map(row => ({ date: row.date, value: row.score }));
+    } else observations = source === "baifenwei" ? parsers.parseChinaSentiment(bytes.toString(), now, true).observations : cnn.parseCNNHistory(JSON.parse(bytes), now).observations;
   }
   const rows = observations.map(row => ({ date: row.date, score: row.value }));
   const sql = importer.sentimentImportSQL(market, source, rows, mode, now);
