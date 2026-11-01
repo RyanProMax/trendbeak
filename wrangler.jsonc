@@ -5,5 +5,12 @@
   "compatibility_date": "2026-07-25",
   "compatibility_flags": [
     "nodejs_compat"
+  ],
+  "d1_databases": [
+    {
+      "binding": "SENTIMENT_DB",
+      "database_name": "trendbeak-sentiment",
+      "database_id": "abfc94dc-21d9-494b-aa05-220c31879c4a"
+    }
   ]
 }

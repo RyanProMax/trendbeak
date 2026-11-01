@@ -1,3 +1,27 @@
-import assert from'node:assert/strict';import test,{before,after}from'node:test';import{createServer}from'vite';let vite,s;const realFetch=globalThis.fetch,realNow=Date.now;before(async()=>{vite=await createServer({configFile:false,appType:'custom',server:{middlewareMode:true,hmr:false}});s=await vite.ssrLoadModule('/src/server/sentiment-data.ts');});after(async()=>{globalThis.fetch=realFetch;Date.now=realNow;await vite?.close();});
-test('failed refresh retains actual past history, excludes unrefreshed current-day scores and recovers',async()=>{let now=Date.parse('2026-10-29T08:00:00Z'),mode='first',requests=0;Date.now=()=>now;globalThis.fetch=async()=>{requests++;if(mode==='fail')throw Error('source timeout');return new Response('date,fear_greed_index\n2026-10-28,'+(mode==='first'?25:26)+'\n2026-10-29,'+(mode==='first'?40:42)+'\n');};const first=await s.loadSentiment('CN');assert.equal(first.observations.length,2);now+=3600001;mode='fail';const failed=await s.loadSentiment('CN');assert.deepEqual(failed.observations,[{date:'2026-10-28',value:25,previous:null}]);assert.ok(failed.error);const repeated=await s.loadSentiment('CN');assert.equal(repeated,failed);assert.equal(requests,2);now+=60001;mode='new';const fresh=await s.loadSentiment('CN');assert.equal(fresh.error,undefined);assert.deepEqual(fresh.observations.map(x=>x.value),[26,42]);});
-test('unrelated sources and invalid or future dated values cannot be reused',()=>{const previous={source:{url:'https://unrelated.test'},observations:[{date:'2026-10-28',value:50}],description:''};assert.deepEqual(s.sentimentFailure('US',previous,Date.parse('2026-10-29T14:00:00Z')).observations,[]);});
+import assert from "node:assert/strict";
+import test, { before, after } from "node:test";
+import { createServer } from "vite";
+let vite, store;
+const realFetch = globalThis.fetch;
+before(async () => {
+  vite = await createServer({ configFile: false, appType: "custom", server: { middlewareMode: true, hmr: false, ws: false } });
+  store = await vite.ssrLoadModule("/src/server/sentiment-store.ts");
+});
+after(async () => { globalThis.fetch = realFetch; await vite?.close(); });
+test("cold page sentiment reads retained database history even when every upstream is down", async () => {
+  let upstreamCalls = 0, reads = 0;
+  globalThis.fetch = async () => { upstreamCalls++; throw Error("upstream unavailable"); };
+  const db = { prepare() { return { bind() { return { all: async () => { reads++; return { success: true, results: [{ market: "US", source: "cnn_whit3rabbit", date: "2026-03-11", score: 25, updated_at: "2026-10-31T00:00:00Z" }] }; } }; } }; } };
+  const first = await store.loadSentiment("US", db);
+  assert.equal(first.error, undefined);
+  assert.deepEqual(first.observations.map(p => [p.date, p.value]), [["2026-03-11", 25]]);
+  assert.match(first.source.name, /社区存档/);
+  assert.match(first.description, /非 CNN 直连/);
+  await store.loadSentiment("US", db);
+  assert.equal(reads, 1); assert.equal(upstreamCalls, 0);
+});
+test("missing database binding returns unavailable without an upstream fallback", async () => {
+  globalThis.fetch = async () => { throw Error("must never fetch"); };
+  const result = await store.loadSentiment("CN");
+  assert.deepEqual(result.observations, []); assert.ok(result.error);
+});

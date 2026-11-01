@@ -13,6 +13,8 @@
     "preview": "npm run build && wrangler pages dev dist",
     "pages:dev": "npm run preview",
     "security:check": "node scripts/check-public-repo.mjs",
+    "sentiment:seed": "node scripts/sentiment-sync.mjs seed",
+    "sentiment:sync": "node scripts/sentiment-sync.mjs sync",
     "deploy": "npm run build && wrangler pages deploy dist --project-name trendbeak --branch main --commit-dirty=true",
     "test:visual": "node scripts/dashboard-ui-check.mjs && node scripts/chart-hover-check.mjs && node scripts/range-fit-check.mjs && node scripts/free-range-check.mjs && node scripts/signal-state-check.mjs && node scripts/snapshot-fallback-check.mjs && node scripts/logo-assets-check.mjs",
     "check": "tsc --noEmit",

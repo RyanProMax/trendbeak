@@ -1,6 +1,5 @@
 import type { Market, SentimentData } from "../market-types";
 import { isDate, marketDate } from "../lib/market-signals";
-import { usHistoryChain } from "./us-history-seed";
 
 const sources: Record<Market, Pick<SentimentData, "source" | "description">> = {
   CN: {
@@ -29,6 +28,7 @@ const validScore = (value: unknown): value is number =>
 export function parseChinaSentiment(
   csv: string,
   now = Date.now(),
+  retainAll = false,
 ): SentimentData {
   const [header, ...lines] = csv
     .trim()
@@ -63,7 +63,7 @@ export function parseChinaSentiment(
     ...sources.CN,
     observations: rows
       .map((row, i) => ({ ...row, previous: rows[i - 1]?.value ?? null }))
-      .filter((row) => row.date >= cutoff),
+      .filter((row) => retainAll || row.date >= cutoff),
   };
 }
 
@@ -112,54 +112,4 @@ export function parseUSSentiment(
       },
     ],
   };
-}
-
-/** A failed refresh may retain validated past observations, never yesterday's
- * score relabelled as today or an old intraday value presented as current. */
-export function sentimentFailure(market:Market,previous:SentimentData|undefined,now=Date.now()):SentimentData {
-  const today=marketDate(now,market),cutoff=new Date(Date.parse(today)-364*86400000).toISOString().slice(0,10);
-  return {...sources[market],...(previous?.historyUnavailable?{historyUnavailable:previous.historyUnavailable}:{}),
-    observations:previous?.source.url===sources[market].source.url?previous.observations.filter(point=>isDate(point.date)&&point.date>=cutoff&&point.date<today&&validScore(point.value)):[],
-    error:"贪恐数据暂不可用。"};
-}
-
-const cache = new Map<Market, { until: number; value: SentimentData }>();
-const pending = new Map<Market, Promise<SentimentData>>();
-export async function loadSentiment(market: Market): Promise<SentimentData> {
-  const saved = cache.get(market);
-  if (saved && saved.until > Date.now()) return saved.value;
-  if (pending.has(market)) return pending.get(market)!;
-  const task = (async () => {
-    let value: SentimentData;
-    try {
-      const url =
-        market === "CN"
-          ? "https://baifenwei.com/data/fear-greed/fear-greed-full.csv"
-          : "https://fearandgreednow.com/api/sentiment";
-      const response = await fetch(url, {
-        signal: AbortSignal.timeout(4000),
-        headers: { Accept: market === "CN" ? "text/csv" : "application/json" },
-      });
-      if (!response.ok) throw new Error("Sentiment unavailable");
-      const text = await response.text();
-      if (text.length > 1000000)
-        throw new Error("Sentiment response too large");
-      value =
-        market === "CN"
-          ? parseChinaSentiment(text)
-          : await usHistoryChain.update(saved?.value, parseUSSentiment(JSON.parse(text)), Date.now());
-    } catch {
-      value = sentimentFailure(market,saved?.value);
-      if (market === "US") try { value = await usHistoryChain.update(saved?.value,value,Date.now()); }
-        catch { /* Optional baseline cannot turn unavailable sentiment into a quote failure. */ }
-    }
-    cache.set(market, {
-      until:
-        Date.now() + (value.error ? 60000 : market === "CN" ? 3600000 : 300000),
-      value,
-    });
-    return value;
-  })().finally(() => pending.delete(market));
-  pending.set(market, task);
-  return task;
 }
