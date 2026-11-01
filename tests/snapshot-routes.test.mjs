@@ -1,38 +1,32 @@
-import { versioned } from "./request-version.mjs";
-import assert from "node:assert/strict";
-import test,{before,after} from "node:test";
-const real={fetch:globalThis.fetch,now:Date.now,caches:globalThis.caches};
-let clock=Date.parse("2026-10-29T04:00:00.000Z"),fail=false,warm,cold;
-const stored=new Map();
-function bars(){return Array.from({length:400},(_,i)=>new Date(clock-(399-i)*86400000).toISOString().slice(0,10));}
-before(async()=>{
- Date.now=()=>clock;
- globalThis.caches={default:{match:async key=>stored.get(key.url)?.clone(),put:async(key,response)=>{stored.set(key.url,response.clone())}}};
- globalThis.fetch=async input=>{
-  const url=new URL(input);
-  if(url.hostname==='web.ifzq.gtimg.cn'){
-   if(fail)return new Response('injected 501',{status:501});
-   const key=url.searchParams.get('param').split(',')[0],qt=Array(31).fill('');qt[1]='测试标的';qt[2]=key.slice(2);
-   return Response.json({code:0,data:{[key]:{qt:{[key]:qt},day:bars().map(d=>[d,'100','101','102','99','1000'])}}});
-  }
-  if(url.hostname.endsWith('.finance.yahoo.com')){
-   if(fail)return new Response('injected timeout-like failure',{status:503});
-   return Response.json({chart:{error:null,result:[{meta:{symbol:'^GSPC',exchangeTimezoneName:'America/New_York',currency:'USD'},timestamp:bars().map(d=>Date.parse(d+'T01:00:00Z')/1000),indicators:{quote:[{open:bars().map(()=>100),close:bars().map(()=>101),high:bars().map(()=>102),low:bars().map(()=>99),volume:bars().map(()=>1000)}]}}]}});
-  }
-  return new Response('noncritical sentiment unavailable',{status:503});
- };
- warm=versioned((await import('../dist/_worker.js?fallback-warm')).default);
-});
-after(()=>{globalThis.fetch=real.fetch;Date.now=real.now;if(real.caches===undefined)delete globalThis.caches;else globalThis.caches=real.caches;});
-test('SSR/API share validated fresh records; public responses never leak the seven-day physical TTL',async()=>{
- const res=await warm.request('https://trendbeak.com/');assert.equal(res.status,200);assert.equal(res.headers.get('cache-control'),'no-cache');await res.text();
- await warm.request('https://trendbeak.com/api/markets/US');const api=await warm.request('https://trendbeak.com/api/markets/CN');assert.equal(api.status,200);assert.equal(api.headers.get('cache-control'),'no-cache');const data=(await api.json()).data;assert.equal(data.freshness.state,'fresh');assert.equal(data.freshness.via,'upstream');assert.ok(stored.size>=2);
-});
-test('a new compiled Worker instance serves stale from edge on injected failures, including first-page SSR and health',async()=>{
- clock+=301000;fail=true;cold=versioned((await import('../dist/_worker.js?fallback-cold')).default);
- const api=await cold.request('https://trendbeak.pages.dev/api/markets/CN');assert.equal(api.status,200);const quote=(await api.json()).data;assert.equal(quote.freshness.state,'stale');assert.equal(quote.freshness.via,'edge');assert.equal(quote.fetchedAt,'2026-10-29T04:00:00.000Z');
- const page=await cold.request('https://trendbeak.com/');assert.equal(page.status,200);const html=await page.text();assert.match(html,/正在读取行情/);assert.doesNotMatch(html,/trend-chart|radar-axis/);
- const health=await cold.request('https://trendbeak.com/api/health');assert.equal(health.status,503);const h=(await health.json()).data;assert.equal(h.status,'degraded');assert.equal(h.markets.CN.available,true);assert.equal(h.markets.CN.freshness.state,'stale');
-});
-test('a different symbol with no successful snapshot remains no-store 503 and cannot receive the benchmark price',async()=>{const res=await cold.request('https://trendbeak.com/api/markets/CN?symbol=600000.SS');assert.equal(res.status,503);assert.equal(res.headers.get('cache-control'),'no-store');assert.equal((await res.json()).data,undefined);});
-test('recovery replaces the matching last-good and removes stale from SSR',async()=>{clock+=60001;fail=false;const res=await cold.request('https://trendbeak.com/api/markets/CN');const s=(await res.json()).data;assert.equal(s.freshness.state,'fresh');assert.equal(s.fetchedAt,new Date(clock).toISOString());const page=await cold.request('https://trendbeak.com/');assert.doesNotMatch(await page.text(),/暂未更新/);});
+import assert from 'node:assert/strict';
+import test, { before, after } from 'node:test';
+import { createServer } from 'vite';
+import { preparedDB, fixtureNow as initial } from './market-fixture.mjs';
+let vite, fixture, app, clock = initial, calls = 0;
+const real = { fetch: globalThis.fetch, now: Date.now, caches: globalThis.caches }, edge = new Map();
+before(async () => { Date.now = () => clock; globalThis.fetch = async () => { calls++; throw Error('No reader upstream permitted'); }; globalThis.caches = { default: { match: async (r) => edge.get(r.url)?.clone(), put: async (r, b) => edge.set(r.url, b.clone()) } }; vite = await createServer({ configFile: false, appType: 'custom', server: { middlewareMode: true, hmr: false, ws: false } }); fixture = await preparedDB(vite); app = (await import('../dist/_worker.js?durable-routes')).default; });
+after(async () => { fixture.close(); await vite.close(); globalThis.fetch = real.fetch; Date.now = real.now; if (real.caches === undefined)
+    delete globalThis.caches;
+else
+    globalThis.caches = real.caches; });
+const request = (path, options = {}, db = fixture.db) => app.request('https://trendbeak.com' + path, options, { SENTIMENT_DB: db });
+test('cold full snapshots include bounded annual view, publisher, own technical source, and separate reported sentiment', async () => { for (const market of ['CN', 'US']) {
+    const response = await request('/api/markets/' + market);
+    assert.equal(response.status, 200);
+    const data = (await response.json()).data;
+    assert.equal(data.bars, undefined);
+    assert.equal(data.technicalSource, 'trendbeak_technical_v1');
+    assert.equal(data.days.length, 365);
+    assert.ok(Object.keys(data.history).length <= 366);
+    assert.ok(data.sentiment.observations.length <= 372);
+    assert.ok(Buffer.byteLength(JSON.stringify(data)) < 300000);
+    assert.equal(data.freshness.via, 'database');
+    if (market === 'US') {
+        assert.match(data.sentiment.source.url, /whit3rabbit/);
+        assert.equal(data.sentiment.reportedObservations.find(r => r.date === '2026-03-12').value, 21.2);
+    }
+} assert.equal(calls, 0); assert.equal(fixture.stats.writes, 0); });
+test('unchanged API uses revision ETag with an empty 304 response; source-specific correction invalidates it', async () => { const first = await request('/api/markets/US'), etag = first.headers.get('ETag'); await first.text(); const before = fixture.stats.reads, same = await request('/api/markets/US', { headers: { 'If-None-Match': etag } }); assert.equal(same.status, 304); assert.equal(await same.text(), ''); assert.equal(fixture.stats.reads, before); clock += 300001; edge.clear(); fixture.sqlite.prepare("UPDATE sentiment_daily SET score=21.5,updated_at=? WHERE source='cnn_benzinga'").run(new Date(clock).toISOString()); const corrected = await request('/api/markets/US', { headers: { 'If-None-Match': etag } }); assert.equal(corrected.status, 200); assert.notEqual(corrected.headers.get('ETag'), etag); assert.equal((await corrected.json()).data.sentiment.reportedObservations[0].value, 21.5); assert.equal(calls, 0); });
+test('discarding every app/edge cache retains durable historical data and does zero quote fetches', async () => { clock += 300001; edge.clear(); const independent = (await import('../dist/_worker.js?durable-cold')).default; const response = await independent.request('https://trendbeak.pages.dev/api/markets/CN', {}, { SENTIMENT_DB: fixture.wrap() }); assert.equal(response.status, 200); assert.equal((await response.json()).data.fetchedAt, new Date(initial).toISOString()); assert.equal(calls, 0); });
+test('unknown stock is explicit 404 without a benchmark substitution or initialization; page remains cheap', async () => { const missing = await request('/api/markets/US?symbol=TSLA'); assert.equal(missing.status, 404); assert.equal((await missing.json()).code, 'snapshot_missing'); const reads = fixture.stats.reads, page = await request('/'); assert.equal(page.status, 200); const html = await page.text(); assert.ok(Buffer.byteLength(html) < 20000); assert.doesNotMatch(html, /trend-chart|radar-axis/); assert.equal(fixture.stats.reads, reads); assert.equal(calls, 0); });
+test('health only reads two metadata records and reports actual observation age', async () => { const response = await request('/api/health'); assert.equal(response.status, 503); const health = (await response.json()).data; assert.equal(health.markets.CN.available, true); assert.equal(health.markets.CN.freshness.state, 'stale'); assert.match(fixture.stats.sql.at(-1), /SELECT key, json_extract/); assert.equal(calls, 0); });

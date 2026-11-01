@@ -197,7 +197,7 @@ export default function StockSearch({
                 </span>
                 <span className="result-name">
                   <strong>{instrument.name}</strong>
-                  <small>{instrument.code}</small>
+                  <small>{instrument.code}{instrument.prepared===false?" · 历史待收录":""}</small>
                 </span>
               </button>
             ))}

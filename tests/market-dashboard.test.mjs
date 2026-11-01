@@ -2,11 +2,12 @@ import { versioned } from "./request-version.mjs";
 import assert from "node:assert/strict";
 import test, { before, after } from "node:test";
 import { createServer } from "vite";
+import {preparedDB} from "./market-fixture.mjs";
 import { JSDOM } from "jsdom";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-let vite, app;
+let vite, app, fixture;
 const realFetch = globalThis.fetch;
 const seen = [];
 const through = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
@@ -85,14 +86,16 @@ before(async () => {
     appType: "custom",
     server: { middlewareMode: true, hmr: false },
   });
-  app = versioned((await vite.ssrLoadModule("/src/worker.tsx")).default);
+  fixture=await preparedDB(vite,Date.now());
+  app = (await vite.ssrLoadModule("/src/worker.tsx")).default;
 });
 after(async () => {
   globalThis.fetch = realFetch;
+  fixture?.close();
   await vite?.close();
 });
 const request = (path) =>
-  app.request(`https://example.test${path}`);
+  app.request(`https://example.test${path}`,{}, {SENTIMENT_DB:fixture.db});
 
 test("dashboard SSR renders both markets and weekday cells within a 365-day window without D1", async () => {
   const response = await request("/");
@@ -127,7 +130,7 @@ test("market and search routes reject unbounded or hostile input", async () => {
   assert.equal((await request("/api/markets")).status,410);
   const response = await request("/api/markets/CN");
   assert.equal(response.status, 200);
-  const quote=(await response.json()).data;assert.equal(quote.days.length,0);assert.equal(quote.bars.length,400);assert.deepEqual(quote.history,{});
+  const quote=(await response.json()).data;assert.equal(quote.days.length,365);assert.equal(quote.bars,undefined);assert.ok(Object.keys(quote.history).length<=366);
   const search = await request("/api/search?q=NVDA");
   assert.equal(search.status, 200);
   assert.equal((await search.json()).data[0].symbol, "NVDA");
@@ -142,9 +145,9 @@ test("market and search routes reject unbounded or hostile input", async () => {
 });
 test("failed individual quotes return no fabricated price and do not poison the other market", async () => {
   const response = await request("/api/markets/US?symbol=NVDA");
-  assert.equal(response.status, 503);
+  assert.equal(response.status, 404);
   assert.equal(response.headers.get("cache-control"), "no-store");
-  assert.deepEqual(await response.json(), { error: "行情暂不可用", retryable: true });
+  assert.deepEqual(await response.json(), { error: "该股票的历史数据尚未收录", code:"snapshot_missing", retryable: false });
   assert.equal((await request("/api/markets/CN")).status, 200);
   assert.equal((await request("/api/markets/US")).status,200);
   assert.equal((await request("/api/health")).status, 200);

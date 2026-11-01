@@ -1,14 +1,14 @@
 import { Hono } from "hono";
 import { renderToReadableStream } from "react-dom/server.edge";
 import Document from "./App";
-import { DATA_VERSION, VERSION_HEADER } from "./lib/client-version";
-import { isTransientSourceFailure } from "./server/source-errors";
 import { BENCHMARKS, type Market } from "./market-types";
 import { readSentiment, sentimentQuery } from "./server/sentiment-store";
 import { DEFAULT_SENTIMENT_SOURCE, SENTIMENT_SOURCES, validSentimentSource } from "./lib/sentiment-sources";
 import type { SnapshotEdgeCache } from "./server/snapshot-cache";
 import {
   loadHealth,
+  SnapshotMissing,
+  markPrepared,
   loadMarket,
   searchInstruments,
   validSymbol,
@@ -44,19 +44,16 @@ app.get("/api/markets/:market", async (c) => {
   const symbol = c.req.query("symbol") ?? BENCHMARKS[market].symbol;
   if (!validSymbol(market, symbol))
     return c.json({ error: "股票代码无效" }, 400);
-  c.header("Vary",VERSION_HEADER);
-  c.header(VERSION_HEADER,DATA_VERSION);
-  if(c.req.header(VERSION_HEADER)!==DATA_VERSION){
-    c.header("Cache-Control","no-store");
-    return c.json({error:"页面版本已更新，请重新打开页面",retryable:false},426);
-  }
   try {
-    const snapshot = await loadMarket(market, symbol, undefined, undefined, new URL(c.req.url).origin, c.env?.SENTIMENT_DB);
-    c.header("Cache-Control", "no-cache");
+    const {snapshot,revision} = await loadMarket(market, symbol, c.env?.SENTIMENT_DB, new URL(c.req.url).origin);
+    const etag=`W/"snapshot-v1:${market}:${symbol}:${revision}"`;
+    c.header("Cache-Control", "no-cache");c.header("ETag",etag);
+    if(c.req.header('If-None-Match')?.split(',').map(s=>s.trim()).includes(etag))return c.body(null,304);
     return c.json({ data: snapshot });
   } catch (error) {
     c.header("Cache-Control", "no-store");
-    return c.json({ error: "行情暂不可用", retryable: isTransientSourceFailure(error) }, 503);
+    if(error instanceof SnapshotMissing)return c.json({error:"该股票的历史数据尚未收录",code:"snapshot_missing",retryable:false},404);
+    return c.json({ error: "行情暂不可用", retryable: false }, 503);
   }
 });
 app.get("/api/search", async (c) => {
@@ -64,7 +61,7 @@ app.get("/api/search", async (c) => {
   if (query.length > 60 || /[\u0000-\u001f]/.test(query))
     return c.json({ error: "搜索词无效" }, 400);
   try {
-    const instruments = await searchInstruments(query);
+    const instruments = await markPrepared(await searchInstruments(query),c.env?.SENTIMENT_DB);
     c.header("Cache-Control", "public, max-age=60, s-maxage=300");
     return c.json({ data: instruments });
   } catch {
@@ -73,7 +70,7 @@ app.get("/api/search", async (c) => {
   }
 });
 app.get("/api/health", async (c) => {
-  const data=await loadHealth(new URL(c.req.url).origin);
+  const data=await loadHealth(new URL(c.req.url).origin,c.env?.SENTIMENT_DB);
   c.header("Cache-Control","no-store");
   return c.json({data},data.status==='ok'?200:503);
 });

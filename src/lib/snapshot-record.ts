@@ -5,7 +5,7 @@ export const SNAPSHOT_SCHEMA = 1;
 export const FRESH_MS = 300_000;
 export const MAX_SNAPSHOT_AGE_MS = 7 * 24 * 60 * 60_000;
 export interface SnapshotRecord { schema: number; storedAt: string; snapshot: MarketSnapshot }
-export type SnapshotVia = "upstream" | "memory" | "edge" | "browser";
+export type SnapshotVia = "upstream" | "memory" | "edge" | "browser" | "database";
 const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const nullable = (v: unknown) => v === null || finite(v);
 const text = (v: unknown) => typeof v === "string" && v.length > 0 && v.length < 500;
@@ -39,6 +39,7 @@ export function validCompactSnapshot(v:any,market:Market,symbol:string,now:numbe
 export function validSnapshot(v: any, market: Market, symbol: string, now: number): v is MarketSnapshot {
   if (!Number.isFinite(now) || !["CN", "US"].includes(market) || typeof symbol !== "string") return false;
   if (market === "CN" ? !/^\d{6}\.(SS|SZ)$/.test(symbol) : symbol !== "^GSPC" && !/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol)) return false;
+  if(v?.technicalSource!==undefined&&v.technicalSource!=="trendbeak_technical_v1")return false;
   if(v?.bars) return validCompactSnapshot(v,market,symbol,now);
   const today = marketDate(now, market);
   if (!v || v.instrument?.market !== market || v.instrument?.symbol !== symbol || !text(v.instrument.name) || !text(v.instrument.code) || !["stock", "index"].includes(v.instrument.kind) ||

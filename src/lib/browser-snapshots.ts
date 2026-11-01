@@ -7,7 +7,7 @@ interface Store { getItem(key: string): string | null; setItem(key: string,value
 function records(store: Store): unknown[] { try { const value = JSON.parse(store.getItem(STORAGE) ?? "[]"); return Array.isArray(value) ? value : []; } catch { return []; } }
 export function rememberSnapshot(snapshot: MarketSnapshot, store: Store | null, now = Date.now()) {
   if(!store) return;
-  if(snapshot.freshness?.state !== "fresh") return;
+  if(snapshot.freshness?.state !== "fresh" && snapshot.freshness?.via !== "database") return;
   const record = recordFromSnapshot(snapshot), { market, symbol } = snapshot.instrument;
   if(!validRecord(record,market,symbol,now)) return;
   try {

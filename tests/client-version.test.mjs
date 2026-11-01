@@ -1,5 +1,16 @@
-import assert from 'node:assert/strict';import test,{before,after}from'node:test';import{createServer}from'vite';let vite;
-before(async()=>{vite=await createServer({configFile:false,appType:'custom',server:{middlewareMode:true,hmr:false,ws:false}});});after(async()=>vite?.close());
-test('unversioned legacy market requests stop before any quote, D1 or compact response',async()=>{const app=(await vite.ssrLoadModule('/src/worker.tsx')).default,oldFetch=globalThis.fetch;let calls=0;globalThis.fetch=async()=>{calls++;throw Error('Unexpected upstream')};try{const response=await app.request('https://test.example/api/markets/US');assert.equal(response.status,426);assert.equal(response.headers.get('X-Trendbeak-Data'),'bars-v1');assert.equal(response.headers.get('Cache-Control'),'no-store');assert.equal((await response.json()).data,undefined);assert.equal(calls,0);}finally{globalThis.fetch=oldFetch;}});
-test('new quote requests identify their supported wire contract',async()=>{const version=await vite.ssrLoadModule('/src/lib/client-version.ts'),oldFetch=globalThis.fetch;let header;globalThis.fetch=async(url,init)=>{header=new Headers(init.headers).get('X-Trendbeak-Data');return Response.json({data:null});};try{await version.fetchQuote('/api/markets/US');assert.equal(header,'bars-v1');}finally{globalThis.fetch=oldFetch;}});
-test('a future response version triggers at most one ordinary reload per target in a tab',async()=>{const version=await vite.ssrLoadModule('/src/lib/client-version.ts'),saved={fetch:globalThis.fetch,window:globalThis.window,storage:globalThis.sessionStorage};let reloads=0,value=null;globalThis.window={location:{reload(){reloads++}}};globalThis.sessionStorage={getItem(){return value},setItem(k,v){value=v}};globalThis.fetch=async()=>new Response('{}',{status:426,headers:{'X-Trendbeak-Data':'bars-v2'}});try{await version.fetchQuote('/api/markets/US');await version.fetchQuote('/api/markets/US');assert.equal(reloads,1);}finally{globalThis.fetch=saved.fetch;if(saved.window===undefined)delete globalThis.window;else globalThis.window=saved.window;if(saved.storage===undefined)delete globalThis.sessionStorage;else globalThis.sessionStorage=saved.storage;}});
+import assert from 'node:assert/strict';
+import test, { before, after } from 'node:test';
+import { createServer } from 'vite';
+import { preparedDB, fixtureNow as now } from './market-fixture.mjs';
+let vite, fixture;
+const oldNow = Date.now;
+before(async () => { Date.now = () => now; vite = await createServer({ configFile: false, appType: 'custom', server: { middlewareMode: true, hmr: false, ws: false } }); fixture = await preparedDB(vite); });
+after(async () => { Date.now = oldNow; fixture.close(); await vite.close(); });
+test('already-open unversioned clients receive full V1 snapshots without a reload, new header or server recomputation', async () => { const app = (await vite.ssrLoadModule('/src/worker.tsx')).default, validator = await vite.ssrLoadModule('/src/lib/snapshot-record.ts'), response = await app.request('https://test.example/api/markets/US', {}, { SENTIMENT_DB: fixture.db }); assert.equal(response.status, 200); const data = (await response.json()).data; assert.ok(validator.validRecord(validator.recordFromSnapshot(data), 'US', '^GSPC', now)); assert.ok(Object.keys(data.history).length > 200); assert.equal(data.days.length, 365); assert.equal(data.bars, undefined); });
+test('quote helper remains ordinary fetch and needs no service worker or reload hook', async () => { const version = await vite.ssrLoadModule('/src/lib/client-version.ts'), saved = globalThis.fetch; let init; globalThis.fetch = async (url, value) => { init = value; return Response.json({ data: null }); }; try {
+    await version.fetchQuote('/api/markets/US');
+    assert.equal(new Headers(init?.headers).get('X-Trendbeak-Data'), null);
+}
+finally {
+    globalThis.fetch = saved;
+} });

@@ -12,11 +12,10 @@ import {
   marketDate,
   validateBars,
 } from "../lib/market-signals";
-import { loadSentiment } from "./sentiment-store";
+import { loadSentiment, sentimentRevision } from "./sentiment-store";
 import { SourceError, reportSourceFailure, isTransientSourceFailure } from "./source-errors";
 
-import { createSnapshotCache, type SnapshotEdgeCache } from "./snapshot-cache";
-const snapshotCache = createSnapshotCache(() => Date.now(), true);
+import { readMarketSnapshot, SnapshotMissing } from "./market-snapshot-store";
 
 type JsonObject = Record<string, any>;
 export type FetchJson = (url: URL) => Promise<JsonObject>;
@@ -26,7 +25,7 @@ const pending = new Map<string, Promise<unknown>>();
 const NUMBER = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value);
 
-async function fetchJson(url: URL): Promise<JsonObject> {
+export async function fetchJson(url: URL): Promise<JsonObject> {
   const started = Date.now();
   let response: Response;
   try {
@@ -330,70 +329,20 @@ function makeSnapshot(
   };
 }
 
-export async function loadMarket(
-  market: Market,
-  symbol = BENCHMARKS[market].symbol,
-  read: FetchJson = fetchJson,
-  now = Date.now(),
-  origin = "https://trendbeak.com",
-  sentimentDb?: D1Database,
-): Promise<MarketSnapshot> {
-  if (!validSymbol(market, symbol)) throw new Error("Invalid instrument");
-  const readSnapshot = async () => {
-    if (market === "CN") {
-      const key = `${symbol.endsWith(".SS") ? "sh" : "sz"}${symbol.slice(0, 6)}`;
-      const url = new URL("https://web.ifzq.gtimg.cn/appstock/app/fqkline/get");
-      url.searchParams.set("param", `${key},day,,,640,qfq`);
-      return parseTencent(await read(url), symbol, now, read === fetchJson);
-    }
-    let lastError: unknown;
-    for (const host of [
-      "query1.finance.yahoo.com",
-      "query2.finance.yahoo.com",
-    ]) {
-      const url = new URL(
-        `https://${host}/v8/finance/chart/${encodeURIComponent(symbol)}`,
-      );
-      url.search = new URLSearchParams({
-        range: "2y",
-        interval: "1d",
-      }).toString();
-      try {
-        return parseYahoo(await read(url), symbol, now, read === fetchJson);
-      } catch (error) {
-        if (error instanceof SourceError && ([403,418,429].includes(error.status ?? 0) || error.retryAfterMs > 0 || error.elapsedMs >= 8_000)) throw error;
-        lastError = error;
-      }
-    }
-    throw lastError;
-  };
-  const load = async () => {
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try { return await readSnapshot(); }
-      catch (error) {
-        if (attempt > 1 && error instanceof SourceError) error.recoveryAttempted = true;
-        reportSourceFailure("market", market === "CN" ? "Tencent" : "Yahoo", error, { market, symbol, attempt });
-        // One bounded retry for a quick transient CN transport failure. Never
-        // retry access denials, throttling, malformed data or a full timeout.
-        if (market === "CN" && attempt === 1 && isTransientSourceFailure(error) && error.elapsedMs < 2000) {
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          continue;
-        }
-        throw error;
-      }
-    }
-    throw new Error("Market load did not complete");
-  };
-  if (read !== fetchJson) return load();
-  const snapshot = await snapshotCache.get(market, symbol, load, origin, typeof caches === "undefined" ? undefined : (caches as unknown as { default?: SnapshotEdgeCache }).default);
-  const sentiment = await loadSentiment(market, sentimentDb, origin);
-  return { ...snapshot, sentiment };
+/** HTTP readers only read existing durable views; never initialize or update quotes. */
+export async function loadMarket(market:Market,symbol=BENCHMARKS[market].symbol,db?:D1Database,origin="https://trendbeak.com"){
+  if(!validSymbol(market,symbol))throw Error("Invalid instrument");
+  const record=await readMarketSnapshot(db,market,symbol,origin),snapshot=record.snapshot;
+  const end=await marketWindowEnd(db)??snapshot.asOf,sentiment=await loadSentiment(market,db,origin,end);return {snapshot:{...snapshot,sentiment},revision:`${record.updatedAt}:${sentimentRevision(sentiment)}:${end}`};
 }
+export { SnapshotMissing };
+export async function loadHealth(origin:string,db?:D1Database){
+  const empty=Object.fromEntries((["CN","US"] as Market[]).map(m=>[m,{available:false,asOf:null,freshness:null}]));if(!db)return {status:"degraded",markets:empty};
+  try{const r=await db.prepare("SELECT key, json_extract(payload, '$.view.asOf') AS asOf, json_extract(payload, '$.view.fetchedAt') AS fetchedAt FROM market_snapshot WHERE key IN (?, ?)").bind('CN/000300.SS','US/^GSPC').all<{key:string;asOf:string;fetchedAt:string}>();if(!r.success)throw Error('Health read failed');
+    const markets=Object.fromEntries((["CN","US"] as Market[]).map(m=>{const row=r.results.find(r=>r.key===`${m}/${BENCHMARKS[m].symbol}`),age=row?Math.max(0,Date.now()-Date.parse(row.fetchedAt)):Infinity;return [m,row?{available:true,asOf:row.asOf,freshness:{state:age<300000?'fresh':'stale',storedAt:row.fetchedAt,ageSeconds:Math.floor(age/1000),freshTtlSeconds:300,maxAgeSeconds:604800,via:'database'}}:empty[m]];}));return {status:Object.values(markets).every((s:any)=>s.available&&s.freshness.state==='fresh')?'ok':'degraded',markets};
+  }catch{return {status:'degraded',markets:empty};}
+}
+export async function markPrepared(instruments:Instrument[],db?:D1Database):Promise<Instrument[]>{if(!db||!instruments.length)return instruments;try{const keys=instruments.map(i=>`${i.market}/${i.symbol}`),r=await db.prepare(`SELECT key FROM market_snapshot WHERE key IN (${keys.map(()=>'?').join(',')})`).bind(...keys).all<{key:string}>();if(!r.success)return instruments;const ready=new Set(r.results.map(r=>r.key));return instruments.map(i=>({...i,prepared:ready.has(`${i.market}/${i.symbol}`)}));}catch{return instruments;}}
 
-/** Health is a snapshot inspection, never an upstream refresh or sentiment query. */
-export async function loadHealth(origin:string) {
-  const edge=typeof caches==='undefined'?undefined:(caches as unknown as {default?:SnapshotEdgeCache}).default;
-  const records=await Promise.all((["CN","US"] as Market[]).map(m=>snapshotCache.peek(m,BENCHMARKS[m].symbol,origin,edge)));
-  const markets=Object.fromEntries((["CN","US"] as Market[]).map((m,i)=>[m,{available:!!records[i],asOf:records[i]?.asOf??null,freshness:records[i]?.freshness??null}]));
-  return {status:records.every(s=>s&&s.freshness?.state==='fresh')?'ok':'degraded',markets};
-}
+const ends=new WeakMap<D1Database,{until:number;value?:string;pending?:Promise<string|undefined>}>();
+async function marketWindowEnd(db?:D1Database):Promise<string|undefined>{if(!db)return;const hit=ends.get(db);if(hit?.pending)return hit.pending;if(hit&&hit.until>Date.now())return hit.value;const task=(async()=>{try{const r=await db.prepare("SELECT MAX(json_extract(payload, '$.view.asOf')) AS latest FROM market_snapshot WHERE key IN (?, ?)").bind('CN/000300.SS','US/^GSPC').all<{latest:string}>();return r.results[0]?.latest;}catch{return undefined;}})();ends.set(db,{until:0,pending:task});const value=await task;ends.set(db,{until:Date.now()+300000,value});return value;}

@@ -7,6 +7,7 @@ export interface Instrument {
   name: string;
   market: Market;
   kind: "index" | "stock";
+  prepared?: boolean;
 }
 
 export interface DailyBar {
@@ -86,7 +87,8 @@ export interface CalendarDay {
 export interface MarketSnapshot {
   /** Compact transport: expanded only in the browser or a controlled offline rebuild. */
   bars?: DailyBar[];
-  freshness?: { state: "fresh" | "stale"; storedAt: string; ageSeconds: number; freshTtlSeconds: number; maxAgeSeconds: number; via: "upstream" | "memory" | "edge" | "browser" };
+  technicalSource?: "trendbeak_technical_v1";
+  freshness?: { state: "fresh" | "stale"; storedAt: string; ageSeconds: number; freshTtlSeconds: number; maxAgeSeconds: number; via: "upstream" | "memory" | "edge" | "browser" | "database" };
   instrument: Instrument;
   asOf: string;
   fetchedAt: string;

@@ -1,73 +1,38 @@
-import { versioned } from "./request-version.mjs";
-import assert from "node:assert/strict";
-import test, {before, after} from "node:test";
-import {createServer} from "vite";
-let vite, market, source, app;
-const originalFetch=globalThis.fetch, originalNow=Date.now;
-let clock=Date.parse("2026-10-29T06:00:00Z"), mode="ok", priceRequests=0;
-function cnFixture(symbol) {
- const key="sh"+symbol.slice(0,6),quote=Array(31).fill("");quote[1]="测试标的";quote[2]=symbol.slice(0,6);
- const rows=Array.from({length:60},(_,i)=>[new Date(clock-(59-i)*86400000).toISOString().slice(0,10),"100","101","102","99","1000"]);
- return {code:0,data:{[key]:{qt:{[key]:quote},day:rows}}};
+import assert from 'node:assert/strict';
+import test, { before, after } from 'node:test';
+import { createServer } from 'vite';
+import { preparedDB, compactQuote, fixtureNow as now } from './market-fixture.mjs';
+let vite, market, store, fixture;
+const original = { fetch: globalThis.fetch, now: Date.now };
+let upstream = 0, clock = now;
+before(async () => { Date.now = () => clock; globalThis.fetch = async () => { upstream++; throw Error('Reader reached upstream'); }; vite = await createServer({ configFile: false, appType: 'custom', server: { middlewareMode: true, hmr: false, ws: false } }); fixture = await preparedDB(vite); market = await vite.ssrLoadModule('/src/server/market-data.ts'); store = await vite.ssrLoadModule('/src/server/market-snapshot-store.ts'); });
+after(async () => { fixture.close(); globalThis.fetch = original.fetch; Date.now = original.now; await vite.close(); });
+test('cold, hot, expired, evicted and independent reader instances only read durable views, never upstream or calculations', async () => { const cache = store.createMarketSnapshotStore(() => clock), before = fixture.stats.reads; const first = await Promise.all(Array.from({ length: 8 }, () => cache.read(fixture.db, 'CN', '000300.SS'))); assert.equal(fixture.stats.reads - before, 1); assert.ok(first.every(x => x === first[0])); assert.ok(Object.isFrozen(first[0].snapshot.history)); assert.equal(first[0].snapshot.bars, undefined); await cache.read(fixture.db, 'CN', '000300.SS'); assert.equal(fixture.stats.reads - before, 1); clock += 300001; await cache.read(fixture.db, 'CN', '000300.SS'); assert.equal(fixture.stats.reads - before, 2); await store.createMarketSnapshotStore(() => clock).read(fixture.db, 'CN', '000300.SS'); assert.equal(fixture.stats.reads - before, 3); await cache.read(fixture.wrap(), 'CN', '000300.SS'); assert.equal(fixture.stats.reads - before, 4); assert.equal(upstream, 0); assert.equal(fixture.stats.writes, 0); assert.ok(fixture.stats.sql.filter(s => s.includes('market_snapshot')).every(s => s.includes("json_extract(payload, '$.view')"))); });
+test('missing instrument fails explicitly without initialization, and search readiness comes from keys only', async () => { await assert.rejects(market.loadMarket('US', 'TSLA', fixture.db), store.SnapshotMissing); const instruments = await market.markPrepared([{ ...compactQuote('US').instrument }, { ...compactQuote('US', 'TSLA').instrument }], fixture.db); assert.deepEqual(instruments.map(i => i.prepared), [true, false]); assert.equal(upstream, 0); });
+test('database snapshot remains readable beyond disposable browser backup age and upstream failure', async () => { clock += 8 * 86400000; const value = await market.loadMarket('CN', '000300.SS', fixture.db); assert.equal(value.snapshot.freshness.via, 'database'); assert.equal(value.snapshot.freshness.state, 'stale'); assert.equal(value.snapshot.fetchedAt, new Date(now).toISOString()); assert.ok(Object.keys(value.snapshot.history).length > 200); assert.equal(upstream, 0); });
+test('offline upstream reader bounds declared and streamed bodies with no automatic retries', async () => { const saved = globalThis.fetch; let calls = 0; try {
+    for (const declared of [true, false]) {
+        globalThis.fetch = async () => { calls++; return new Response(' '.repeat(512001), { headers: declared ? { 'Content-Length': '512001' } : {} }); };
+        await assert.rejects(market.fetchJson(new URL('https://source.example')));
+    }
+    assert.equal(calls, 2);
 }
-before(async()=>{
- Date.now=()=>clock;
- globalThis.fetch=async(input)=>{
-  const url=new URL(input);
-  if(url.hostname==="baifenwei.com"||url.hostname==="fearandgreednow.com")return new Response("unavailable",{status:503});
-  if(url.hostname==="web.ifzq.gtimg.cn"){
-   priceRequests++;
-   if(["recover","recover501"].includes(mode)&&priceRequests===1)return new Response("temporary",{status:mode==="recover501"?501:503});
-   if(mode==="network"&&priceRequests===1)throw new TypeError("test network failure");
-   if(mode==="malformed")return new Response("not-json");
-   if(String(mode).startsWith("backoff"))return new Response("later",{status:503,headers:{"Retry-After":mode==="backoff-zero"?"0":mode==="backoff-invalid"?"invalid":"60"}});
-   if(typeof mode==="number")return new Response("unavailable",{status:mode});
-   const key=url.searchParams.get("param").split(",")[0];return Response.json(cnFixture(key.slice(2)+".SS"));
-  }
-  if(url.hostname.endsWith(".finance.yahoo.com")){
-   const times=Array.from({length:60},(_,i)=>(clock-(60-i)*86400000)/1000);
-   return Response.json({chart:{error:null,result:[{meta:{symbol:"^GSPC",exchangeTimezoneName:"America/New_York",currency:"USD"},timestamp:times,indicators:{quote:[{open:Array(60).fill(100),close:Array(60).fill(101),high:Array(60).fill(102),low:Array(60).fill(99),volume:Array(60).fill(1000)}]}}]}});
-  }
-  throw new Error("Unexpected source");
- };
- vite=await createServer({configFile:false,appType:"custom",server:{middlewareMode:true,hmr:false}});
- market=await vite.ssrLoadModule("/src/server/market-data.ts");source=await vite.ssrLoadModule("/src/server/source-errors.ts");
- app=versioned((await import("../dist/_worker.js")).default);
-});
-after(async()=>{globalThis.fetch=originalFetch;Date.now=originalNow;await vite?.close();});
-test("a cold valid quote survives noncritical sentiment failure and coalesces concurrent readers",async()=>{
- mode="ok";priceRequests=0;const values=await Promise.all(Array.from({length:6},()=>market.loadMarket("CN","600101.SS")));
- assert.equal(priceRequests,1);assert.ok(values.every(v=>v.price===101));assert.match(values[0].sentiment.error,/暂不可用/);
- await market.loadMarket("CN","600101.SS");assert.equal(priceRequests,1);
-});
-test("expired data returns last-good as stale and a later successful refresh clears the warning",async()=>{
- clock+=301001;mode=503;priceRequests=0;
- const fallback=await market.loadMarket("CN","600101.SS");assert.equal(fallback.freshness.state,"stale");assert.equal(fallback.fetchedAt,new Date(clock-301001).toISOString());assert.equal(priceRequests,2);
- clock+=60001;
- mode="ok";const recovered=await market.loadMarket("CN","600101.SS");assert.equal(recovered.fetchedAt,new Date(clock).toISOString());assert.equal(priceRequests,3);
-});
-test("one quick transient 501, 503 or network failure is retried once and returns a validated fresh quote",async()=>{
- for(const [scenario,symbol] of [["recover","600102.SS"],["network","600103.SS"],["recover501","600104.SS"]]){
-  mode=scenario;priceRequests=0;const quote=await market.loadMarket("CN",symbol);assert.equal(priceRequests,2);assert.equal(quote.instrument.symbol,symbol);assert.equal(quote.price,101);
- }
-});
-test("denials, throttling, Retry-After and malformed responses are not retried",async()=>{
- let number=600110;
- for(const scenario of [403,418,429,"backoff","backoff-zero","backoff-invalid","malformed"]){mode=scenario;priceRequests=0;await assert.rejects(market.loadMarket("CN",`${number++}.SS`));assert.equal(priceRequests,1);}
- const exhausted = new source.SourceError("already retried","test","http",100,503);exhausted.recoveryAttempted = true;assert.equal(source.isTransientSourceFailure(exhausted),false);
- assert.equal(source.isTransientSourceFailure(new source.SourceError("timeout","test","timeout",8000)),true);
- let usDenials=0;await assert.rejects(market.loadMarket("US","AAPL",async()=>{usDenials++;throw new source.SourceError("denied","test","http",10,403);}));assert.equal(usDenials,1);
- let timeouts=0;await assert.rejects(market.loadMarket("CN","600129.SS",async()=>{timeouts++;throw new source.SourceError("full timeout","test","timeout",8000);}));assert.equal(timeouts,1);
-});
-test("API failures remain no-store while the cold page never invokes an upstream",async()=>{
- mode=503;priceRequests=0;
- const html=await app.request("https://example.test/");assert.equal(html.status,200);assert.equal(html.headers.get("cache-control"),"no-cache");
- const body=await html.text();assert.match(body,/正在读取行情/);assert.match(body,/"retryable":true/);assert.equal(priceRequests,0);
- const dashboard=await app.request("https://example.test/api/markets");assert.equal(dashboard.status,410);assert.equal(priceRequests,0);assert.equal((await app.request("https://example.test/api/markets/US")).status,200);
- const failed=await app.request("https://example.test/api/markets/CN");assert.equal(failed.status,503);assert.deepEqual(await failed.json(),{error:"行情暂不可用",retryable:false});
- clock+=60001;mode="ok";const healthy=await app.request("https://example.test/api/markets/CN");assert.equal(healthy.headers.get("cache-control"),"no-cache");assert.ok((await healthy.json()).data.bars);
- mode=403;const denied=await app.request("https://example.test/api/markets/CN?symbol=600199.SS");assert.equal(denied.status,503);assert.deepEqual(await denied.json(),{error:"行情暂不可用",retryable:false});
-});
-
-test('upstream byte budget aborts oversized declared and streamed bodies without retry or storing them',async()=>{let calls=0;const saved=globalThis.fetch;try{for(const declared of[true,false]){globalThis.fetch=async()=>{calls++;return new Response(' '.repeat(512001),{headers:declared?{'Content-Length':'512001'}:{}})};await assert.rejects(market.loadMarket('CN',declared?'600188.SS':'600189.SS'));}assert.equal(calls,2);}finally{globalThis.fetch=saved;}});
-test('compact quote boundary has a hard 640 bar budget and builds no historical indicators',()=>{const payload=cnFixture('600519.SS'),s=market.parseTencent(payload,'600519.SS',clock,true);assert.ok(s.bars.length);assert.deepEqual(s.history,{});assert.deepEqual(s.signals,[]);assert.deepEqual(s.days,[]);payload.data.sh600519.day=Array(641).fill(payload.data.sh600519.day[0]);assert.throws(()=>market.parseTencent(payload,'600519.SS',clock,true),/budget/);});
+finally {
+    globalThis.fetch = saved;
+} });
+test('D1 failure after expiry preserves the last immutable view and backs off; empty instances fail boundedly', async () => { const cache = store.createMarketSnapshotStore(() => clock), known = await cache.read(fixture.db, 'US', '^GSPC'); clock += 300001; fixture.stats.fail = true; try {
+    const before = fixture.stats.reads, fallback = await cache.read(fixture.db, 'US', '^GSPC');
+    assert.equal(fallback, known);
+    await cache.read(fixture.db, 'US', '^GSPC');
+    assert.equal(fixture.stats.reads - before, 1);
+    const empty = store.createMarketSnapshotStore(() => clock);
+    await assert.rejects(empty.read(fixture.db, 'US', '^GSPC'));
+    const last = fixture.stats.reads;
+    await assert.rejects(empty.read(fixture.db, 'US', '^GSPC'));
+    assert.equal(fixture.stats.reads, last);
+    assert.equal(upstream, 0);
+}
+finally {
+    fixture.stats.fail = false;
+} });
+test('invalid edge provenance falls back to D1 without a source request', async () => { const cache = store.createMarketSnapshotStore(() => clock), base = fixture.sqlite.prepare("SELECT payload,updated_at FROM market_snapshot WHERE key='CN/000300.SS'").get(), bad = { key: 'CN/000300.SS', updatedAt: base.updated_at, snapshot: JSON.parse(base.payload).view }; bad.snapshot.source.url = 'https://other.example/mislabel'; const edge = { match: async () => Response.json(bad), put: async () => { } }; const before = fixture.stats.reads, result = await cache.read(fixture.db, 'CN', '000300.SS', 'https://test.example', edge); assert.equal(fixture.stats.reads - before, 1); assert.equal(result.snapshot.source.url, 'https://gu.qq.com/sh000300'); assert.equal(upstream, 0); });

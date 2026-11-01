@@ -6,18 +6,21 @@ try{
  for(const width of [1440,390]){
   const {page,context,initial,errors}=await openPage(browser,width);
   const search=page.getByRole("combobox");
+  let successfulSearches=0,unpreparedSearches=0;
   for(const [query,market,name] of [["600519","CN","贵州茅台"],["英伟达","US","英伟达"]]){
     await page.evaluate(()=>scrollTo(0,0));await search.fill(query);
     const option=page.getByRole("option").filter({hasText:name}).first();await option.waitFor();await layout(page,"search "+market);
     await page.screenshot({path:`${out}/${width}-search-${market}.png`,fullPage:true});
-    await option.click();await page.locator(`[data-market=${market}].stock-selected`).waitFor();
+    const unprepared=(await option.innerText()).includes('历史待收录');await option.click();
+    if(unprepared){await page.locator(`[data-market=${market}] .market-refresh-error`).waitFor();assert.match(await page.locator(`[data-market=${market}] .market-refresh-error`).innerText(),/尚未收录.*仍显示/);unpreparedSearches++;continue;}
+    successfulSearches++;await page.locator(`[data-market=${market}].stock-selected`).waitFor();
     await page.waitForFunction(m=>!document.querySelector(`[data-market=${m}]`).hasAttribute("aria-busy"),market);
     assert.equal(await page.locator(".signals").count(),2);
     assert.match(await page.locator(`[data-analysis-market=${market}] .index-end`).getAttribute("aria-label"),market==="CN"?/沪深 300/:/标普 500/);
     await layout(page,"stock selected");
   }
   await page.reload({waitUntil:"networkidle"});await search.click();
-  assert.equal(await page.getByRole("option").count(),2);
+  assert.equal(await page.getByRole("option").count(),successfulSearches);
   await page.getByRole("button",{name:"清空",exact:true}).click();
   assert.equal(await page.evaluate(()=>localStorage.getItem("trendbeak:search-history:v1")),null);
   const instrument={market:"US",symbol:"TEST",code:"TEST",kind:"stock",name:"A deliberately long company name for responsive layout verification"};
@@ -48,7 +51,7 @@ try{
   await page.goto(base+"/offline",{waitUntil:"networkidle"});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth),width);
   await page.screenshot({path:`${out}/${width}-offline.png`,fullPage:true});
   assert.deepEqual(errors,[]);
-  report.push({width,realSearches:2,marketSwitch:true,benchmarkPreserved:true,atomicSwitch:true,longName:true,refreshFailureKeepsData:true,retry:true,recentSearches:10,offline:true,consoleErrors:errors});
+  report.push({width,realSearches:2,successfulSearches,unpreparedSearches,marketSwitch:true,benchmarkPreserved:true,atomicSwitch:true,longName:true,refreshFailureKeepsData:true,retry:true,recentSearches:10,offline:true,consoleErrors:errors});
   await context.close();
  }
  await writeFile(`${out}/state-results.json`,JSON.stringify(report,null,2));console.log(JSON.stringify(report));

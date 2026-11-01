@@ -53,19 +53,24 @@ export function createSentimentStore(clock = Date.now) {
 
 const store = createSentimentStore(() => Date.now());
 export const readSentiment = store.read;
-export async function loadSentiment(market: Market, db?: D1Database, origin?: string): Promise<SentimentData> {
+const projections=new WeakMap<SentimentSnapshot,{reports?:SentimentSnapshot;data:SentimentData}>();
+const revisions=new WeakMap<SentimentData,string>();
+export const sentimentRevision=(data:SentimentData)=>revisions.get(data)??"unavailable";
+export async function loadSentiment(market: Market, db?: D1Database, origin?: string, through?:string): Promise<SentimentData> {
   const source = SENTIMENT_SOURCES[DEFAULT_SENTIMENT_SOURCE[market]], metadata = { source: { name: source.name, url: source.url }, description: source.description };
   try {
     const edge = typeof caches === "undefined" ? undefined : (caches as unknown as { default?: SnapshotEdgeCache }).default;
-    const current=sentimentQuery(market);
+    const current=sentimentQuery(market,undefined,undefined,through);
     // A seven-day quote fallback must not clip the annual sentiment window, nor
     // should a quote lag suppress newer, independently dated observations.
     const query={...current,from:new Date(Date.parse(current.to)-371*86400000).toISOString().slice(0,10)}, snapshot = await readSentiment(db, query, origin, edge);
-    let reportedObservations: SentimentData["reportedObservations"];
-    if (market === "US") try {
-      const reports = await readSentiment(db, { ...query, source: "cnn_benzinga" }, origin, edge), source = SENTIMENT_SOURCES.cnn_benzinga;
-      reportedObservations = reports.rows.map(r => ({ date: r.date, value: r.score, previous: null, source: { name: source.name, url: source.url } }));
-    } catch { /* An optional report cannot disable the main series. */ }
-    return { ...metadata, observations: snapshot.rows.map((r, i, all) => ({ date: r.date, value: r.score, previous: all[i-1]?.score ?? null })), ...(reportedObservations?.length ? { reportedObservations } : {}) };
+    let reports:SentimentSnapshot|undefined;
+    if(market==='US')try{reports=await readSentiment(db,{...query,source:'cnn_benzinga'},origin,edge);}catch{/* Optional evidence must not disable the primary series. */}
+    const cached=projections.get(snapshot);if(cached&&cached.reports===reports)return cached.data;
+    const reportSource=SENTIMENT_SOURCES.cnn_benzinga;
+    const reportedObservations=reports?.rows.map(r=>({date:r.date,value:r.score,previous:null,source:{name:reportSource.name,url:reportSource.url}}));
+    const data={...metadata,observations:snapshot.rows.map((r,i,all)=>({date:r.date,value:r.score,previous:all[i-1]?.score??null})),...(reportedObservations?.length?{reportedObservations}:{})};
+    const revision=[...snapshot.rows,...(reports?.rows??[])].reduce((max,r)=>r.updated_at>max?r.updated_at:max,'')||'empty';
+    revisions.set(data,revision+(market==='US'&&!reports?':report-unavailable':''));projections.set(snapshot,{reports,data});return data;
   } catch { return { ...metadata, observations: [], error: "贪恐数据暂不可用。" }; }
 }

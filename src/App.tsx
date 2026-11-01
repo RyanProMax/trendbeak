@@ -16,7 +16,7 @@ import { clampWindow, historyBounds, latestWindow, windowDays, persistTrendWindo
 import { isExchangeClosed } from "./lib/exchange-calendar";
 import { calendarForRange, shiftDate } from "./lib/chart-series";
 import { rememberSnapshot, restoreSnapshot } from "./lib/browser-snapshots";
-import { recordFromSnapshot, readSnapshot, validRecord } from "./lib/snapshot-record";
+import { recordFromSnapshot, readSnapshot, validRecord, validSnapshot } from "./lib/snapshot-record";
 import { DATA_VERSION, fetchQuote } from "./lib/client-version";
 import { expandSnapshot } from "./lib/expand-snapshot";
 import { displayDate } from "./lib/market-format";
@@ -108,14 +108,15 @@ function Dashboard({ data }: { data: PageData }) {
         loading: true,
       },
     }));
-    let retryable = false;
+    let retryable = false, missing=false;
     try {
       const response = await fetchQuote(
         `/api/markets/${market}?symbol=${encodeURIComponent(instrument.symbol)}`,
         { signal: controller.signal },
       );
       if (!response.ok) {
-        const failure = await response.json() as { retryable?: boolean };
+        const failure = await response.json() as { retryable?: boolean; code?:string };
+        missing=failure.code==="snapshot_missing";
         retryable = failure.retryable === true;
         throw new Error("Market unavailable");
       }
@@ -128,7 +129,7 @@ function Dashboard({ data }: { data: PageData }) {
         throw new Error("Instrument mismatch");
       payload.data = expandSnapshot(payload.data);
       const record = recordFromSnapshot(payload.data);
-      if (!validRecord(record,market,instrument.symbol)) throw new Error("Invalid snapshot");
+      if (!(payload.data.freshness?.via==="database"?validSnapshot(payload.data,market,instrument.symbol,Date.now()):validRecord(record,market,instrument.symbol))) throw new Error("Invalid snapshot");
       payload.data = readSnapshot(record,Date.now(),payload.data.freshness?.via ?? "upstream",payload.data.freshness?.state === "stale");
       rememberSnapshot(payload.data,browserStorage());
       setMarkets((previous) => ({
@@ -163,14 +164,14 @@ function Dashboard({ data }: { data: PageData }) {
       if (!controller.signal.aborted) {
         const previous = current.current[market].snapshot;
         const record = previous ? recordFromSnapshot(previous) : null;
-        const saved = validRecord(record,market,instrument.symbol) ? readSnapshot(record,Date.now(),"memory",true) : restoreSnapshot(market,instrument.symbol,browserStorage());
+        const saved = (previous?.freshness?.via==="database"&&validSnapshot(previous,market,instrument.symbol,Date.now())||validRecord(record,market,instrument.symbol)) ? readSnapshot(record!,Date.now(),previous?.freshness?.via==="database"?"database":"memory",true) : restoreSnapshot(market,instrument.symbol,browserStorage());
         const backup = saved ? { ...saved, sentiment: previous?.sentiment ?? saved.sentiment } : null;
         setMarkets((states) => {
           const prior = states[market], old = prior.snapshot ? recordFromSnapshot(prior.snapshot) : null;
-          const retained = validRecord(old,market,prior.instrument.symbol) ? prior.snapshot : null;
+          const retained = (prior.snapshot?.freshness?.via==="database"&&validSnapshot(prior.snapshot,market,prior.instrument.symbol,Date.now())||validRecord(old,market,prior.instrument.symbol)) ? prior.snapshot : null;
           return { ...states, [market]: backup ? { instrument, snapshot: backup, loading: false, error: null } : {
             ...prior, instrument: retained ? prior.instrument : instrument, snapshot: retained,
-            loading: false, error: "行情暂不可用", pendingInstrument: undefined, failedInstrument: instrument, retryable,
+            loading: false, error: missing?"该股票的历史数据尚未收录":"行情暂不可用", pendingInstrument: undefined, failedInstrument: instrument, retryable,
           } };
         });
         if (backup && instrument.kind === "index") setBenchmarks((states)=>({ ...states,[market]:backup }));
@@ -216,7 +217,7 @@ function Dashboard({ data }: { data: PageData }) {
                 const payload = await response.json() as { data: MarketSnapshot };
                 payload.data = expandSnapshot(payload.data);
                 const record = recordFromSnapshot(payload.data);
-                if (!validRecord(record,market,BENCHMARKS[market].symbol)) throw new Error("Invalid benchmark");
+                if (!(payload.data.freshness?.via==="database"?validSnapshot(payload.data,market,BENCHMARKS[market].symbol,Date.now()):validRecord(record,market,BENCHMARKS[market].symbol))) throw new Error("Invalid benchmark");
                 const snapshot = readSnapshot(record,Date.now(),payload.data.freshness?.via ?? "upstream",payload.data.freshness?.state === "stale");
                 rememberSnapshot(snapshot,browserStorage());
                 setBenchmarks((previous) => ({ ...previous, [market]: snapshot }));

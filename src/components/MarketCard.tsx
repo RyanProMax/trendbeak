@@ -30,8 +30,8 @@ export default function MarketCard({ state, date, reset, retry }: {
         </div>
         <div className="quote-session"><time dateTime={quoteDate}>{displayDate(quoteDate!)}</time><span> · {session}</span></div>
         {stale && <div className="snapshot-stale" role="status"><span>暂未更新 · 最近更新<time dateTime={snapshot.freshness!.storedAt}>{displayUpdate(snapshot.freshness!.storedAt,instrument.market)}</time><span className="update-zone">（{instrument.market === "CN" ? "北京时间" : "美东时间"}）</span></span><button onClick={retry} aria-label={`重试${marketName}行情`}><RotateCw size={13} /></button></div>}
-        {error && (!stale || failedInstrument?.symbol !== instrument.symbol) && <div className="market-refresh-error" role="status">{failedInstrument && failedInstrument.symbol !== instrument.symbol ? `暂未载入${failedInstrument.name}，仍显示${instrument.name}` : "更新暂不可用，显示上次行情"}<button onClick={retry} aria-label={`重试${marketName}行情`}><RotateCw size={14} /></button></div>}
-      </> : <div className="market-empty" role="status"><span>{loading ? "正在读取行情…" : "行情暂不可用"}</span>{!loading && <button onClick={retry}><RotateCw size={14} />重试</button>}</div>}
+        {error && (!stale || failedInstrument?.symbol !== instrument.symbol) && <div className="market-refresh-error" role="status">{failedInstrument && failedInstrument.symbol !== instrument.symbol ? `${error==="该股票的历史数据尚未收录"?"尚未收录":"暂未载入"}${failedInstrument.name}，仍显示${instrument.name}` : "更新暂不可用，显示上次行情"}<button onClick={retry} aria-label={`重试${marketName}行情`}><RotateCw size={14} /></button></div>}
+      </> : <div className="market-empty" role="status"><span>{loading ? "正在读取行情…" : error??"行情暂不可用"}</span>{!loading && <button onClick={retry}><RotateCw size={14} />重试</button>}</div>}
     </div>
   </section>;
 }

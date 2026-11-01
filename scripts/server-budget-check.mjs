@@ -1,26 +1,87 @@
-import assert from 'node:assert/strict';import{performance}from'node:perf_hooks';import{writeFile}from'node:fs/promises';
-// Entirely local: fixtures never enter D1, and all upstream calls are intercepted.
-let now=Date.parse('2026-11-01T08:00:00Z'), original={fetch:globalThis.fetch,now:Date.now,caches:globalThis.caches};Date.now=()=>now;
-const barCount=Number(process.env.BUDGET_BARS??500);assert.ok(Number.isInteger(barCount)&&barCount>=365&&barCount<=640);
-const dates=Array.from({length:barCount},(_,i)=>new Date(now-(barCount+2-i)*86400000).toISOString().slice(0,10));let calls=0,reads=0,failed=false;const bodies=new Map();
-globalThis.caches={default:{match:async r=>bodies.get(r.url)?.clone(),put:async(r,b)=>bodies.set(r.url,b.clone())}};
-globalThis.fetch=async input=>{calls++;const u=new URL(input);if(u.hostname==='searchapi.eastmoney.com')return Response.json({QuotationCodeTable:{Data:[{Code:'NVDA',Name:'英伟达',Classify:'UsStock',MktNum:'105'}]}});if(failed&&u.hostname==='web.ifzq.gtimg.cn')return new Response('fixture failure',{status:503});if(u.hostname==='web.ifzq.gtimg.cn'){const key=u.searchParams.get('param').split(',')[0],q=Array(31).fill('');q[1]='测试标的';q[2]=key.slice(2);return Response.json({code:0,data:{[key]:{qt:{[key]:q},qfqday:dates.map((d,i)=>[d,'100',String(100+i*.01),'110','90','1000'])}}});}if(u.hostname.endsWith('.finance.yahoo.com')){return Response.json({chart:{result:[{meta:{symbol:'^GSPC',exchangeTimezoneName:'America/New_York',currency:'USD'},timestamp:dates.map(d=>Date.parse(d+'T14:30:00Z')/1000),indicators:{quote:[{open:dates.map(()=>100),close:dates.map((_,i)=>100+i*.01),high:dates.map(()=>110),low:dates.map(()=>90),volume:dates.map(()=>1000)}]}}]}});}throw Error('Unexpected network target');};
-const db={prepare(sql){assert.match(sql,/WHERE market = \? AND source = \? AND date >= \? AND date <= \? ORDER BY date LIMIT 373/);return{bind:(market,source,from,to)=>({all:async()=>{reads++;return{success:true,results:source==='cnn_benzinga'?[]:dates.filter(d=>d>=from&&d<=to).map(date=>({market,date,source,score:20,updated_at:new Date(now).toISOString()}))};}})}}};
-// Initialize Node's host Web APIs outside application timings. Cloudflare supplies
-// native Request/Response; this is not an isolate-startup benchmark.
-if(!process.env.BUDGET_FIRST_PATH){await new Response('host initialization').text();new Request('https://runtime.example');}
-const results=[];async function measure(label,fn){const cpu=process.cpuUsage(),t=performance.now();const r=await fn();const bytes=Buffer.byteLength(await r.text()),c=process.cpuUsage(cpu);results.push({label,status:r.status,bytes,cpuMs:(c.user+c.system)/1000,wallMs:performance.now()-t,upstreamCalls:calls,d1Reads:reads});return results.at(-1);}
-try{const app=(await import('../dist/_worker.js?budget')).default;const origin='https://budget.example',request=path=>app.request(origin+path,{headers:{"X-Trendbeak-Data":"bars-v1"}}, {SENTIMENT_DB:db});if(process.env.BUDGET_FIRST_PATH){await measure('first request in fresh Node process, host Web API initialization included: '+process.env.BUDGET_FIRST_PATH,()=>request(process.env.BUDGET_FIRST_PATH));const all=process.cpuUsage();results.push({label:'whole Node process CPU since launch including fixture setup, module import and first response (not Worker request CPU)',cpuMs:(all.user+all.system)/1000});}else if(process.env.BUDGET_BURST){const cpu=process.cpuUsage(),start=performance.now();const values=await Promise.all(['CN','CN','US','US'].map(m=>request('/api/markets/'+m)));const bytes=await Promise.all(values.map(async response=>Buffer.byteLength(await response.text())));const used=process.cpuUsage(cpu);results.push({label:'four local cold requests, two distinct markets, duplicate readers coalesced; group CPU is not per-request CPU',cpuMs:(used.user+used.system)/1000,wallMs:performance.now()-start,bytes,upstreamCalls:calls,d1Reads:reads,barsPerSource:barCount});assert.equal(calls,2);assert.equal(reads,3);}else{await measure('cold health, snapshot inspection only',()=>request('/api/health'));assert.equal(calls,0);assert.equal(reads,0);const rejected=await measure('old contract rejected before upstream or D1',()=>app.fetch(new Request(origin+'/api/markets/US'),{SENTIMENT_DB:db}));assert.equal(rejected.status,426);assert.equal(calls,0);assert.equal(reads,0);const cold=await measure('cold page, no upstream or D1',()=>request('/'));assert.equal(cold.status,200);assert.ok(cold.bytes<20_000);assert.equal(calls,0);assert.equal(reads,0);
-await measure('cold CN quote API, bounded raw bars and D1',()=>request('/api/markets/CN'));await measure('cold US quote API, bounded raw bars and D1',()=>request('/api/markets/US'));
-for(let i=0;i<5;i++)await measure('warm page '+i,()=>request('/'));assert.equal(calls,2);assert.equal(reads,3);
-for(const path of ['/api/markets','/api/markets/US','/api/sentiment/US','/api/health'])await measure('warm '+path,()=>request(path));
-const quote=(await(await request('/api/markets/US')).json()).data;assert.equal(quote.bars.length,barCount);assert.deepEqual(quote.history,{});assert.equal(quote.signals.length,0);assert.ok(quote.sentiment.observations.length>=365&&quote.sentiment.observations.length<=372);assert.ok(Buffer.byteLength(JSON.stringify(quote))<120_000);
-assert.equal((await request('/api/sentiment/CN?from=1993-08-27')).status,400);assert.equal(calls,2);
-await measure('cold search',()=>request('/api/search?q=NVDA'));await measure('warm search',()=>request('/api/search?q=NVDA'));assert.equal(calls,3);
-const edgeOnly=(await import('../dist/_worker.js?budget-cold-edge')).default;await measure('cold instance with warm edge quote',()=>edgeOnly.request(origin+'/api/markets/US',{headers:{'X-Trendbeak-Data':'bars-v1'}}, {SENTIMENT_DB:db}));assert.equal(calls,3);
-now+=300001;await measure('expired quote refresh, no indicators',()=>request('/api/markets/CN'));assert.equal(calls,4);
-now+=300001;failed=true;const stale=await measure('expired quote upstream failure, last-good retained',()=>request('/api/markets/CN'));assert.equal(stale.status,200);assert.equal(calls,6);await measure('failed quote cooldown',()=>request('/api/markets/CN'));assert.equal(calls,6);failed=false;
-bodies.clear();const aggregate=(await import('../dist/_worker.js?budget-cold-aggregate')).default;const retired=await measure('retired aggregate API does no upstream work',()=>aggregate.request(origin+'/api/markets',{}, {SENTIMENT_DB:db}));assert.equal(retired.status,410);assert.equal(calls,6);
-const sentimentOnly=(await import('../dist/_worker.js?budget-cold-sentiment')).default;bodies.clear();await measure('cold sentiment API without quote or upstream',()=>sentimentOnly.request(origin+'/api/sentiment/US',{}, {SENTIMENT_DB:db}));assert.equal(calls,6);
+import assert from 'node:assert/strict';
+import { performance } from 'node:perf_hooks';
+import { writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+// Build test data in a separate process. No calculation engine runs in a reader.
+if (process.argv.includes('--prepare-fixture')) {
+    const { createServer } = await import('vite'), { preparedDB, fixtureNow } = await import('../tests/market-fixture.mjs');
+    const vite = await createServer({ configFile: false, logLevel: 'silent', appType: 'custom', server: { middlewareMode: true, hmr: false, ws: false } });
+    try {
+        const f = await preparedDB(vite, fixtureNow, { nvda: true });
+        await new Promise((resolve, reject) => process.stdout.write(JSON.stringify({ markets: f.sqlite.prepare('SELECT * FROM market_snapshot').all(), sentiment: f.sqlite.prepare('SELECT * FROM sentiment_daily').all() }), error => error ? reject(error) : resolve()));
+        f.close();
+    }
+    finally {
+        await vite.close();
+    }
+    process.exit(0);
 }
-console.log(JSON.stringify({environment:process.env.BUDGET_FIRST_PATH?'Fresh local Node process; first request includes host Web API initialization; module import and fixture setup reported separately in process total; not Cloudflare cold-start CPU':'Local sequential Node fixture requests; host Web API init excluded; cold means empty app caches, not isolate startup; not Cloudflare CPU measurements',results},null,2));if(process.env.BUDGET_REPORT)await writeFile(process.env.BUDGET_REPORT,JSON.stringify(results,null,2));}finally{globalThis.fetch=original.fetch;Date.now=original.now;globalThis.caches=original.caches;}
+const child = spawnSync(process.execPath, [import.meta.filename, '--prepare-fixture'], { encoding: 'utf8', maxBuffer: 10000000 });
+assert.equal(child.status, 0, child.stderr);
+const fixture = JSON.parse(child.stdout), { memoryDB, fixtureNow } = await import('../tests/market-fixture.mjs'), f = memoryDB();
+for (const r of fixture.markets)
+    f.sqlite.prepare('INSERT INTO market_snapshot VALUES(?,?,?)').run(r.key, r.payload, r.updated_at);
+for (const r of fixture.sentiment)
+    f.sqlite.prepare('INSERT INTO sentiment_daily VALUES(?,?,?,?,?)').run(r.market, r.date, r.source, r.score, r.updated_at);
+let now = fixtureNow, calls = 0;
+const original = { fetch: globalThis.fetch, now: Date.now, caches: globalThis.caches }, edge = new Map();
+Date.now = () => now;
+globalThis.caches = { default: { match: async (r) => edge.get(r.url)?.clone(), put: async (r, b) => edge.set(r.url, b.clone()) } };
+globalThis.fetch = async () => { calls++; throw Error('Reader attempted upstream access'); };
+if (!process.env.BUDGET_FIRST_PATH) {
+    await new Response('host initialization').text();
+    new Request('https://runtime.example');
+}
+const results = [];
+async function measure(label, fn) { const reads = f.stats.reads, cpu = process.cpuUsage(), t = performance.now(), r = await fn(), bytes = Buffer.byteLength(await r.text()), used = process.cpuUsage(cpu), result = { label, status: r.status, bytes, cpuMs: (used.user + used.system) / 1000, wallMs: performance.now() - t, upstreamCalls: calls, d1Reads: f.stats.reads - reads, d1Writes: f.stats.writes }; results.push(result); return result; }
+try {
+    const origin = 'https://budget.example', app = (await import('../dist/_worker.js?budget')).default, request = (path, options = {}) => app.request(origin + path, options, { SENTIMENT_DB: f.db });
+    if (process.env.BUDGET_FIRST_PATH) {
+        await measure('first local Node request including native Web API initialization: ' + process.env.BUDGET_FIRST_PATH, () => request(process.env.BUDGET_FIRST_PATH));
+        const all = process.cpuUsage();
+        results.push({ label: 'whole parent Node process CPU including fixture orchestration, module import and first response; fixture calculation ran in child; not Worker CPU', cpuMs: (all.user + all.system) / 1000 });
+    }
+    else if (process.env.BUDGET_BURST) {
+        await measure('four simultaneous cold readers, two markets; group CPU, not per-request', async () => { const responses = await Promise.all(['CN', 'CN', 'US', 'US'].map(m => request('/api/markets/' + m))); const texts = await Promise.all(responses.map(r => r.text())); assert.ok(responses.every(r => r.status === 200)); return new Response(texts.join('')); });
+        assert.equal(f.stats.reads, 6);
+    }
+    else {
+        const page = await measure('cold SSR shell', () => request('/'));
+        assert.ok(page.bytes < 20000);
+        assert.equal(f.stats.reads, 0);
+        await measure('cold health: two metadata records', () => request('/api/health'));
+        await measure('cold CN: materialized view and bounded sentiment', () => request('/api/markets/CN'));
+        await measure('cold US: materialized view and bounded sentiment', () => request('/api/markets/US'));
+        const first = await request('/api/markets/US'), etag = first.headers.get('etag'), data = (await first.json()).data;
+        assert.equal(data.bars, undefined);
+        assert.ok(Object.keys(data.history).length <= 366);
+        assert.ok(data.sentiment.observations.length <= 372);
+        await measure('warm US unchanged: conditional 304', () => request('/api/markets/US', { headers: { 'If-None-Match': etag } }));
+        await measure('warm US full view', () => request('/api/markets/US'));
+        await measure('warm SSR shell', () => request('/'));
+        now += 300001;
+        edge.clear();
+        await measure('expired/evicted CN: D1 only', () => request('/api/markets/CN'));
+        const independent = (await import('../dist/_worker.js?budget-other-isolate')).default;
+        edge.clear();
+        await measure('independent cold instance after edge eviction: D1 only', () => independent.request(origin + '/api/markets/US', {}, { SENTIMENT_DB: f.wrap() }));
+        await measure('missing stock: explicit no initialization', () => request('/api/markets/US?symbol=TSLA'));
+        await measure('retired aggregate: no data work', () => request('/api/markets'));
+        assert.equal((await request('/api/sentiment/CN?from=1993-08-27')).status, 400);
+    }
+    assert.equal(calls, 0);
+    assert.equal(f.stats.writes, 0);
+    const report = { environment: process.env.BUDGET_FIRST_PATH ? 'Fresh local Node process; empty application caches; native Web API initialization included in first response. Fixture creation is isolated in a child before timing; not real Cloudflare cold-start evidence.' : 'Local Node with host Web APIs initialized before timing; empty application cache on cold paths, not runtime startup. SQLite is local synchronous work; Cloudflare D1 waiting/JSON costs differ. Not Cloudflare CPU evidence.', results };
+    console.log(JSON.stringify(report, null, 2));
+    if (process.env.BUDGET_REPORT)
+        await writeFile(process.env.BUDGET_REPORT, JSON.stringify(report, null, 2));
+}
+finally {
+    f.close();
+    globalThis.fetch = original.fetch;
+    Date.now = original.now;
+    if (original.caches === undefined)
+        delete globalThis.caches;
+    else
+        globalThis.caches = original.caches;
+}
