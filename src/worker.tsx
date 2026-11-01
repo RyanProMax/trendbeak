@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import {LinearRouter} from "hono/router/linear-router";
 import { shell } from "./server/shell";
 import { BENCHMARKS, type Market } from "./market-types";
 import { readSentiment, sentimentQuery } from "./server/sentiment-store";
@@ -13,7 +14,7 @@ import {
   validSymbol,
 } from "./server/market-data";
 
-const app = new Hono<{ Bindings: { SENTIMENT_DB?: D1Database } }>();
+const app = new Hono<{ Bindings: { SENTIMENT_DB?: D1Database } }>({router:new LinearRouter()});
 const productionOrigin = "https://trendbeak.com";
 
 app.get("/api/sentiment/:market", async (c) => {
