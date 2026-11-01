@@ -16,7 +16,7 @@
     "sentiment:seed": "node scripts/sentiment-sync.mjs seed",
     "sentiment:sync": "node scripts/sentiment-sync.mjs sync",
     "deploy": "npm run build && wrangler pages deploy dist --project-name trendbeak --branch main --commit-dirty=true",
-    "test:visual": "node scripts/dashboard-ui-check.mjs && node scripts/readout-stability-check.mjs && node scripts/chart-hover-check.mjs && node scripts/range-fit-check.mjs && node scripts/free-range-check.mjs && node scripts/signal-state-check.mjs && node scripts/snapshot-fallback-check.mjs && node scripts/logo-assets-check.mjs",
+    "test:visual": "node scripts/dashboard-ui-check.mjs && node scripts/readout-stability-check.mjs && node scripts/legacy-sentiment-check.mjs && node scripts/chart-hover-check.mjs && node scripts/range-fit-check.mjs && node scripts/free-range-check.mjs && node scripts/signal-state-check.mjs && node scripts/snapshot-fallback-check.mjs && node scripts/logo-assets-check.mjs",
     "check": "tsc --noEmit",
     "test": "npm run build && node --test --test-concurrency=4 tests/*.test.mjs"
   },

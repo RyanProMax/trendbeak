@@ -1,5 +1,6 @@
 import type { Market, MarketSnapshot } from "../market-types";
 import { readSnapshot, recordFromSnapshot, snapshotKey, validRecord, type SnapshotRecord } from "./snapshot-record";
+import { DEFAULT_SENTIMENT_SOURCE, SENTIMENT_SOURCES } from "./sentiment-sources";
 const STORAGE = "trendbeak:last-good:v1";
 const MAX_BYTES = 2 * 1024 * 1024;
 interface Store { getItem(key: string): string | null; setItem(key: string,value: string): void }
@@ -26,5 +27,8 @@ export function restoreSnapshot(market: Market, symbol: string, store: Store | n
   const found = entries[index] as SnapshotRecord;
   // LRU order is separate from the immutable acquisition timestamps.
   if(index > 0) try { store.setItem(STORAGE,JSON.stringify([found,...entries.filter((_,i)=>i!==index)])); } catch {}
-  return readSnapshot(found,now,"browser",true);
+  const snapshot = readSnapshot(found,now,"browser",true);
+  // A legacy quote backup must not reintroduce the previous sentiment provider.
+  return snapshot.sentiment?.source.url === SENTIMENT_SOURCES[DEFAULT_SENTIMENT_SOURCE[market]].url
+    ? snapshot : { ...snapshot, sentiment: undefined };
 }

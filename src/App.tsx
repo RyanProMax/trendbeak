@@ -157,7 +157,8 @@ function Dashboard({ data }: { data: PageData }) {
       if (!controller.signal.aborted) {
         const previous = current.current[market].snapshot;
         const record = previous ? recordFromSnapshot(previous) : null;
-        const backup = validRecord(record,market,instrument.symbol) ? readSnapshot(record,Date.now(),"memory",true) : restoreSnapshot(market,instrument.symbol,browserStorage());
+        const saved = validRecord(record,market,instrument.symbol) ? readSnapshot(record,Date.now(),"memory",true) : restoreSnapshot(market,instrument.symbol,browserStorage());
+        const backup = saved ? { ...saved, sentiment: previous?.sentiment ?? saved.sentiment } : null;
         setMarkets((states) => {
           const prior = states[market], old = prior.snapshot ? recordFromSnapshot(prior.snapshot) : null;
           const retained = validRecord(old,market,prior.instrument.symbol) ? prior.snapshot : null;
@@ -181,8 +182,9 @@ function Dashboard({ data }: { data: PageData }) {
       if(initial) rememberSnapshot(initial,store);
       const backup = restoreSnapshot(market,data.markets[market].instrument.symbol,store);
       if(backup && (!initial || Date.parse(backup.freshness!.storedAt) > Date.parse(initial.freshness?.storedAt ?? initial.fetchedAt))) {
-        setMarkets((states)=>({ ...states,[market]:{ ...states[market],snapshot:backup,error:null } }));
-        setBenchmarks((states)=>({ ...states,[market]:backup }));
+        const restored = { ...backup, sentiment: initial?.sentiment ?? backup.sentiment };
+        setMarkets((states)=>({ ...states,[market]:{ ...states[market],snapshot:restored,error:null } }));
+        setBenchmarks((states)=>({ ...states,[market]:restored }));
       }
     }
   }, []);
