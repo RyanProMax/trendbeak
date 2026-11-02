@@ -62,7 +62,8 @@ try {
             const split = !!Object.keys(input.chart?.result?.[0]?.events?.splits ?? {}).length;
             const calculated = job.prepareMarketState(quote, mode, previous, now, split);
             const {attachHTTP}=await vite.ssrLoadModule('/src/server/market-http.ts');
-            const prepared=await attachHTTP(db,calculated,now);
+            const unchanged=mode==='sync'&&calculated.processed===0;
+            const prepared=unchanged?{...calculated,payload:previous,text:record.payload,bytes:Buffer.byteLength(record.payload)}:await attachHTTP(db,calculated,now);
             let writes = 0;
             if (!dryRun && prepared.text !== record?.payload) {
                 await job.writeMarketState(db, prepared, record?.updated_at, now);

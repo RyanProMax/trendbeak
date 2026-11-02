@@ -1,0 +1,40 @@
+name: Daily market synchronization
+on:
+  schedule:
+    - cron: '37 8 * * 1-5'
+    - cron: '37 23 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      market:
+        type: choice
+        options: [CN, US]
+        required: true
+        default: CN
+permissions:
+  contents: read
+# Both markets and manual dispatch share one writer queue. Never cancel a write in flight.
+concurrency:
+  group: trendbeak-daily-writer
+  cancel-in-progress: false
+jobs:
+  update:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.DAILY_SYNC_ENABLED == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      WRANGLER_SEND_METRICS: 'false'
+      MARKET: ${{ github.event_name == 'workflow_dispatch' && inputs.market || (github.event.schedule == '37 8 * * 1-5' && 'CN' || 'US') }}
+    steps:
+      - name: Require an existing authorized database credential
+        run: |
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo 'Missing existing account configuration'; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo 'No existing database credential; synchronization is not enabled'; exit 1; }
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: Update bounded source windows and prepared responses
+        run: node scripts/daily-sync.mjs --market "$MARKET" --remote

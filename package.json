@@ -24,7 +24,8 @@
     "deploy": "npm run build && wrangler pages deploy dist --project-name trendbeak --branch main --commit-dirty=true",
     "test:visual": "node scripts/dashboard-ui-check.mjs && node scripts/readout-stability-check.mjs && node scripts/reader-interactions-check.mjs && node scripts/legacy-sentiment-check.mjs && node scripts/chart-hover-check.mjs && node scripts/range-fit-check.mjs && node scripts/free-range-check.mjs && node scripts/signal-state-check.mjs && node scripts/snapshot-fallback-check.mjs && node scripts/logo-assets-check.mjs && node scripts/snapshot-search-check.mjs",
     "check": "tsc --noEmit",
-    "test": "npm run build && node --test --test-concurrency=4 tests/*.test.mjs"
+    "test": "npm run build && node --test --test-concurrency=4 tests/*.test.mjs",
+    "daily:sync": "node scripts/daily-sync.mjs"
   },
   "dependencies": {
     "@floating-ui/react": "0.27.19",

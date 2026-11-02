@@ -18,7 +18,7 @@ export function createMarketSnapshotStore(clock=Date.now){
   if(!db)throw Error('Market database unavailable');const key=snapshotKey(market,symbol),saved=memory.get(db)??new Map(),requests=pending.get(db)??new Map(),errors=failures.get(db)??new Map();memory.set(db,saved);pending.set(db,requests);failures.set(db,errors);const hit=saved.get(key);
   const remember=(value:Version|StoredView)=>{Object.freeze(value);if(saved.size>=32&&!saved.has(key))saved.delete(saved.keys().next().value!);saved.set(key,{value,at:clock()});errors.delete(key);return value;};
   const versionOnly=(v:Version)=>({key:v.key,updatedAt:v.updatedAt,etag:v.etag});
-  if(hit&&clock()>=hit.at&&clock()-hit.at<300000){if(matches(ifNone,hit.value.etag))return versionOnly(hit.value);if('payload'in hit.value)return hit.value;}
+  if(hit&&clock()>=hit.at&&Math.floor(clock()/300000)===Math.floor(hit.at/300000)){if(matches(ifNone,hit.value.etag))return versionOnly(hit.value);if('payload'in hit.value)return hit.value;}
   const failed=errors.get(key);if(failed&&failed.until>clock()){if(hit&&'payload'in hit.value)return matches(ifNone,hit.value.etag)?versionOnly(hit.value):hit.value;throw failed.error;}
   const once=<T>(id:string,fn:()=>Promise<T>):Promise<T>=>{if(requests.has(id))return requests.get(id)!;if(requests.size>=8)throw Error('Market read budget reached');const task=fn().finally(()=>requests.delete(id));requests.set(id,task);return task;};
   try{

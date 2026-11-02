@@ -43,3 +43,8 @@ test('API and health share daily completeness without replacing acquisition time
  assert.equal(missing.available,true);assert.equal(missing.asOf,'2026-10-29');assert.equal(missing.freshness.ageSeconds,0);assert.equal(missing.freshness.state,'stale');assert.equal(calls,0);
  }finally{fixture.sqlite.prepare("UPDATE market_snapshot SET payload=? WHERE key='US/^GSPC'").run(original);}
 });
+test('a new reader instance hits the shared location cache with zero DB reads; expiration reads only the durable snapshot',async()=>{
+ clock+=300001;edge.clear();const first=await request('/api/markets/CN');assert.equal(first.status,200);const tag=first.headers.get('ETag');await first.text();const before=fixture.stats.reads,writes=fixture.stats.writes,independent=(await import('../dist/_worker.js?shared-location-cache')).default;
+ const hit=await independent.request('https://trendbeak.com/api/markets/CN',{}, {SENTIMENT_DB:fixture.wrap()});assert.equal(hit.status,200);await hit.text();const notModified=await independent.request('https://trendbeak.com/api/markets/CN',{headers:{'If-None-Match':tag}},{SENTIMENT_DB:fixture.wrap()});assert.equal(notModified.status,304);assert.equal(await notModified.text(),'');assert.equal(fixture.stats.reads,before);
+ clock+=300001;const miss=await independent.request('https://trendbeak.com/api/markets/CN',{}, {SENTIMENT_DB:fixture.wrap()});assert.equal(miss.status,200);await miss.text();assert.equal(fixture.stats.reads,before+1);assert.equal(calls,0);assert.equal(fixture.stats.writes,writes);
+});

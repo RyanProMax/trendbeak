@@ -62,6 +62,8 @@ try {
         assert.ok(data.sentiment.observations.length <= 372);
         await measure('warm US unchanged: conditional 304', () => request('/api/markets/US', { headers: { 'If-None-Match': etag } }));
         await measure('warm US full view', () => request('/api/markets/US'));
+        const edgeReader=(await import('../dist/_worker.js?edge-budget')).default;
+        const shared=await measure('another instance, edge hit: no D1 or upstream',()=>edgeReader.request(origin+'/api/markets/US',{}, {SENTIMENT_DB:f.wrap()}));assert.equal(shared.d1Reads,0);
         await measure('warm SSR shell', () => request('/'));
         now += 300001;
         edge.clear();

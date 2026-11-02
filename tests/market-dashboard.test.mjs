@@ -2,13 +2,13 @@ import { versioned } from "./request-version.mjs";
 import assert from "node:assert/strict";
 import test, { before, after } from "node:test";
 import { createServer } from "vite";
-import {preparedDB} from "./market-fixture.mjs";
+import {fixtureNow,preparedDB} from "./market-fixture.mjs";
 import { JSDOM } from "jsdom";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 let vite, app, fixture;
-const realFetch = globalThis.fetch;
+const realFetch = globalThis.fetch, realNow=Date.now;
 const seen = [];
 const through = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 const dates = Array.from({ length: 400 }, (_, i) =>
@@ -17,6 +17,7 @@ const dates = Array.from({ length: 400 }, (_, i) =>
     .slice(0, 10),
 );
 before(async () => {
+  Date.now=()=>fixtureNow;
   globalThis.fetch = async (input) => {
     const url = new URL(input);
     seen.push(url);
@@ -91,6 +92,7 @@ before(async () => {
 });
 after(async () => {
   globalThis.fetch = realFetch;
+  Date.now=realNow;
   fixture?.close();
   await vite?.close();
 });
