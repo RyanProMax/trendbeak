@@ -23,11 +23,12 @@ jobs:
     timeout-minutes: 8
     env:
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       WRANGLER_SEND_METRICS: 'false'
       MARKET: ${{ github.event_name == 'workflow_dispatch' && inputs.market || (github.event.schedule == '37 8 * * 1-5' && 'CN' || 'US') }}
     steps:
       - name: Require an existing authorized database credential
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo 'Missing existing account configuration'; exit 1; }
           test -n "$CLOUDFLARE_API_TOKEN" || { echo 'No existing database credential; synchronization is not enabled'; exit 1; }
@@ -37,4 +38,6 @@ jobs:
           node-version: 22
       - run: npm install --no-audit --no-fund
       - name: Update bounded source windows and prepared responses
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: node scripts/daily-sync.mjs --market "$MARKET" --remote

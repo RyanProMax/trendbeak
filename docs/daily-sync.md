@@ -6,6 +6,8 @@
 
 工作流 `.github/workflows/daily-sync.yml` 已准备，当前尚未发布或启用。检查时仓库没有既有 Actions Secret/Variable；没有创建凭据，也没有复制本机交互式登录令牌。启用仍需要获准用于该现有D1的执行凭据、`CLOUDFLARE_ACCOUNT_ID`配置，以及明确设置 `DAILY_SYNC_ENABLED=true`。未配置时定时job跳过，不能称日更已自动运行。手工dispatch仅允许main，并在缺少凭据时明确失败。
 
+Cloudflare执行令牌仅注入凭据检查与实际同步两个步骤；checkout、Node设置及依赖安装步骤不继承该令牌。没有把令牌写入跨步骤环境或输出。
+
 现有Pages不提供Cron，需要独立执行环境；使用已有GitHub Actions的Node执行受控计算，保持HTTP Worker轻量，未增加Worker/队列/表或付费资源。
 
 ## 日程与互斥
