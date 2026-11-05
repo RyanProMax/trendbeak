@@ -115,7 +115,8 @@ test("dashboard SSR renders both markets and weekday cells within a 365-day wind
     [...document.querySelectorAll(".calendar-section")].reduce((sum,e)=>{for(let t=Date.parse(e.dataset.start);t<=Date.parse(e.dataset.end);t+=86400000){const d=new Date(t).getUTCDay();if(d!==0&&d!==6)sum++;}return sum;},0),
   );
   assert.equal(document.querySelectorAll(".radar-axis,.react-activity-calendar,.trend-chart").length,0);
-  assert.equal(document.querySelectorAll(".calendar-loading,.signals-loading").length,4);
+  assert.equal(document.querySelectorAll(".calendar-loading,.signals-skeleton").length,4);
+  assert.equal(document.querySelectorAll(".quote-skeleton[role=status]").length,2);
   const data = JSON.parse(
     document.querySelector("#trendbeak-data").textContent,
   );

@@ -8,6 +8,7 @@ import {
 } from "./market-types";
 import StockSearch from "./components/StockSearch";
 import MarketCard, { type ViewState } from "./components/MarketCard";
+import { CalendarSkeleton, SignalsSkeleton } from "./components/MarketSkeleton";
 import YearHeatmap, { HeatLegend } from "./components/YearHeatmap";
 import TechnicalRadar from "./components/TechnicalRadar";
 import MarketTrend from "./components/MarketTrend";
@@ -269,7 +270,7 @@ function Dashboard({ data }: { data: PageData }) {
               return <div className="calendar-row" data-calendar-market={market} key={market}>
                 <MarketCard state={markets[market]} date={selectedDate ?? undefined} reset={() => void load(BENCHMARKS[market])} retry={() => void load(markets[market].failedInstrument ?? markets[market].instrument)} />
                 {snapshot && mounted ? <YearHeatmap snapshot={snapshot} days={alignedDays[market]} selectedDate={selectedDate ?? snapshot.asOf} onSelectDate={selectDate} onHoverDate={setHoveredDate} showMonths={index === 0 || !markets.CN.snapshot} />
-                  : snapshot ? <div className="calendar-loading" aria-label="正在绘制每日涨跌"/> : markets[market].loading ? <div className="calendar-loading" aria-label="正在读取每日涨跌"/> : <p className="calendar-unavailable">—</p>}
+                  : snapshot || markets[market].loading ? <CalendarSkeleton /> : <p className="calendar-unavailable">—</p>}
               </div>;
             })}
           </div>
@@ -281,7 +282,7 @@ function Dashboard({ data }: { data: PageData }) {
           </div>
           <div className="analysis-grid">{(["CN", "US"] as Market[]).map((market) => {
             const snapshot = markets[market].snapshot;
-            if (!snapshot) return <section className={markets[market].loading?"signals-loading":"analysis-unavailable"} data-analysis-market={market} key={market} aria-label={`${market === "CN" ? "A 股" : "美股"}指标`}>{markets[market].loading?"正在读取市场信号…":"—"}</section>;
+            if (!snapshot) return markets[market].loading ? <SignalsSkeleton market={market} key={market} /> : <section className="analysis-unavailable" data-analysis-market={market} key={market} aria-label={`${market === "CN" ? "A 股" : "美股"}指标`}>—</section>;
             const date = selectedDate ?? snapshot.asOf;
             return <section className="market-analysis" data-analysis-market={market} key={market}>
               <div className="signals" data-date={date} aria-label={`${displayDate(date, true)}指标`}>

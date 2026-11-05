@@ -390,8 +390,42 @@ main { overflow-anchor: none; }
 .radar-observed-date { color:#899382; font-size:10px; line-height:1.5; white-space:nowrap; }
 
 /* Reserve the existing chart space while bounded data is expanded in the browser. */
-.calendar-loading{height:130px;min-width:0}.signals-loading{height:660px}
-@media(max-width:760px){.calendar-loading{height:114px}.signals-loading{height:660px}}
+/* The build-time shell and hydrated loading state share the same placeholders. */
+.skeleton { display: block; border-radius: 4px; background: #e9eee8; animation: skeleton-pulse 1.8s ease-in-out infinite; }
+@keyframes skeleton-pulse { 50% { opacity: .45; } }
+.quote-skeleton { display: grid; gap: 9px; padding-top: 12px; width: 100%; }
+.skeleton-price { width: 110px; max-width: 85%; height: 25px; }
+.skeleton-change { width: 58px; height: 12px; }
+.skeleton-date { width: 88px; max-width: 80%; height: 10px; margin-top: 2px; }
+.calendar-loading { min-width: 0; padding: 0 3px 0 31px; }
+.skeleton-calendar-months { display: flex; justify-content: space-between; margin-bottom: 13px; }
+.skeleton-calendar-months i { width: 28px; height: 9px; }
+.skeleton-calendar-grid { --skeleton-weeks: 53; display: grid; gap: 3px; }
+.skeleton-calendar-grid i { width: 100%; aspect-ratio: var(--skeleton-weeks); border-radius: 1px; background: repeating-linear-gradient(to right,#e9eee8 0,#e9eee8 calc(100% / var(--skeleton-weeks) - 3px),transparent calc(100% / var(--skeleton-weeks) - 3px),transparent calc(100% / var(--skeleton-weeks))); }
+.skeleton-trend { min-width: 0; padding-top: 6px; }
+.skeleton-chart-labels { display: flex; justify-content: space-between; padding: 0 4px; }
+.skeleton-chart-labels i { width: 54px; height: 10px; }
+.skeleton-chart { height: 225px; margin: 12px 4px; border-bottom: 1px solid #e9eee8; background: repeating-linear-gradient(to top,transparent 0,transparent 55px,#eff2ed 55px,#eff2ed 56px); display: grid; place-items: center; }
+.skeleton-chart-placeholder { width: 72%; height: 70px; opacity: .55; }
+.technical-signals.skeleton-technical { display: block; margin-top: 24px; }
+.skeleton-radar { position: relative; height: 366px; display: grid; place-items: center; }
+.skeleton-diamond { width: min(40%,160px); aspect-ratio: 1; transform: rotate(45deg); border-radius: 8px; opacity: .55; }
+.skeleton-radar-label { position: absolute; display: grid; justify-items: center; gap: 9px; width: 70px; }
+.skeleton-radar-label i { width: 52px; height: 10px; }
+.skeleton-radar-label i + i { width: 36px; height: 16px; }
+.skeleton-radar-label-0 { top: 18px; left: calc(50% - 35px); }
+.skeleton-radar-label-1 { right: 0; top: 160px; }
+.skeleton-radar-label-2 { bottom: 18px; left: calc(50% - 35px); }
+.skeleton-radar-label-3 { left: 0; top: 160px; }
+.signals-loading { height: 660px; }
+@media(max-width:760px) {
+  .quote-skeleton { grid-template-columns: 110px 58px; align-items: center; gap: 10px 14px; padding-top: 9px; }
+  .skeleton-price { max-width: 100%; }
+  .skeleton-date { grid-column: 1 / -1; }
+  .skeleton-calendar-grid { --skeleton-weeks: 14; gap: 3px; }
+  .skeleton-calendar-months i:nth-child(n+4) { display: none; }
+}
+@media(prefers-reduced-motion:reduce) { .skeleton { animation: none; } }
 
 .quote-refresh { display: inline-flex; align-items: center; padding: 0 4px; color: #839175; background: transparent; }
 

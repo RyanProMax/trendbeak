@@ -1,6 +1,7 @@
 import { ArrowLeft, RotateCw } from "lucide-react";
 import type { Instrument, MarketState } from "../market-types";
 import { number, tone, displayDate } from "../lib/market-format";
+import { QuoteSkeleton } from "./MarketSkeleton";
 
 export type ViewState = MarketState & {
   loading?: boolean;
@@ -29,7 +30,7 @@ export default function MarketCard({ state, date, reset, retry }: {
         </div>
         <div className="quote-session"><time dateTime={quoteDate}>{displayDate(quoteDate!)}</time><span> · {session}</span><button className="quote-refresh" onClick={retry} aria-label={`刷新${marketName}行情`}><RotateCw size={13} /></button></div>
         {error && failedInstrument && failedInstrument.symbol !== instrument.symbol && <div className="market-refresh-error" role="status">{`${error==="该股票的历史数据尚未收录"?"尚未收录":"暂未载入"}${failedInstrument.name}，仍显示${instrument.name}`}</div>}
-      </> : <div className="market-empty" role="status"><span>{loading ? "正在读取行情…" : "—"}</span>{!loading && <button onClick={retry}><RotateCw size={14} />重试</button>}</div>}
+      </> : loading ? <QuoteSkeleton /> : <div className="market-empty" role="status"><span>—</span><button onClick={retry}><RotateCw size={14} />重试</button></div>}
     </div>
   </section>;
 }
