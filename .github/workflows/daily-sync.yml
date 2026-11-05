@@ -46,4 +46,8 @@ jobs:
       - name: Update bounded source windows and prepared responses
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: node scripts/daily-sync.mjs --market "$MARKET" --remote
+        run: |
+          if [ "$SYNC_EVENT" = 'workflow_dispatch' ]; then
+            node scripts/verify-daily-connection.mjs
+          fi
+          node scripts/daily-sync.mjs --market "$MARKET" --remote
