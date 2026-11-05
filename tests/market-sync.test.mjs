@@ -41,6 +41,18 @@ test('unchanged, appended, live-finalized and revised days reuse the correct che
 });
 test('ambiguous price basis, split, stale source, deleted overlap and absent checkpoint preserve old state without auto full fallback', () => { const bars = initial.bars, prior = JSON.stringify(prepared.payload); const changed = bars.slice(-10).map(b => ({ ...b, open: b.open / 2, high: b.high / 2, low: b.low / 2, close: b.close / 2 })); assert.throws(() => job.prepareMarketState(quote(changed), 'sync', prepared.payload, now), job.RebuildRequired); assert.throws(() => job.prepareMarketState(quote(bars.slice(-10)), 'sync', prepared.payload, now, true), job.RebuildRequired); assert.throws(() => job.prepareMarketState(quote(bars.slice(-12, -2)), 'sync', prepared.payload, now), /older/); assert.throws(() => job.prepareMarketState(quote(bars.slice(-10).filter((_, i) => i !== 5)), 'sync', prepared.payload, now), job.RebuildRequired); assert.throws(() => job.prepareMarketState(quote(bars.slice(-10)), 'sync', undefined, now), job.RebuildRequired); assert.throws(() => job.prepareMarketState(quote(bars.slice(-33)), 'sync', prepared.payload, now), /32-bar/); assert.equal(JSON.stringify(prepared.payload), prior); assert.throws(() => job.prepareMarketState(quote(bars.slice(0, -1)), 'rebuild', prepared.payload, now), /older/); });
 test('bounded source windows never silently fall through to full history', () => { assert.match(job.syncURL('CN', '000300.SS', 'sync', '2026-10-30', now).searchParams.get('param'), /,,,10,qfq$/); assert.equal(job.syncURL('US', 'NVDA', 'sync', '2026-10-30', now).searchParams.get('range'), '5d'); assert.equal(job.syncURL('US', 'NVDA', 'sync', '2026-10-15', now).searchParams.get('range'), '1mo'); assert.throws(() => job.syncURL('US', 'NVDA', 'sync', '2026-08-01', now), job.RebuildRequired); assert.equal(job.syncURL('US', 'NVDA', 'rebuild', undefined, now).searchParams.get('range'), '2y'); });
+test('a six-day interruption selects enough overlap before fetching, without weakening price-basis checks', () => {
+    const later = Date.parse('2026-11-05T16:00:00Z');
+    assert.equal(job.syncURL('US', '^GSPC', 'sync', '2026-10-30', later).searchParams.get('range'), '1mo');
+    assert.equal(job.syncURL('US', '^GSPC', 'sync', '2026-11-03', later).searchParams.get('range'), '5d');
+    const additions = ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05'].map(date => ({...initial.bars.at(-1), date}));
+    const input = bars => quote(bars, {fetchedAt: new Date(later).toISOString()});
+    assert.throws(() => job.prepareMarketState(input([...initial.bars.slice(-1), ...additions]), 'sync', prepared.payload, later), job.RebuildRequired);
+    const repaired = job.prepareMarketState(input([...initial.bars.slice(-17), ...additions]), 'sync', prepared.payload, later);
+    assert.equal(repaired.payload.view.asOf, '2026-11-05');
+    assert.equal(repaired.processed, 4);
+    assert.deepEqual(repaired.payload.calculation.bars.slice(0, initial.bars.length), initial.bars);
+});
 test('CAS writer makes initialization idempotent and concurrent updates cannot overwrite one another', async () => { const f = memoryDB(); try {
     const timestamp = await job.writeMarketState(f.db, prepared, undefined, now);
     await assert.rejects(job.writeMarketState(f.db, prepared, undefined, now), /concurrently/);

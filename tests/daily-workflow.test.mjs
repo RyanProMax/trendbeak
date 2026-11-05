@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
+import {spawnSync} from 'node:child_process';
 
 const workflow=readFileSync('.github/workflows/daily-sync.yml','utf8');
 // This audit intentionally supports only this workflow's flat, explicit steps.
@@ -9,6 +10,18 @@ const marker='\n    steps:\n',start=workflow.indexOf(marker);
 const steps=workflow.slice(start+marker.length).trimEnd().split(/\n(?= {6}- )/);
 const secret='${{ secrets.CLOUDFLARE_API_TOKEN }}';
 const credentialSteps=new Set(['Require an existing authorized database credential','Update bounded source windows and prepared responses']);
+
+test('disabled or unconfigured schedules fail visibly before any database writer can run',()=>{
+ assert.match(workflow,/    if: github.ref == 'refs\/heads\/main'\n/);
+ const guard=steps[0].split('        run: |\n')[1].split('\n').map(line=>line.replace(/^          /,'')).join('\n');
+ for(const overrides of [{DAILY_SYNC_ENABLED:''},{CLOUDFLARE_ACCOUNT_ID:''},{CLOUDFLARE_API_TOKEN:''}]){
+  const result=spawnSync('/bin/sh',['-c',guard],{encoding:'utf8',env:{SYNC_EVENT:'schedule',DAILY_SYNC_ENABLED:'true',CLOUDFLARE_ACCOUNT_ID:'existing-account',CLOUDFLARE_API_TOKEN:'test-only-placeholder',...overrides}});
+  assert.equal(result.status,1);
+  assert.doesNotMatch(result.stdout,/test-only-placeholder/);
+ }
+ const result=spawnSync('/bin/sh',['-c',guard],{encoding:'utf8',env:{SYNC_EVENT:'schedule',DAILY_SYNC_ENABLED:'true',CLOUDFLARE_ACCOUNT_ID:'existing-account',CLOUDFLARE_API_TOKEN:'test-only-placeholder'}});
+ assert.equal(result.status,0);
+});
 
 test('Cloudflare credential is scoped to the two writer-related steps and never inherited from workflow/job env',()=>{
  assert.ok(start>0);

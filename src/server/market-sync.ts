@@ -25,7 +25,10 @@ export function syncURL(market: Market, symbol: string, mode: 'init' | 'sync' | 
         return url;
     }
     const url = new URL(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`);
-    url.search = new URLSearchParams({ range: mode === 'sync' ? (days > 7 ? '1mo' : '5d') : '2y', interval: '1d' }).toString();
+    // Five sessions must include the prior last bar AND two completed anchors.
+    // After more than two calendar days, choose the verified bounded month up
+    // front; do not discover missing overlap and retry with a full rebuild.
+    url.search = new URLSearchParams({ range: mode === 'sync' ? (days > 2 ? '1mo' : '5d') : '2y', interval: '1d' }).toString();
     return url;
 }
 export function materialize(quote: MarketSnapshot, state: HistoryState): MarketSnapshot {
