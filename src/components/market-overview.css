@@ -32,3 +32,11 @@
 .valuation-track i { display:block; height:100%; background:#9eaf91; border-radius:2px; }
 .index-valuations footer { margin-top:10px; }
 @media(max-width:760px){.six-factor-readings{column-gap:16px}.six-factor-trigger{font-size:11px}.overview-detail dl{column-gap:12px}.index-valuations th,.index-valuations td{padding:12px 6px}.valuation-name-column{width:40%}}
+
+.six-factor-trigger .six-factor-numbers { display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-width:72px; }
+.six-factor-numbers small { font-size:11px; color:#8c958b; font-variant-numeric:tabular-nums; }
+.china-sentiment .six-factor-trigger { justify-content:flex-start; gap:8px; min-height:58px; }
+.six-factor-trigger>span { flex:0 1 116px; }
+.overview-detail>p { margin:8px 0; color:#7c8976; }
+.index-valuations { margin-top:32px; }
+@media(max-width:760px){.china-sentiment .six-factor-trigger{align-items:flex-start;flex-direction:column;gap:4px;min-height:88px}.six-factor-trigger>span{flex:none}.china-sentiment .six-factor-trigger b{font-size:14px}.six-factor-numbers small{font-size:10px}}

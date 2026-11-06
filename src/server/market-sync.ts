@@ -1,3 +1,4 @@
+import {assertPublishableOverview} from './china-overview';
 // Controlled jobs only. Never imported by an HTTP reader.
 import type { Market, MarketSnapshot, DailyBar, TechnicalValues } from "../market-types";
 import { updateHistory, type HistoryState } from "../lib/history-engine";
@@ -6,6 +7,7 @@ import { validCompactSnapshot, validSnapshot } from "../lib/snapshot-record";
 import { snapshotKey } from "./market-snapshot-store";
 export const TECHNICAL_SOURCE = 'trendbeak_technical_v1';
 export interface MarketState {
+    overviewState?: import('./china-overview').ChinaOverviewCheckpoint;
     http?:{body:string};
     calculation: Omit<HistoryState, 'processed'>;
     view: MarketSnapshot;
@@ -25,9 +27,6 @@ export function syncURL(market: Market, symbol: string, mode: 'init' | 'sync' | 
         return url;
     }
     const url = new URL(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`);
-    // Five sessions must include the prior last bar AND two completed anchors.
-    // After more than two calendar days, choose the verified bounded month up
-    // front; do not discover missing overlap and retry with a full rebuild.
     url.search = new URLSearchParams({ range: mode === 'sync' ? (days > 2 ? '1mo' : '5d') : '2y', interval: '1d' }).toString();
     return url;
 }
@@ -74,10 +73,13 @@ export function prepareMarketState(quote: MarketSnapshot, mode: 'init' | 'sync' 
             throw new RebuildRequired('Checkpoint reached 800 bars; run a controlled rebuild instead of daily truncation');
         old = { ...prior, processed: 0 };
     }
-    const calculated = updateHistory(bars, quote.session === 'trading', old), view = materialize(quote, calculated);
+    const overview=quote.chinaOverview??previous?.view.chinaOverview;
+    if(overview)assertPublishableOverview(overview,marketDate(now,market));
+    if(overview&&(market!=='CN'||symbol!=='000300.SS'))throw Error('China market overview belongs only to the China benchmark');
+    const calculated = updateHistory(bars, quote.session === 'trading', old), view = {...materialize(quote, calculated),...(overview?{chinaOverview:overview}:{})};
     if (!validSnapshot(view, market, symbol, now))
         throw Error('Invalid materialized view');
-    const { processed, ...calculation } = calculated, payload = { calculation, view };
+    const { processed, ...calculation } = calculated, payload:MarketState = { calculation, view, ...(previous?.overviewState?{overviewState:previous.overviewState}:{}) };
     const text = JSON.stringify(payload), bytes = new TextEncoder().encode(text).length;
     if (bytes > 1800000)
         throw Error('Market snapshot exceeds storage budget');

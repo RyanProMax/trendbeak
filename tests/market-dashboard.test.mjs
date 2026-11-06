@@ -99,24 +99,24 @@ after(async () => {
 const request = (path) =>
   app.request(`https://example.test${path}`,{}, {SENTIMENT_DB:fixture.db});
 
-test("dashboard SSR renders both markets and weekday cells within a 365-day window without D1", async () => {
+test("dashboard SSR renders the selected market shell and keeps both market readers without D1", async () => {
   const response = await request("/");
   assert.equal(response.status, 200);
   const document = new JSDOM(await response.text()).window.document;
-  assert.equal(document.querySelectorAll(".market-card").length, 2);
+  assert.equal(document.querySelectorAll(".market-card").length, 1);
   assert.deepEqual(
     [...document.querySelectorAll(".market-card")].map(
       (el) => el.dataset.market,
     ),
-    ["CN", "US"],
+    ["CN"],
   );
   assert.equal(
     document.querySelectorAll(".calendar-section rect[data-date]").length,
     [...document.querySelectorAll(".calendar-section")].reduce((sum,e)=>{for(let t=Date.parse(e.dataset.start);t<=Date.parse(e.dataset.end);t+=86400000){const d=new Date(t).getUTCDay();if(d!==0&&d!==6)sum++;}return sum;},0),
   );
   assert.equal(document.querySelectorAll(".radar-axis,.react-activity-calendar,.trend-chart").length,0);
-  assert.equal(document.querySelectorAll(".calendar-loading,.signals-skeleton").length,4);
-  assert.equal(document.querySelectorAll(".quote-skeleton[role=status]").length,2);
+  assert.equal(document.querySelectorAll(".calendar-loading,.signals-skeleton").length,2);
+  assert.equal(document.querySelectorAll(".quote-skeleton[role=status]").length,1);
   const data = JSON.parse(
     document.querySelector("#trendbeak-data").textContent,
   );
@@ -178,10 +178,8 @@ test("market names and hydration data cannot escape HTML, including partial outa
   assert.doesNotMatch(html, /<img src=x|<script>globalThis.marketXss/);
   const document = new JSDOM(html).window.document;
   assert.equal(document.querySelectorAll(".signals").length, 1);
-  assert.equal(
-    document.querySelector("[data-market=US] .market-empty").textContent,
-    "—重试",
-  );
+  assert.equal(document.querySelector('[aria-label="切换市场"]').getAttribute('max'),'1');
+  assert.equal(JSON.parse(document.querySelector('#trendbeak-data').textContent).markets.US.error,'行情暂不可用');
   assert.equal(
     JSON.parse(document.querySelector("#trendbeak-data").textContent).markets
       .CN.instrument.name,
@@ -194,7 +192,7 @@ test("both unavailable markets retain compact quote retry controls inside the ca
   const { BENCHMARKS } = await vite.ssrLoadModule("/src/market-types.ts");
   const data = { requestUrl: "https://example.test/", markets: Object.fromEntries(["CN","US"].map(market => [market, { instrument: BENCHMARKS[market], snapshot: null, error: "行情暂不可用", retryable: true }])) };
   const document = new JSDOM(renderToStaticMarkup(React.createElement(Document, { data }))).window.document;
-  assert.equal(document.querySelectorAll(".calendar-row > .market-card .market-empty button").length, 2);
+  assert.equal(document.querySelectorAll(".calendar-row > .market-card .market-empty button").length, 1);
   assert.equal(document.querySelectorAll(".market-grid").length, 0);
   assert.equal(document.querySelectorAll(".calendar-heading button").length, 0);
   assert.doesNotMatch(document.body.textContent, /Invalid Date|日期未知/);

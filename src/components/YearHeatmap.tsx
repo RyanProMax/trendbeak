@@ -16,6 +16,7 @@ const COLORS = [
   "#cc8e7f",
   "#b96e63",
 ];
+const DARK_COLORS = ["#79b699", "#548b70", "#3a6551", "#293f32", "#26302b", "#4a342c", "#74503f", "#a56d57", "#d3977e"];
 function level(change: number | null) {
   if (change === null || change === 0) return 0;
   return (
@@ -42,6 +43,7 @@ function YearHeatmap({
   selectedDate,
   days,
   showMonths = true,
+  colorScheme = "light",
   onSelectDate,
   onHoverDate,
 }: {
@@ -49,6 +51,7 @@ function YearHeatmap({
   selectedDate: string;
   days: CalendarDay[];
   showMonths?: boolean;
+  colorScheme?: "light" | "dark";
   onSelectDate: (date: string) => void;
   onHoverDate?: (date: string | null) => void;
 }) {
@@ -117,8 +120,8 @@ function YearHeatmap({
               data={data.slice(layout.firstIndex,layout.lastIndex+1)}
               minLevel={-4}
               maxLevel={4}
-              theme={{ light: COLORS }}
-              colorScheme="light"
+              theme={{ light: COLORS, dark: DARK_COLORS }}
+              colorScheme={colorScheme}
               blockSize={CALENDAR_CELL}
               blockMargin={CALENDAR_GAP}
               blockRadius={2.5}
@@ -157,16 +160,16 @@ function YearHeatmap({
                   "aria-disabled": closed || undefined,
                   "aria-describedby": hoverDate === day.date ? closedTooltipId : undefined,
                   "aria-pressed": !closed && day.date === selectedDate,
-                  fill: missing ? "#fff" : block.props.fill,
+                  fill: missing ? "var(--calendar-missing, #fff)" : block.props.fill,
                   ...{"data-date": day.date},
                   style: {
                     ...block.props.style,
                     outline: "none",
                     stroke:
                       day.date === selectedDate
-                        ? "#fff"
+                        ? "var(--calendar-selected, #fff)"
                         : missing
-                          ? "#c3cbbb"
+                          ? "var(--calendar-missing-stroke, #c3cbbb)"
                           : "transparent",
                     strokeWidth: day.date === selectedDate ? 2 : 1,
                   },
@@ -222,9 +225,9 @@ function YearHeatmap({
 
 export default memo(YearHeatmap);
 
-export function HeatLegend() {
+export function HeatLegend({colorScheme="light"}:{colorScheme?:"light"|"dark"}={}) {
   return <div className="heat-legend" aria-label="绿跌红涨；颜色越深幅度越大">
-    <span className="heat-change-key"><span className="down">−3%</span><span className="swatches">{COLORS.map((color) => <i key={color} style={{ background: color }} />)}</span><span className="up">+3%</span></span>
+    <span className="heat-change-key"><span className="down">−3%</span><span className="swatches">{(colorScheme==='dark'?DARK_COLORS:COLORS).map((color) => <i key={color} style={{ background: color }} />)}</span><span className="up">+3%</span></span>
     <span className="legend-missing"><span><i />休市</span><span><i className="missing-swatch" />无交易数据</span></span>
   </div>;
 }

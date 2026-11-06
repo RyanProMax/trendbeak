@@ -1,3 +1,4 @@
+import type {ChinaOverview} from './lib/china-overview';
 export type Market = "CN" | "US";
 export type TrendRange = number;
 
@@ -86,6 +87,7 @@ export interface CalendarDay {
 }
 
 export interface MarketSnapshot {
+  chinaOverview?: ChinaOverview;
   /** Compact transport: expanded only in the browser or a controlled offline rebuild. */
   bars?: DailyBar[];
   technicalSource?: "trendbeak_technical_v1";

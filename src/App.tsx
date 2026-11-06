@@ -11,6 +11,9 @@ import MarketCard, { type ViewState } from "./components/MarketCard";
 import { CalendarSkeleton, SignalsSkeleton } from "./components/MarketSkeleton";
 import YearHeatmap, { HeatLegend } from "./components/YearHeatmap";
 import TechnicalRadar from "./components/TechnicalRadar";
+import ChinaSentimentRadar from "./components/ChinaSentimentRadar";
+import IndexValuations from "./components/IndexValuations";
+import {chinaReadings,OVERVIEW_SOURCES} from "./lib/china-overview";
 import MarketTrend from "./components/MarketTrend";
 import TrendRangeControl from "./components/TrendRange";
 import { clampWindow, historyBounds, latestWindow, windowDays, persistTrendWindow, restoreTrendWindow, type TrendWindow } from "./lib/trend-window";
@@ -32,38 +35,49 @@ function Dashboard({ data }: { data: PageData }) {
   const current = useRef(markets);
   current.current = markets;
   const [benchmarks, setBenchmarks] = useState<Record<Market, MarketSnapshot | null>>({ CN: data.markets.CN.snapshot, US: data.markets.US.snapshot });
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [userWindow,setUserWindow] = useState<TrendWindow|null>(null);
+  const [activeMarket,setActiveMarket]=useState<Market>('CN');
+  const [selectedDates,setSelectedDates]=useState<Record<Market,string|null>>({CN:null,US:null});
+  const selectedDate=selectedDates[activeMarket];
+  const setSelectedDate=(value:string|null)=>setSelectedDates(old=>({...old,[activeMarket]:value}));
+  const [userWindows,setUserWindows]=useState<Record<Market,TrendWindow|null>>({CN:null,US:null});
+  const userWindow=userWindows[activeMarket];
+  const setUserWindow=(value:TrendWindow)=>setUserWindows(old=>({...old,[activeMarket]:value}));
+  const [scheme,setScheme]=useState<'light'|'dark'>('light');
+  useEffect(()=>{const q=matchMedia('(prefers-color-scheme:dark)'),update=()=>setScheme(q.matches?'dark':'light');update();q.addEventListener('change',update);return()=>q.removeEventListener('change',update);},[]);
   const [navigating,setNavigating] = useState(false);
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [visibleSeries, setVisibleSeries] = useState({ mood: true, index: true });
   const [defaultDays,setDefaultDays] = useState(365);
   const [rangeReady,setRangeReady] = useState(false);
-  const bounds = useMemo(()=>historyBounds(Object.values(benchmarks)),[benchmarks]);
+  const boundsByMarket=useMemo(()=>({CN:historyBounds([benchmarks.CN]),US:historyBounds([benchmarks.US])}),[benchmarks]);
+  const bounds=boundsByMarket[activeMarket];
+  const visibleBenchmarks=useMemo(()=>({CN:activeMarket==='CN'?benchmarks.CN:null,US:activeMarket==='US'?benchmarks.US:null}),[activeMarket,benchmarks]);
   const scrollAnchor=useRef<number|null>(null);
   useLayoutEffect(()=>{
     const expanded=Object.fromEntries((["CN","US"] as Market[]).map(m=>[m,{...data.markets[m],snapshot:data.markets[m].snapshot?expandSnapshot(data.markets[m].snapshot!):null,loading:!data.markets[m].snapshot&&!data.markets[m].error}])) as Record<Market,ViewState>;
     setMarkets(expanded);setBenchmarks({CN:expanded.CN.snapshot,US:expanded.US.snapshot});setMounted(true);
     setDefaultDays(window.matchMedia("(max-width: 760px)").matches?90:365);
-    try { const saved=restoreTrendWindow(window.sessionStorage,bounds);if(saved)setUserWindow(previous=>previous??saved); } catch { /* Optional storage. */ }
+
     setRangeReady(true);
   },[]);
-  const calendarEnd = Object.values(markets).flatMap(({snapshot})=>snapshot?[snapshot.asOf]:[]).sort().at(-1);
+  const calendarEnd = markets[activeMarket].snapshot?.asOf;
   const trendWindow = bounds?clampWindow(userWindow??latestWindow(bounds,defaultDays),bounds):null;
   const chooseWindow=useCallback((next:TrendWindow)=>{
     if(!bounds)return;const normalized=clampWindow(next,bounds),track=document.querySelector(".navigator-track")?.getBoundingClientRect();
     scrollAnchor.current=track&&window.scrollY>0&&track.bottom>0&&track.top<window.innerHeight&&(normalized.start!==trendWindow?.start||normalized.end!==trendWindow?.end)?track.top:null;
     setUserWindow(normalized);
-    try { persistTrendWindow(window.sessionStorage,normalized,bounds); } catch { /* Optional storage. */ }
-  },[bounds?.start,bounds?.end,trendWindow?.start,trendWindow?.end]);
+    try { persistTrendWindow(window.sessionStorage,normalized,bounds,activeMarket); } catch { /* Optional storage. */ }
+  },[activeMarket,bounds?.start,bounds?.end,trendWindow?.start,trendWindow?.end]);
   useLayoutEffect(()=>{
     if(scrollAnchor.current!==null){const top=document.querySelector(".navigator-track")?.getBoundingClientRect().top;if(top!==undefined)window.scrollBy(0,top-scrollAnchor.current);scrollAnchor.current=null;}
   },[trendWindow?.start,trendWindow?.end]);
   useEffect(()=>{
     if(!rangeReady||!userWindow||!bounds)return;const normalized=clampWindow(userWindow,bounds);
     if(normalized.start!==userWindow.start||normalized.end!==userWindow.end)setUserWindow(normalized);
-    try{persistTrendWindow(window.sessionStorage,normalized,bounds);}catch{/* Optional storage. */}
+    try{persistTrendWindow(window.sessionStorage,normalized,bounds,activeMarket);}catch{/* Optional storage. */}
   },[rangeReady,userWindow,bounds?.start,bounds?.end]);
+  const restoredMarkets=useRef(new Set<Market>());
+  useEffect(()=>{if(!rangeReady||!bounds||restoredMarkets.current.has(activeMarket))return;restoredMarkets.current.add(activeMarket);try{const saved=restoreTrendWindow(window.sessionStorage,bounds,activeMarket);if(saved)setUserWindows(old=>({...old,[activeMarket]:old[activeMarket]??saved}));}catch{/* Optional storage. */}},[rangeReady,activeMarket,bounds?.start,bounds?.end]);
   const windowEnd = trendWindow?.end??calendarEnd;
   const range = trendWindow?windowDays(trendWindow):defaultDays;
   const alignedDays = useMemo(()=>Object.fromEntries((["CN","US"] as Market[]).map(market=>[market,
@@ -73,15 +87,15 @@ function Dashboard({ data }: { data: PageData }) {
     document.querySelectorAll("[data-trend-hover]").forEach((cell) => cell.removeAttribute("data-trend-hover"));
     if (hoveredDate) document.querySelectorAll(`.calendar-section rect[data-date="${hoveredDate}"]`).forEach((cell) => cell.setAttribute("data-trend-hover", "true"));
   }, [hoveredDate, alignedDays]);
-  const selectable = useCallback((date:string)=>(["CN","US"] as Market[]).some(market=>{
+  const selectable = useCallback((date:string)=>[activeMarket].some(market=>{
     const snapshot=markets[market].snapshot;if(!snapshot||isExchangeClosed(date,market))return false;
     // Selection inspects exact dates; it never changes the shared date window.
     return alignedDays[market].some(day=>day.date===date&&day.status!=="closed") || !!bounds && date>=bounds.start && date<=bounds.end && !!snapshot.history[date];
-  }),[bounds,markets,alignedDays]);
+  }),[activeMarket,bounds,markets,alignedDays]);
   const selectDate = useCallback((date: string) => {
     if (selectable(date)) setSelectedDate(date);
   }, [selectable]);
-  const globalDate = selectedDate ?? Object.values(markets).flatMap(({ snapshot }) => snapshot ? [snapshot.asOf] : []).sort().at(-1) ?? calendarEnd;
+  const globalDate = selectedDate ?? calendarEnd;
   const controllers = useRef<Partial<Record<Market, AbortController>>>({});
   const requestedSymbols = useRef<Partial<Record<Market,string>>>({});
   const benchmarkRequests = useRef<Partial<Record<Market,Promise<void>>>>({});
@@ -184,6 +198,17 @@ function Dashboard({ data }: { data: PageData }) {
       if(controllers.current[market] === controller) { delete controllers.current[market]; delete requestedSymbols.current[market]; }
     }
   };
+  const changeMarket=(market:Market,record=true)=>{
+    setActiveMarket(market);setHoveredDate(null);setNavigating(false);
+    if(record){const url=new URL(location.href);url.searchParams.set('market',market);const instrument=current.current[market].instrument;if(instrument.kind==='stock')url.searchParams.set('symbol',instrument.symbol);else url.searchParams.delete('symbol');history.pushState(null,'',url);}
+  };
+  const visit=async(instrument:Instrument,record=true)=>{
+    changeMarket(instrument.market,false);const ok=await load(instrument,true);
+    if(record){const url=new URL(location.href);url.searchParams.set('market',instrument.market);if(ok&&instrument.kind==='stock')url.searchParams.set('symbol',instrument.symbol);else url.searchParams.delete('symbol');history.pushState(null,'',url);}return ok;
+  };
+  const navigation=useRef({changeMarket,visit});navigation.current={changeMarket,visit};
+  useEffect(()=>{const restore=(navigateSymbol=true)=>{const url=new URL(location.href),market=url.searchParams.get('market')==='US'?'US':'CN',symbol=url.searchParams.get('symbol');navigation.current.changeMarket(market,false);const old=current.current[market].instrument;if(!navigateSymbol)return;if(!symbol&&old.kind==='stock')void navigation.current.visit(BENCHMARKS[market],false);else if(symbol&&symbol!==old.symbol&&/^[A-Z^][A-Z0-9.^-]{0,23}$|^\d{6}\.(SS|SZ)$/.test(symbol))void navigation.current.visit({...BENCHMARKS[market],symbol,code:symbol,name:symbol,kind:'stock'},false);};restore(false);const pop=()=>restore();window.addEventListener('popstate',pop);return()=>window.removeEventListener('popstate',pop);},[]);
+  const deepLinkHandled=useRef(false);useEffect(()=>{if(deepLinkHandled.current||!markets[activeMarket].snapshot)return;deepLinkHandled.current=true;const symbol=new URL(location.href).searchParams.get('symbol');if(symbol&&symbol!==markets[activeMarket].instrument.symbol&&/^[A-Z^][A-Z0-9.^-]{0,23}$|^\d{6}\.(SS|SZ)$/.test(symbol))void navigation.current.visit({...BENCHMARKS[activeMarket],symbol,code:symbol,name:symbol,kind:'stock'},false);},[activeMarket,markets[activeMarket].snapshot]);
   useEffect(() => {
     const store = browserStorage();
     for(const market of ["CN", "US"] as Market[]) {
@@ -252,12 +277,13 @@ function Dashboard({ data }: { data: PageData }) {
       <header className="topbar">
         <div className="topbar-inner">
           <a className="brand" href="/" aria-label="trendbeak 首页">
-            <img className="brand-wordmark" src="/trendbeak-wordmark.svg?v=11" alt="trendbeak" width="480" height="120" />
+            <picture><source media="(prefers-color-scheme: dark)" srcSet="/trendbeak-wordmark-dark.svg?v=11"/><img className="brand-wordmark" src="/trendbeak-wordmark.svg?v=11" alt="trendbeak" width="480" height="120" /></picture>
           </a>
-          <StockSearch onSelect={(instrument) => load(instrument, true)} />
+          <div className="market-switch"><span aria-hidden="true">CN</span><span aria-hidden="true">US</span><input type="range" min="0" max="1" step="1" value={activeMarket==='CN'?0:1} aria-label="切换市场" aria-valuetext={activeMarket==='CN'?'A股':'美股'} onChange={e=>changeMarket(e.currentTarget.value==='0'?'CN':'US')}/></div>
+          <StockSearch onSelect={(instrument) => visit(instrument)} />
         </div>
       </header>
-      <main id="main-content" data-range-ready={rangeReady}>
+      <main id="main-content" data-range-ready={rangeReady} data-market={activeMarket} data-selected-date={globalDate}>
         <h1 className="sr-only">每日市场信号</h1>
         <section className="annual-calendar" aria-labelledby="calendar-title">
           <div className="calendar-heading">
@@ -265,34 +291,37 @@ function Dashboard({ data }: { data: PageData }) {
             {globalDate ? <time className="global-selected-date" dateTime={globalDate} aria-live="polite">{displayDate(globalDate, true)}</time> : <span className="global-selected-date">—</span>}
           </div>
           <div className="calendar-rows">
-            {(["CN", "US"] as Market[]).map((market, index) => {
+            {[activeMarket].map((market) => {
               const snapshot = markets[market].snapshot;
               return <div className="calendar-row" data-calendar-market={market} key={market}>
-                <MarketCard state={markets[market]} date={selectedDate ?? undefined} reset={() => void load(BENCHMARKS[market])} retry={() => void load(markets[market].failedInstrument ?? markets[market].instrument)} />
-                {snapshot && mounted ? <YearHeatmap snapshot={snapshot} days={alignedDays[market]} selectedDate={selectedDate ?? snapshot.asOf} onSelectDate={selectDate} onHoverDate={setHoveredDate} showMonths={index === 0 || !markets.CN.snapshot} />
+                <MarketCard state={markets[market]} date={selectedDate ?? undefined} reset={() => void visit(BENCHMARKS[market])} retry={() => void load(markets[market].failedInstrument ?? markets[market].instrument)} />
+                {snapshot && mounted ? <YearHeatmap key={market} colorScheme={scheme} snapshot={snapshot} days={alignedDays[market]} selectedDate={selectedDate ?? snapshot.asOf} onSelectDate={selectDate} onHoverDate={setHoveredDate} showMonths />
                   : snapshot || markets[market].loading ? <CalendarSkeleton /> : <p className="calendar-unavailable">—</p>}
               </div>;
             })}
           </div>
-          {calendarEnd && <HeatLegend />}
+          {calendarEnd && <HeatLegend colorScheme={scheme} />}
         </section>
         <section className={`market-signals${navigating ? " is-navigating" : ""}`} aria-labelledby="signals-title">
           <div className="signals-heading"><h2 id="signals-title">市场信号</h2>
             <div className="chart-legend" aria-label="情绪按分值由绿经金到红，大盘为深灰实线"><button type="button" className="emotion-key" aria-pressed={visibleSeries.mood} onClick={() => setVisibleSeries((old) => ({ ...old, mood: !old.mood }))}>情绪</button><button type="button" className="index-key" aria-pressed={visibleSeries.index} onClick={() => setVisibleSeries((old) => ({ ...old, index: !old.index }))}>大盘</button></div>
           </div>
-          <div className="analysis-grid">{(["CN", "US"] as Market[]).map((market) => {
+          <div className="analysis-grid">{[activeMarket].map((market) => {
             const snapshot = markets[market].snapshot;
             if (!snapshot) return markets[market].loading ? <SignalsSkeleton market={market} key={market} /> : <section className="analysis-unavailable" data-analysis-market={market} key={market} aria-label={`${market === "CN" ? "A 股" : "美股"}指标`}>—</section>;
             const date = selectedDate ?? snapshot.asOf;
             return <section className="market-analysis" data-analysis-market={market} key={market}>
               <div className="signals" data-date={date} aria-label={`${displayDate(date, true)}指标`}>
                 <div className="analysis-heading"><h3>{market === "CN" ? "A 股" : "美股"}</h3></div>
-                {mounted ? <><MarketTrend snapshot={snapshot} benchmark={benchmarks[market]} bounds={bounds ?? {start:shiftDate(windowEnd ?? snapshot.asOf,-364),end:windowEnd ?? snapshot.asOf}} windowEnd={windowEnd ?? snapshot.asOf} selectedDate={date} hoveredDate={hoveredDate} range={range} visible={visibleSeries} onHoverDate={setHoveredDate} onSelectDate={selectDate} dateSelected={selectedDate!==null} onClearDate={()=>setSelectedDate(null)} canSelectDate={selectable} />
-                <TechnicalRadar snapshot={snapshot} date={date} /></> : <div className="signals-loading" aria-label="正在绘制市场信号"/>}
+                {mounted ? <><MarketTrend key={market+snapshot.instrument.symbol} snapshot={snapshot} benchmark={benchmarks[market]} bounds={bounds ?? {start:shiftDate(windowEnd ?? snapshot.asOf,-364),end:windowEnd ?? snapshot.asOf}} windowEnd={windowEnd ?? snapshot.asOf} selectedDate={date} hoveredDate={hoveredDate} range={range} visible={visibleSeries} onHoverDate={setHoveredDate} onSelectDate={selectDate} dateSelected onClearDate={()=>setSelectedDate(null)} canSelectDate={selectable} />
+                {bounds&&trendWindow&&<TrendRangeControl key={market+'-range'} bounds={bounds} value={trendWindow} benchmarks={visibleBenchmarks} onChange={chooseWindow} onDragging={setNavigating} />}
+                <div className="signal-radar">{market==='CN'?<ChinaSentimentRadar key={market+date} date={date} readings={chinaReadings(benchmarks.CN??snapshot,date)}/>:<TechnicalRadar key={market+snapshot.instrument.symbol+date} snapshot={snapshot} date={date}/>}</div></> : <div className="signals-loading" aria-label="正在绘制市场信号"/>}
               </div>
             </section>;
-          })}{mounted && bounds && trendWindow && <TrendRangeControl bounds={bounds} value={trendWindow} benchmarks={benchmarks} onChange={chooseWindow} onDragging={setNavigating} />}</div>
+          })}</div>
         </section>
+        {activeMarket==='CN'&&benchmarks.CN?.chinaOverview?.valuations&&<IndexValuations rows={benchmarks.CN.chinaOverview.valuations.rows} period={benchmarks.CN.chinaOverview.valuations.period} source={OVERVIEW_SOURCES[benchmarks.CN.chinaOverview.valuations.sourceId]}/>}
+        {markets[activeMarket].snapshot&&<details className="data-sources"><summary>来源</summary><p><a href={markets[activeMarket].snapshot!.source.url} target="_blank" rel="noreferrer">{markets[activeMarket].snapshot!.source.name}</a>{markets[activeMarket].snapshot!.sentiment&&<> · <a href={markets[activeMarket].snapshot!.sentiment!.source.url} target="_blank" rel="noreferrer">{activeMarket==='CN'?'百分位':'CNN 社区存档'}</a></>}</p></details>}
       </main>
     </>
   );
@@ -311,7 +340,8 @@ export default function Document({ data }: { data: PageData }) {
           name="viewport"
           content="width=device-width, initial-scale=1.0, viewport-fit=cover"
         />
-        <meta name="theme-color" content="#59685f" />
+        <meta name="color-scheme" content="light dark"/>
+        <meta name="theme-color" content="#fafbf8" media="(prefers-color-scheme: light)"/><meta name="theme-color" content="#151c18" media="(prefers-color-scheme: dark)"/>
         <meta name="application-name" content="trendbeak" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />

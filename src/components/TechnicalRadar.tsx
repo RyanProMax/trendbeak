@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from "react";
-import { autoUpdate, FloatingPortal, useDismiss, useFloating, useInteractions, type Middleware } from "@floating-ui/react";
+import { autoUpdate, FloatingPortal, shift, useDismiss, useFloating, useInteractions, type Middleware } from "@floating-ui/react";
 import type { MarketSnapshot } from "../market-types";
 import { displayDate, number } from "../lib/market-format";
 import { isExchangeClosed } from "../lib/exchange-calendar";
@@ -47,7 +47,7 @@ export default function TechnicalRadar({snapshot,date}:{snapshot:MarketSnapshot;
     }).sort((a,b)=>a.cost-b.cost);
     const best=scored[0];return {x:best.x,y:best.y,data:{anchorX:ax,anchorY:ay}};
   }};
-  const {refs,floatingStyles,context,isPositioned}=useFloating({open:!!factor,onOpenChange:open=>{if(!open)close();},strategy:"fixed",middleware:[avoid],whileElementsMounted:autoUpdate});
+  const {refs,floatingStyles,context,isPositioned}=useFloating({open:!!factor,onOpenChange:open=>{if(!open)close();},strategy:"fixed",middleware:[avoid,shift({padding:12,crossAxis:true})],whileElementsMounted:autoUpdate});
   const dismiss=useDismiss(context),{getFloatingProps}=useInteractions([dismiss]);
   const activate=(item:RadarId,element:HTMLButtonElement)=>{cancelClose();trigger.current=element;refs.setReference(element);setActive(item);};
   const leave=()=>{cancelClose();if(!pinned.current)timer.current=setTimeout(()=>{if(!root.current?.querySelector(":focus-visible")&&!refs.floating.current?.contains(document.activeElement))setActive(null);},180);};
@@ -65,8 +65,8 @@ export default function TechnicalRadar({snapshot,date}:{snapshot:MarketSnapshot;
       <svg className="radar-graphic" viewBox={`0 0 ${width} 366`} role="img" aria-label="趋势、动量、波动和活跃度四个技术维度" aria-describedby={`${id}-desc`}>
         <desc id={`${id}-desc`}>RSI使用原始0到100，EMA半径为绝对均线偏离的历史分位，波动和量能半径为此前最多252个完整观测的历史分位。波动和量能不表示多空，四维不保证统计独立，不合成总分或面积分数。样本不足不画点，原始值仍保留；可聚焦或点击数据点查看口径和观测日期。</desc>
         <defs>{edges.map(([a,b])=>{const [x1,y1]=coordinates[a]!,[x2,y2]=coordinates[b]!;return <linearGradient key={`${a}-${b}`} id={`${id}-edge-${a}-${b}`} gradientUnits="userSpaceOnUse" x1={x1} y1={y1} x2={x2} y2={y2}><stop stopColor={colors[a]}/><stop offset="100%" stopColor={colors[b]}/></linearGradient>;})}</defs>
-        <polygon points={polygon(100)} fill="#fcfdfb"/>
-        {[25,50,75,100].map(score=><polygon key={score} points={polygon(score)} fill="none" stroke={score===50?"#dce2d6":"#e9ede5"} strokeWidth={score===50?1.1:.8}/>)}
+        <polygon className="radar-base" points={polygon(100)} fill="#fcfdfb"/>
+        {[25,50,75,100].map(score=><polygon className="radar-grid" data-level={score} key={score} points={polygon(score)} fill="none" stroke={score===50?"#dce2d6":"#e9ede5"} strokeWidth={score===50?1.1:.8}/>)}
         {factors.map((item,i)=>{const [x,y]=point(i,100);return <line key={item.id} x1={cx} y1={cy} x2={x} y2={y} stroke="#e9ede5" strokeWidth=".8"/>;})}
         {complete&&<polygon className="radar-shape" points={factors.map((item,i)=>point(i,item.score!).join(",")).join(" ")} fill="#8ca58a" fillOpacity=".16"/>}
         {edges.map(([a,b])=><line key={`${a}-${b}`} className={complete?"radar-edge":"radar-partial"} x1={coordinates[a]![0]} y1={coordinates[a]![1]} x2={coordinates[b]![0]} y2={coordinates[b]![1]} stroke={`url(#${id}-edge-${a}-${b})`} strokeWidth="2.5"/>)}

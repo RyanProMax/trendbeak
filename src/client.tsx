@@ -3,6 +3,7 @@ import "@fontsource-variable/noto-sans-sc/wght.css";
 import { hydrateRoot } from "react-dom/client";
 import Document, { type PageData } from "./App";
 import "./styles.css";
+import "./dashboard-theme.css";
 
 const payload = document.querySelector<HTMLScriptElement>("#trendbeak-data");
 

@@ -1,4 +1,4 @@
-import type { MarketSnapshot } from "../market-types";
+import type { Market, MarketSnapshot } from "../market-types";
 import { shiftDate } from "./chart-series";
 export interface TrendWindow { start: string; end: string }
 export const MAX_WINDOW_DAYS=365;
@@ -30,10 +30,10 @@ export function parseTrendWindow(raw:string|null):TrendWindow|null {
  return value&&valid(value.start)&&valid(value.end)&&value.start<=value.end?{start:value.start,end:value.end}:null;}catch{return null;}
 }
 type WindowStorage=Pick<Storage,"getItem"|"setItem"|"removeItem">;
-export function persistTrendWindow(storage:WindowStorage|null,value:TrendWindow,bounds:TrendWindow):TrendWindow {
- const normalized=clampWindow(value,bounds);try{if(storage){storage.setItem(TREND_WINDOW_STORAGE_KEY,JSON.stringify(normalized));storage.removeItem(LEGACY_TREND_WINDOW_STORAGE_KEY);}}catch{/* Optional storage cannot prevent the hard cap. */}return normalized;
+export function persistTrendWindow(storage:WindowStorage|null,value:TrendWindow,bounds:TrendWindow,market?:Market):TrendWindow {
+ const normalized=clampWindow(value,bounds);try{if(storage){storage.setItem(TREND_WINDOW_STORAGE_KEY+(market?':'+market:''),JSON.stringify(normalized));storage.removeItem(LEGACY_TREND_WINDOW_STORAGE_KEY);}}catch{/* Optional storage cannot prevent the hard cap. */}return normalized;
 }
-export function restoreTrendWindow(storage:WindowStorage|null,bounds:TrendWindow|null):TrendWindow|null {
- try{const value=parseTrendWindow(storage?.getItem(TREND_WINDOW_STORAGE_KEY)??null)??parseTrendWindow(storage?.getItem(LEGACY_TREND_WINDOW_STORAGE_KEY)??null);
- return value&&bounds?persistTrendWindow(storage,value,bounds):value;}catch{return null;}
+export function restoreTrendWindow(storage:WindowStorage|null,bounds:TrendWindow|null,market?:Market):TrendWindow|null {
+ try{const value=parseTrendWindow(storage?.getItem(TREND_WINDOW_STORAGE_KEY+(market?':'+market:''))??null)??parseTrendWindow(storage?.getItem(TREND_WINDOW_STORAGE_KEY)??null)??parseTrendWindow(storage?.getItem(LEGACY_TREND_WINDOW_STORAGE_KEY)??null);
+ return value&&bounds?persistTrendWindow(storage,value,bounds,market):value;}catch{return null;}
 }

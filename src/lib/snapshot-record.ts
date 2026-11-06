@@ -1,3 +1,4 @@
+import {validChinaOverview} from './china-overview';
 import type { Market, MarketSnapshot } from "../market-types";
 import { isDate, marketDate } from "./market-signals";
 import { dailySnapshotCurrent } from './daily-freshness';
@@ -30,6 +31,7 @@ export const snapshotKey = (market: Market, symbol: string) => `v${SNAPSHOT_SCHE
 
 /** Compact quote boundary. At most 640 real bars; no indicator computation or sorting. */
 export function validCompactSnapshot(v:any,market:Market,symbol:string,now:number):v is MarketSnapshot {
+  if(v?.chinaOverview&&(market!=='CN'||symbol!=='000300.SS'||!validChinaOverview(v.chinaOverview,marketDate(now,market))))return false;
   if(!v || v.instrument?.market!==market || v.instrument?.symbol!==symbol || !text(v.instrument.name) || !text(v.instrument.code) || !["stock","index"].includes(v.instrument.kind) || !timestamp(v.fetchedAt) || Date.parse(v.fetchedAt)>now || !isDate(v.asOf) || v.asOf>marketDate(now,market) || !["closed","trading"].includes(v.session) || !source(v.source) || !text(v.currency) || !nullable(v.change) || !Array.isArray(v.bars) || !v.bars.length || v.bars.length>640 || !Array.isArray(v.days) || v.days.length || !Array.isArray(v.signals) || v.signals.length || !v.history || Object.keys(v.history).length)return false;
   if(v.sentiment){const today=marketDate(now,market),sentiment=v.sentiment,points=sentiment.observations,reports=sentiment.reportedObservations??[];
     const validPoints=(points:any,reported=false)=>Array.isArray(points)&&points.length<=372&&points.every((p:any,i:number)=>isDate(p?.date)&&p.date<=today&&(!i||points[i-1].date<p.date)&&finite(p.value)&&p.value>=0&&p.value<=100&&nullable(p.previous)&&(!reported||source(p.source)));
@@ -44,6 +46,7 @@ export function validSnapshot(v: any, market: Market, symbol: string, now: numbe
   if(v?.technicalSource!==undefined&&v.technicalSource!=="trendbeak_technical_v1")return false;
   if(v?.bars) return validCompactSnapshot(v,market,symbol,now);
   const today = marketDate(now, market);
+  if(v?.chinaOverview&&(market!=='CN'||v.instrument?.symbol!=='000300.SS'||!validChinaOverview(v.chinaOverview,today)))return false;
   if (!v || v.instrument?.market !== market || v.instrument?.symbol !== symbol || !text(v.instrument.name) || !text(v.instrument.code) || !["stock", "index"].includes(v.instrument.kind) ||
       !isDate(v.asOf) || v.asOf > today || !timestamp(v.fetchedAt) || Date.parse(v.fetchedAt) > now ||
       !["trading", "closed"].includes(v.session) || !finite(v.price) || v.price <= 0 || !nullable(v.change) || !text(v.currency) || !source(v.source) ||
