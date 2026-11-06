@@ -160,9 +160,11 @@ body { background: var(--page); color: var(--ink); }
 #main-content .six-factor-point { fill: var(--data); stroke: var(--page); }
 #main-content .six-factor-area { fill: color-mix(in srgb,var(--data) 12%,transparent); stroke: var(--data); }
 #main-content .six-factor-trigger { border: 0; border-radius: 4px; color: var(--secondary); }
-#main-content .six-factor-trigger:hover, #main-content .six-factor-trigger[aria-expanded="true"] { background: var(--hover); }
+#main-content .six-factor-trigger:hover, #main-content .six-factor-trigger:focus-visible, #main-content .six-factor-trigger[aria-expanded="true"] { background: var(--hover); }
 #main-content .six-factor-trigger b { color: var(--data); filter: none; }
-#main-content .six-factor-numbers small { color: var(--muted); }
+#main-content .six-factor-percentile-label { color: var(--muted); }
+#main-content .six-factor-track { background: var(--line); }
+#main-content .six-factor-track>span { background: var(--data); }
 #main-content .radar-base { fill: var(--surface); }
 #main-content .radar-graphic > line:not(.radar-edge):not(.radar-partial) { stroke: var(--grid); }
 #main-content .radar-point { stroke: var(--page); }
