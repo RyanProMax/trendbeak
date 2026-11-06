@@ -21,7 +21,7 @@ US 六项为CNN总分、NYSE新高新低净比例、NYSE成交量McClellan Volum
 
 ## 有界更新与存储
 
-沿用三字段 `market_snapshot(key,payload,updated_at)`，不新增表/字段：`overview/CN`存实际消费的640日指数、计数和分位计算状态；`overview/US`存640日分项、分位状态与源ETag/字节游标；`valuation/CODE`每指数约65–105KB存原值和已排序PB/PS排名状态（12行约1.16MB），是日更实际需要的检查点，不是预留审计表。两个大盘行只增加实际展示的有界结果，HTTP响应仍不超过300KB。原行情计算与8295条情绪历史不被辅助初始化修改。
+沿用三字段 `market_snapshot(key,payload,updated_at)`，不新增表/字段：`overview/CN`存实际消费的640日指数、计数和分位计算状态；`overview/US`存640日分项、分位状态与源ETag/字节游标；`valuation/CODE`每指数约65–105KB存原值和已排序PB/PS排名状态（12行约1.16MB），是日更实际需要的检查点，不是预留审计表。两个大盘行只增加实际展示的有界结果，六轴HTTP响应只传实际消费字段，移除已退役四轴的可选radar明细，完整计算状态仍保留；本轮CN约183KB、US约176KB，硬上限仍300KB。原行情计算与8295条情绪历史不被辅助初始化修改。
 
 现有 GitHub Actions 写入器串行执行。CN周一至五08:37UTC（上海16:37），US周二至六03:37UTC（对应前一美股交易日，纽约冬令22:37、夏令23:37），留出社区档案03:05UTC发布后的时间。休市按现有交易日历判断；不依赖Mac/OpenD，不增加凭据/权限。
 
