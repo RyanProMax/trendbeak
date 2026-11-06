@@ -9,9 +9,10 @@ const workflow=readFileSync('.github/workflows/daily-sync.yml','utf8');
 const marker='\n    steps:\n',start=workflow.indexOf(marker);
 const steps=workflow.slice(start+marker.length).trimEnd().split(/\n(?= {6}- )/);
 const secret='${{ secrets.CLOUDFLARE_API_TOKEN }}';
-const credentialSteps=new Set(['Require an existing authorized database credential','Update bounded source windows and prepared responses']);
+const credentialSteps=new Set(['Require an existing authorized database credential','Update bounded source windows and prepared responses','Update bounded market factors and index valuations']);
 
 test('disabled or unconfigured schedules fail visibly before any database writer can run',()=>{
+ assert.match(workflow,/cron: '37 3 \* \* 2-6'/);
  assert.match(workflow,/    if: github.ref == 'refs\/heads\/main'\n/);
  const guard=steps[0].split('        run: |\n')[1].split('\n').map(line=>line.replace(/^          /,'')).join('\n');
  for(const overrides of [{DAILY_SYNC_ENABLED:''},{CLOUDFLARE_ACCOUNT_ID:''},{CLOUDFLARE_API_TOKEN:''}]){
@@ -23,12 +24,12 @@ test('disabled or unconfigured schedules fail visibly before any database writer
  assert.equal(result.status,0);
 });
 
-test('Cloudflare credential is scoped to the two writer-related steps and never inherited from workflow/job env',()=>{
+test('Cloudflare credential is scoped to writer-related steps and never inherited from workflow/job env',()=>{
  assert.ok(start>0);
  assert.doesNotMatch(workflow.slice(0,start),/CLOUDFLARE_API_TOKEN|secrets\./);
  assert.doesNotMatch(workflow,/(?:^|\n)\s*<<:|:\s*[&*][A-Za-z_]/);
- assert.equal(workflow.split(secret).length-1,2);
- assert.equal(steps.length,5);
+ assert.equal(workflow.split(secret).length-1,3);
+ assert.equal(steps.length,6);
  const allowed=[];
  for(const step of steps){
   const name=/^ {6}- name: (.+)$/m.exec(step)?.[1];

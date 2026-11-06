@@ -10,7 +10,8 @@ import StockSearch from "./components/StockSearch";
 import MarketCard, { type ViewState } from "./components/MarketCard";
 import { CalendarSkeleton, SignalsSkeleton } from "./components/MarketSkeleton";
 import YearHeatmap, { HeatLegend } from "./components/YearHeatmap";
-import TechnicalRadar from "./components/TechnicalRadar";
+import {MarketSentimentRadar} from "./components/ChinaSentimentRadar";
+import{US_LABELS,usReadings}from"./lib/us-overview";
 import ChinaSentimentRadar from "./components/ChinaSentimentRadar";
 import IndexValuations from "./components/IndexValuations";
 import {chinaReadings,OVERVIEW_SOURCES} from "./lib/china-overview";
@@ -315,7 +316,7 @@ function Dashboard({ data }: { data: PageData }) {
                 <div className="analysis-heading"><h3>{market === "CN" ? "A 股" : "美股"}</h3></div>
                 {mounted ? <><MarketTrend key={market+snapshot.instrument.symbol} snapshot={snapshot} benchmark={benchmarks[market]} bounds={bounds ?? {start:shiftDate(windowEnd ?? snapshot.asOf,-364),end:windowEnd ?? snapshot.asOf}} windowEnd={windowEnd ?? snapshot.asOf} selectedDate={date} hoveredDate={hoveredDate} range={range} visible={visibleSeries} onHoverDate={setHoveredDate} onSelectDate={selectDate} dateSelected onClearDate={()=>setSelectedDate(null)} canSelectDate={selectable} />
                 {bounds&&trendWindow&&<TrendRangeControl key={market+'-range'} bounds={bounds} value={trendWindow} benchmarks={visibleBenchmarks} onChange={chooseWindow} onDragging={setNavigating} />}
-                <div className="signal-radar">{market==='CN'?<ChinaSentimentRadar key={market+date} date={date} readings={chinaReadings(benchmarks.CN??snapshot,date)}/>:<TechnicalRadar key={market+snapshot.instrument.symbol+date} snapshot={snapshot} date={date}/>}</div></> : <div className="signals-loading" aria-label="正在绘制市场信号"/>}
+                <div className="signal-radar">{market==='CN'?<ChinaSentimentRadar key={market+date} date={date} readings={chinaReadings(benchmarks.CN??snapshot,date)}/>:<MarketSentimentRadar key={market+date} date={date} market="US" labels={US_LABELS} readings={usReadings(benchmarks.US??snapshot,date)}/>}</div></> : <div className="signals-loading" aria-label="正在绘制市场信号"/>}
               </div>
             </section>;
           })}</div>

@@ -1,7 +1,7 @@
 // Controlled offline writer only. No HTTP/browser import of the ranking engine.
 import{CHINA_FACTORS,validChinaOverview,type ChinaFactor,type OverviewSource,type ChinaOverview,type FactorCell}from'../lib/china-overview';
 import{historicalRank}from'../lib/radar-metrics';
-export interface FactorInput{date:string;values:Partial<Record<ChinaFactor,number|null>>}
+export interface FactorInput{date:string;values:Partial<Record<ChinaFactor,number|null>>;counts?:Partial<Record<ChinaFactor,number[]>>}
 export interface ChinaOverviewCheckpoint{sourceIds:ChinaOverview['sourceIds'];inputs:FactorInput[];history:ChinaOverview['history']}
 /** Import only the four separately reviewed auxiliary series and one prepared
  * valuation view. Published fear/RSI always come from current durable data. */
@@ -10,14 +10,15 @@ export function mergeReviewedOverview(payload:import('./market-sync').MarketStat
  assertPublishableOverview(input,view.asOf);
  const external:ChinaFactor[]=['breadth','limitRatio','turnover','relativeTurnover'];
  if(Object.keys(input.sourceIds).some(id=>!external.includes(id as ChinaFactor))||Object.values(input.history).some(row=>Object.keys(row).some(id=>!external.includes(id as ChinaFactor))))throw Error('Reviewed import cannot replace primary sentiment or RSI');
- if(input.valuations?.rows.some(row=>row.code!=='000688'))throw Error('Only the reviewed STAR 50 valuation is admitted');
+ if(input.valuations?.rows.some(row=>!['000300','000905','000016','399001','399006','000922','000688','HSI','HSTECH','000906','000852','399005'].includes(row.code)))throw Error('Unreviewed valuation index');
  const cutoff=new Date(Date.parse(view.asOf)-364*86400000).toISOString().slice(0,10),history={...view.chinaOverview.history};
+ for(const id of external)if(input.sourceIds[id]&&view.chinaOverview.sourceIds[id]!==input.sourceIds[id])for(const date of Object.keys(history)){history[date]={...history[date]};delete history[date][id];}
  for(const [date,row]of Object.entries(input.history)){if(date<cutoff)continue;history[date]={...history[date],...row};}
  const chinaOverview={...view.chinaOverview,sourceIds:{...view.chinaOverview.sourceIds,...input.sourceIds},history,...(input.valuations?{valuations:input.valuations}:{})};
  assertPublishableOverview(chinaOverview,view.asOf);
  return{...payload,view:{...view,chinaOverview}};
 }
-const approved:Partial<Record<ChinaFactor,OverviewSource[]>>={fearGreed:['baifenwei'],rsi:['self_csi300_rsi14_tencent'],breadth:['self_legu_activity'],limitRatio:['self_legu_activity'],turnover:['eastmoney_index'],relativeTurnover:['self_szse_turnover60_eastmoney']};
+const approved:Partial<Record<ChinaFactor,OverviewSource[]>>={fearGreed:['baifenwei'],rsi:['self_csi300_rsi14_tencent'],breadth:['self_legu_activity','self_kph_activity'],limitRatio:['self_legu_activity','self_kph_activity'],turnover:['eastmoney_index'],relativeTurnover:['self_szse_turnover60_eastmoney']};
 /** Supported sources are fixed in code. Access and publication instructions do
  * not establish a supplier licence; provenance remains explicit. */
 export function assertPublishableOverview(view:ChinaOverview,today:string){
@@ -31,14 +32,14 @@ export function updateChinaOverview(input:FactorInput[],sourceIds:ChinaOverview[
  const sources={...old?.sourceIds,...sourceIds};
  const seen=new Set<string>();for(const row of input){if(seen.has(row.date)||!validChinaOverview({sourceIds:sources,history:{[row.date]:Object.fromEntries(Object.entries(row.values).map(([id,value])=>[id,[value,null,0]]))}},today))throw Error('Invalid overview source input');seen.add(row.date);}
  const byDate=new Map(old?.inputs.map(r=>[r.date,r])??[]);
- for(const row of input)byDate.set(row.date,{date:row.date,values:{...byDate.get(row.date)?.values,...row.values}});
- const rows=[...byDate.values()].sort((a,b)=>a.date.localeCompare(b.date));if(rows.length>800)throw Error('Overview checkpoint exceeds 800 dates; explicit bounded reinitialization required');
- let start=0;if(old)while(start<rows.length&&start<old.inputs.length&&rows[start].date===old.inputs[start].date&&CHINA_FACTORS.every(id=>(rows[start].values[id]??null)===(old.inputs[start].values[id]??null)))start++;
+ for(const row of input)byDate.set(row.date,{date:row.date,values:{...byDate.get(row.date)?.values,...row.values},...((row.counts??byDate.get(row.date)?.counts)?{counts:{...byDate.get(row.date)?.counts,...row.counts}}:{})});
+ const rows=[...byDate.values()].sort((a,b)=>a.date.localeCompare(b.date)).slice(-640);
+ const previous=new Map(old?.inputs.map(r=>[r.date,r])??[]);let start=0;if(old)while(start<rows.length&&previous.has(rows[start].date)&&JSON.stringify(rows[start])===JSON.stringify(previous.get(rows[start].date)))start++;if(old&&rows.length-start>32)throw Error('Older factor revision requires controlled repair');
  const history:ChinaOverview['history']={},ranks=Object.fromEntries(CHINA_FACTORS.map(id=>[id,rows.slice(0,start).map(r=>r.values[id]).filter((v):v is number=>typeof v==='number').slice(-252)]))as Record<ChinaFactor,number[]>;
  for(let i=0;i<start;i++)if(old?.history[rows[i].date])history[rows[i].date]=old.history[rows[i].date];
  for(let i=start;i<rows.length;i++){
   const result:Partial<Record<ChinaFactor,FactorCell>>={};
-  for(const id of CHINA_FACTORS){const value=rows[i].values[id];if(value===undefined)continue;const ranked=historicalRank(value,ranks[id]);result[id]=[value,ranked.score===null?null:Math.round(ranked.score*10000)/10000,ranked.samples];if(value!==null){ranks[id].push(value);if(ranks[id].length>252)ranks[id].shift();}}
+  for(const id of CHINA_FACTORS){const value=rows[i].values[id];if(value===undefined)continue;const ranked=historicalRank(value,ranks[id]);result[id]=[value,ranked.score===null?null:Math.round(ranked.score*10000)/10000,ranked.samples,...(rows[i].counts?.[id]?[rows[i].counts![id]]:[]) ]as FactorCell;if(value!==null){ranks[id].push(value);if(ranks[id].length>252)ranks[id].shift();}}
   history[rows[i].date]=result;
  }
  const cutoff=new Date(Date.parse(today)-364*86400000).toISOString().slice(0,10),visible=Object.fromEntries(Object.entries(history).filter(([date])=>date>=cutoff));

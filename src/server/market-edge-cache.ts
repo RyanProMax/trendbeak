@@ -10,7 +10,7 @@ export function createMarketEdgeCache(clock=Date.now){
  let bypassUntil=0;
  return{async get(request:Request,market:string,symbol:string,edge:SnapshotEdgeCache|undefined,read:()=>Promise<PreparedMarketBody>){
   if(!edge||clock()<bypassUntil)return response(await read());
-  const bucket=Math.floor(clock()/MARKET_CACHE_MS),key=new Request(`${new URL(request.url).origin}/__market-cache/v2/${market}/${bucket}?symbol=${encodeURIComponent(symbol)}`);
+  const bucket=Math.floor(clock()/MARKET_CACHE_MS),key=new Request(`${new URL(request.url).origin}/__market-cache/v3/${market}/${bucket}?symbol=${encodeURIComponent(symbol)}`);
   try{
    const hit=await edge.match(key),tag=hit?.headers.get('ETag');
    if(hit?.status===200&&tag?.startsWith(`W/"http-v1:${market}/${symbol}:`)&&hit.headers.get('Content-Type')==='application/json; charset=UTF-8'){

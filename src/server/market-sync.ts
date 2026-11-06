@@ -74,9 +74,10 @@ export function prepareMarketState(quote: MarketSnapshot, mode: 'init' | 'sync' 
         old = { ...prior, processed: 0 };
     }
     const overview=quote.chinaOverview??previous?.view.chinaOverview;
+    const usOverview=quote.usOverview??previous?.view.usOverview;
     if(overview)assertPublishableOverview(overview,marketDate(now,market));
     if(overview&&(market!=='CN'||symbol!=='000300.SS'))throw Error('China market overview belongs only to the China benchmark');
-    const calculated = updateHistory(bars, quote.session === 'trading', old), view = {...materialize(quote, calculated),...(overview?{chinaOverview:overview}:{})};
+    const calculated = updateHistory(bars, quote.session === 'trading', old), view = {...materialize(quote, calculated),...(overview?{chinaOverview:overview}:{}),...(usOverview?{usOverview}:{})};
     if (!validSnapshot(view, market, symbol, now))
         throw Error('Invalid materialized view');
     const { processed, ...calculation } = calculated, payload:MarketState = { calculation, view, ...(previous?.overviewState?{overviewState:previous.overviewState}:{}) };

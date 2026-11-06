@@ -88,6 +88,7 @@ export interface CalendarDay {
 
 export interface MarketSnapshot {
   chinaOverview?: ChinaOverview;
+  usOverview?: import('./lib/us-overview').USOverview;
   /** Compact transport: expanded only in the browser or a controlled offline rebuild. */
   bars?: DailyBar[];
   technicalSource?: "trendbeak_technical_v1";
