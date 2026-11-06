@@ -346,9 +346,9 @@ function makeSnapshot(
 }
 
 /** HTTP readers only read existing durable views; never initialize or update quotes. */
-export async function loadMarket(market:Market,symbol=BENCHMARKS[market].symbol,db?:D1Database,origin="https://trendbeak.com",ifNone?:string){
+export async function loadMarket(market:Market,symbol=BENCHMARKS[market].symbol,db?:D1Database,origin="https://trendbeak.com",ifNone?:string,compact=false){
   if(!validSymbol(market,symbol))throw Error("Invalid instrument");
-  return readMarketSnapshot(db,market,symbol,origin,ifNone);
+  return readMarketSnapshot(db,market,symbol,origin,ifNone,compact);
 }
 export { SnapshotMissing };
 export async function loadHealth(origin:string,db?:D1Database){

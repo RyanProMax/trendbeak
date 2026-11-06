@@ -10,10 +10,11 @@ export function createMarketEdgeCache(clock=Date.now){
  let bypassUntil=0;
  return{async get(request:Request,market:string,symbol:string,edge:SnapshotEdgeCache|undefined,read:()=>Promise<PreparedMarketBody>){
   if(!edge||clock()<bypassUntil)return response(await read());
-  const bucket=Math.floor(clock()/MARKET_CACHE_MS),key=new Request(`${new URL(request.url).origin}/__market-cache/v4/${market}/${bucket}?symbol=${encodeURIComponent(symbol)}`);
+  const compact=new URL(request.url).searchParams.get('view')==='sentiment-v1';
+  const bucket=Math.floor(clock()/MARKET_CACHE_MS),key=new Request(`${new URL(request.url).origin}/__market-cache/v5/${market}/${bucket}?symbol=${encodeURIComponent(symbol)}${compact?'&view=sentiment-v1':''}`);
   try{
    const hit=await edge.match(key),tag=hit?.headers.get('ETag');
-   if(hit?.status===200&&tag?.startsWith(`W/"http-v1:${market}/${symbol}:`)&&hit.headers.get('Content-Type')==='application/json; charset=UTF-8'){
+   if(hit?.status===200&&tag?.startsWith(`W/"http-v${compact?2:1}:${market}/${symbol}:`)&&hit.headers.get('Content-Type')==='application/json; charset=UTF-8'){
     if(matches(request.headers.get('If-None-Match'),tag)){void hit.body?.cancel().catch(()=>{});return new Response(null,{status:304,headers:{ETag:tag,'Cache-Control':'no-cache'}});}
     return new Response(hit.body,{headers:{ETag:tag,'Cache-Control':'no-cache','Content-Type':'application/json; charset=UTF-8'}});
    }

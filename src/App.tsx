@@ -37,6 +37,7 @@ function Dashboard({ data }: { data: PageData }) {
   current.current = markets;
   const [benchmarks, setBenchmarks] = useState<Record<Market, MarketSnapshot | null>>({ CN: data.markets.CN.snapshot, US: data.markets.US.snapshot });
   const [activeMarket,setActiveMarket]=useState<Market>('CN');
+  const shownMarket=useRef<Market>('CN'),lastReads=useRef<Partial<Record<Market,number>>>({}),benchmarkCurrent=useRef(benchmarks);benchmarkCurrent.current=benchmarks;
   const [selectedDates,setSelectedDates]=useState<Record<Market,string|null>>({CN:null,US:null});
   const selectedDate=selectedDates[activeMarket];
   const setSelectedDate=(value:string|null)=>setSelectedDates(old=>({...old,[activeMarket]:value}));
@@ -99,7 +100,7 @@ function Dashboard({ data }: { data: PageData }) {
   const globalDate = selectedDate ?? calendarEnd;
   const controllers = useRef<Partial<Record<Market, AbortController>>>({});
   const requestedSymbols = useRef<Partial<Record<Market,string>>>({});
-  const benchmarkRequests = useRef<Partial<Record<Market,Promise<void>>>>({});
+  const benchmarkRequests = useRef<Partial<Record<Market,Promise<unknown>>>>({});
   const load = async (
     instrument: Instrument,
     scroll = false,
@@ -107,6 +108,7 @@ function Dashboard({ data }: { data: PageData }) {
     const market = instrument.market;
     if (controllers.current[market] && requestedSymbols.current[market] === instrument.symbol) return false;
     controllers.current[market]?.abort();
+    lastReads.current[market]=Date.now();
     const controller = new AbortController();
     controllers.current[market] = controller;
     requestedSymbols.current[market] = instrument.symbol;
@@ -157,7 +159,7 @@ function Dashboard({ data }: { data: PageData }) {
           loading: false,
         },
       }));
-      if (instrument.kind === "index") setBenchmarks((previous) => ({ ...previous, [market]: payload.data }));
+      if (instrument.kind === "index"){benchmarkCurrent.current={...benchmarkCurrent.current,[market]:payload.data};setBenchmarks((previous) => ({ ...previous, [market]: payload.data }));}
       if (scroll)
         requestAnimationFrame(() => {
           const card = document.querySelector(`[data-market="${market}"]`);
@@ -199,12 +201,13 @@ function Dashboard({ data }: { data: PageData }) {
       if(controllers.current[market] === controller) { delete controllers.current[market]; delete requestedSymbols.current[market]; }
     }
   };
+  const ensureBenchmark=async(market:Market)=>{if(benchmarkRequests.current[market])return benchmarkRequests.current[market];const task=load(BENCHMARKS[market]);benchmarkRequests.current[market]=task;try{return await task;}finally{if(benchmarkRequests.current[market]===task)delete benchmarkRequests.current[market];}};
   const changeMarket=(market:Market,record=true)=>{
-    setActiveMarket(market);setHoveredDate(null);setNavigating(false);
+    shownMarket.current=market;setActiveMarket(market);setHoveredDate(null);setNavigating(false);
     if(record){const url=new URL(location.href);url.searchParams.set('market',market);const instrument=current.current[market].instrument;if(instrument.kind==='stock')url.searchParams.set('symbol',instrument.symbol);else url.searchParams.delete('symbol');history.pushState(null,'',url);}
   };
   const visit=async(instrument:Instrument,record=true)=>{
-    changeMarket(instrument.market,false);const ok=await load(instrument,true);
+    changeMarket(instrument.market,false);if(instrument.kind==='stock'&&(!benchmarkCurrent.current[instrument.market]||(instrument.market==='US'?!benchmarkCurrent.current.US?.usOverview:!benchmarkCurrent.current.CN?.chinaOverview)))await ensureBenchmark(instrument.market);const ok=await load(instrument,true);
     if(record){const url=new URL(location.href);url.searchParams.set('market',instrument.market);if(ok&&instrument.kind==='stock')url.searchParams.set('symbol',instrument.symbol);else url.searchParams.delete('symbol');history.pushState(null,'',url);}return ok;
   };
   const navigation=useRef({changeMarket,visit});navigation.current={changeMarket,visit};
@@ -215,7 +218,7 @@ function Dashboard({ data }: { data: PageData }) {
     for(const market of ["CN", "US"] as Market[]) {
       const initial = data.markets[market].snapshot ? expandSnapshot(data.markets[market].snapshot!) : null;
       if(initial) rememberSnapshot(initial,store);
-      else if(data.markets[market].error===null)void load(data.markets[market].instrument);
+      // Inactive markets are restored locally, never fetched speculatively.
       const backup = restoreSnapshot(market,data.markets[market].instrument.symbol,store);
       if(backup && (!initial || Date.parse(backup.freshness!.storedAt) > Date.parse(initial.freshness?.storedAt ?? initial.fetchedAt))) {
         const restored = { ...backup, sentiment: initial?.sentiment ?? backup.sentiment };
@@ -224,10 +227,11 @@ function Dashboard({ data }: { data: PageData }) {
       }
     }
   }, []);
+  useEffect(()=>{const market=shownMarket.current;if(Date.now()-(lastReads.current[market]??0)>=300_000){const instrument=current.current[market].instrument;void(instrument.kind==='index'?ensureBenchmark(market):load(instrument));}},[activeMarket]);
   useEffect(() => {
     // Recover a transient empty SSR state once, without waiting a full minute.
     // A manual request or a successful quote supersedes this timer.
-    const recoveryTimers = (["CN", "US"] as Market[]).flatMap((market) =>
+    const recoveryTimers = ([shownMarket.current] as Market[]).flatMap((market) =>
       !data.markets[market].snapshot && data.markets[market].error!==null && data.markets[market].retryable === true
         ? [window.setTimeout(() => {
             const state = current.current[market];
@@ -236,7 +240,7 @@ function Dashboard({ data }: { data: PageData }) {
     );
     const refresh = () => {
       if (document.visibilityState === "visible")
-        for (const market of ["CN", "US"] as Market[]) {
+        for (const market of [shownMarket.current]) {
           if (!current.current[market].loading) {
             void load(current.current[market].instrument);
             if (current.current[market].instrument.kind === "stock" && !benchmarkRequests.current[market]) {

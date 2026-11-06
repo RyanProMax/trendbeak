@@ -8,7 +8,7 @@ import { snapshotKey } from "./market-snapshot-store";
 export const TECHNICAL_SOURCE = 'trendbeak_technical_v1';
 export interface MarketState {
     overviewState?: import('./china-overview').ChinaOverviewCheckpoint;
-    http?:{body:string};
+    http?:{body:string;overview?:string};
     calculation: Omit<HistoryState, 'processed'>;
     view: MarketSnapshot;
 }
