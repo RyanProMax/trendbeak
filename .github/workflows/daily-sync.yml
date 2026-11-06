@@ -3,6 +3,10 @@ on:
   schedule:
     - cron: '37 8 * * 1-5'
     - cron: '37 3 * * 2-6'
+    # Low-frequency recovery checks, including weekends and holidays. Complete
+    # snapshots skip source requests; GitHub can still delay/drop these events.
+    - cron: '17 12 * * *'
+    - cron: '17 20 * * *'
   workflow_dispatch:
     inputs:
       market:
@@ -26,7 +30,8 @@ jobs:
       WRANGLER_SEND_METRICS: 'false'
       DAILY_SYNC_ENABLED: ${{ vars.DAILY_SYNC_ENABLED }}
       SYNC_EVENT: ${{ github.event_name }}
-      MARKET: ${{ github.event_name == 'workflow_dispatch' && inputs.market || (github.event.schedule == '37 8 * * 1-5' && 'CN' || 'US') }}
+      MARKET: ${{ github.event_name == 'workflow_dispatch' && inputs.market || (github.event.schedule == '37 3 * * 2-6' && 'US' || 'CN') }}
+      SYNC_MODE: ${{ (github.event.schedule == '17 12 * * *' || github.event.schedule == '17 20 * * *') && 'catch_up' || 'primary' }}
     steps:
       - name: Require an existing authorized database credential
         id: connection
@@ -44,6 +49,9 @@ jobs:
         with:
           node-version: 22
       - run: npm install --no-audit --no-fund
+      - name: Freeze the shared settlement clock
+        id: clock
+        run: echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
       - name: Update bounded source windows and prepared responses
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -51,9 +59,14 @@ jobs:
           if [ "$SYNC_EVENT" = 'workflow_dispatch' ]; then
             node scripts/verify-daily-connection.mjs
           fi
-          node scripts/daily-sync.mjs --market "$MARKET" --remote
+          args=(--market "$MARKET" --remote --at "${{ steps.clock.outputs.at }}")
+          if [ "$SYNC_MODE" = 'catch_up' ]; then args+=(--catch-up); fi
+          node scripts/daily-sync.mjs "${args[@]}"
       - name: Update bounded market factors and index valuations
         if: ${{ !cancelled() && steps.connection.outcome == 'success' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: node scripts/overview-job.mjs --market "$MARKET" --remote
+        run: |
+          args=(--market "$MARKET" --remote --at "${{ steps.clock.outputs.at }}")
+          if [ "$SYNC_MODE" = 'catch_up' ]; then args+=(--catch-up); fi
+          node scripts/overview-job.mjs "${args[@]}"

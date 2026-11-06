@@ -3,7 +3,8 @@ const sources={
  baifenwei:{url:'https://baifenwei.com/data/fear-greed/fear-greed-full.csv',header:'date,fear_greed_index'},
  cnn_whit3rabbit:{url:'https://raw.githubusercontent.com/whit3rabbit/fear-greed-data/main/datasets/cnn_fear_greed.csv',header:'Date,Fear Greed,Rating'},
 };
-export async function readSentimentTail(source,from,to,read=fetch){
+export async function readSentimentTail(source,from,to,read=fetch,availableThrough=to){
+ if(availableThrough<to||!/^\d{4}-\d{2}-\d{2}$/.test(availableThrough))throw Error('Invalid source date boundary');
  const config=sources[source];if(!config)throw Error('No automatic synchronization for this source');
  const part=async(range,expected)=>{
   const response=await read(config.url,{headers:{Range:range,'Accept-Encoding':'identity',...(expected?{'If-Match':expected}:{})},signal:AbortSignal.timeout(12000)});
@@ -23,9 +24,9 @@ export async function readSentimentTail(source,from,to,read=fetch){
  const rows=new Map();let prior='',anchor=false;
  for(const line of lines){const fields=line.split(','),date=fields[0],score=Number(fields[1]);
   if(fields.length!==(source==='baifenwei'?2:3)||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date||date<prior||!fields[1]?.trim()||!Number.isFinite(score)||score<0||score>100)throw Error('Invalid source tail row');
-  prior=date;if(date<from)anchor=true;if(date>to)throw Error('Source date exceeds requested completed session');
+  prior=date;if(date<from)anchor=true;if(date>availableThrough)throw Error('Source date exceeds actual market date');
   if(rows.has(date)&&rows.get(date)!==score)throw Error('Conflicting source duplicate');rows.set(date,score);
  }
- if(!anchor||prior!==to)throw Error('Recent source window is incomplete or not ready');
+ if(!anchor||!rows.has(to))throw Error('Recent source window is incomplete or not ready');
  return [...rows].filter(([date])=>date>=from&&date<=to).map(([date,score])=>({date,score}));
 }

@@ -1,19 +1,32 @@
 // Explicit scheduled/CLI writer. Never imported by HTTP readers.
 import type {Market,MarketSnapshot} from '../market-types';
 import {isExchangeClosed,hasExchangeCalendar} from '../lib/exchange-calendar';
-import {readerDate,readerMinutes} from './market-clock';
+import {completedSession} from './completed-session';
 import {prepareMarketState,writeMarketState,type MarketState} from './market-sync';
 import {attachHTTP} from './market-http';
 import {sentimentImportSQL,type SentimentInput} from './sentiment-import';
 const symbols={CN:['000300.SS'],US:['^GSPC','NVDA']} as const;
 export function dailyPlan(market:Market,now:number){
- const date=readerDate(now,market);
- if(!hasExchangeCalendar(date,market))throw Error('Exchange calendar is not available');
- if(isExchangeClosed(date,market)||readerMinutes(now,market)<(market==='CN'?16*60+30:17*60+30))return null;
+ const date=completedSession(market,now);
  return{market,date,from:new Date(Date.parse(date)-14*86400000).toISOString().slice(0,10),source:market==='CN'?'baifenwei' as const:'cnn_whit3rabbit' as const,symbols:symbols[market]};
 }
-async function executeDailyMarket({db,market,now=Date.now(),readSentiment,readQuote,dryRun=false}:{db:D1Database;market:Market;now?:number;readSentiment:(source:string,from:string,to:string)=>Promise<SentimentInput[]>;readQuote:(symbol:string,previous:MarketState)=>Promise<{quote:MarketSnapshot;split?:boolean}>;dryRun?:boolean}){
- const plan=dailyPlan(market,now);if(!plan)return{market,skipped:'closed_or_before_settlement',dbWrites:0,upstreamCalls:0};
+export function quoteThroughSession(quote:MarketSnapshot,date:string,now:number):MarketSnapshot{
+ if(date!==completedSession(quote.instrument.market,now)||!quote.bars?.length||quote.bars.length>32)throw Error('Invalid completed quote window');
+ if(quote.asOf<date||quote.asOf===date&&quote.session!=='closed')throw Error('Completed daily quote is not ready');
+ const bars=quote.bars.filter(r=>r.date<=date),last=bars.at(-1),prior=bars.at(-2);
+ if(last?.date!==date)throw Error('Completed daily quote is not ready');
+ if(quote.asOf===date)return quote;
+ // Only an earlier, calendar-confirmed close is selected; never relabel the
+ // latest intraday bar as closed or advance the actual acquisition timestamp.
+ return{...quote,bars,asOf:date,session:'closed',price:last.close,change:prior?(last.close/prior.close-1)*100:null};
+}
+async function executeDailyMarket({db,market,now=Date.now(),readSentiment,readQuote,dryRun=false,catchUp=false}:{db:D1Database;market:Market;now?:number;readSentiment:(source:string,from:string,to:string)=>Promise<SentimentInput[]>;readQuote:(symbol:string,previous:MarketState)=>Promise<{quote:MarketSnapshot;split?:boolean}>;dryRun?:boolean;catchUp?:boolean}){
+ const plan=dailyPlan(market,now);
+ if(catchUp){
+  const keys=plan.symbols.map(s=>`${market}/${s}`),records=await db.prepare(`SELECT key,json_extract(payload,'$.view.asOf') AS asOf,json_extract(payload,'$.view.session') AS session FROM market_snapshot WHERE key IN (${keys.map(()=>'?').join(',')})`).bind(...keys).all<{key:string;asOf:string;session:string}>(),score=await db.prepare('SELECT date FROM sentiment_daily WHERE market=? AND source=? ORDER BY date DESC LIMIT 1').bind(market,plan.source).all<{date:string}>();
+  if(!records.success||!score.success)throw Error('Completion metadata read failed');
+  if(records.results.length===keys.length&&keys.every(k=>records.results.some(r=>r.key===k&&(r.asOf>plan.date||r.asOf===plan.date&&r.session==='closed')))&&score.results[0]?.date>=plan.date)return{market,date:plan.date,skipped:'already_settled',dbWrites:0,upstreamCalls:0};
+ }
  const rows=await readSentiment(plan.source,plan.from,plan.date);
  if(!rows.length||rows.length>15||rows.at(-1)?.date!==plan.date||rows.some(r=>r.date<plan.from||r.date>plan.date||isExchangeClosed(r.date,market)))throw Error('Invalid completed-session sentiment window');
  for(let time=Date.parse(plan.from);time<=Date.parse(plan.date);time+=86400000){const date=new Date(time).toISOString().slice(0,10);if(!hasExchangeCalendar(date,market)||!isExchangeClosed(date,market)&&!rows.some(r=>r.date===date))throw Error('Recent sentiment trading date is missing; retain previous view');}
@@ -27,7 +40,9 @@ async function executeDailyMarket({db,market,now=Date.now(),readSentiment,readQu
  for(const symbol of plan.symbols){
   const key=`${market}/${symbol}`,r=await db.prepare('SELECT payload,updated_at FROM market_snapshot WHERE key=?').bind(key).all<{payload:string;updated_at:string}>();
   if(!r.success||!r.results[0])throw Error('Daily jobs never initialize an unprepared instrument: '+key);
-  const old=r.results[0],previous=JSON.parse(old.payload) as MarketState,{quote,split}=await readQuote(symbol,previous);
+  const old=r.results[0],previous=JSON.parse(old.payload) as MarketState;
+  if(previous.view.asOf>plan.date)throw Error('Completed target predates the durable snapshot; retained');
+  const incoming=await readQuote(symbol,previous),split=incoming.split,quote=quoteThroughSession(incoming.quote,plan.date,now);
   if(quote.asOf!==plan.date||quote.session!=='closed')throw Error('Completed daily quote is not ready: '+key);
   const gap=(Date.parse(plan.date)-Date.parse(previous.view.asOf))/86400000;if(gap<0||gap>28)throw Error('Quote gap exceeds the controlled daily window');
   for(let time=Date.parse(previous.view.asOf)+86400000;time<=Date.parse(plan.date);time+=86400000){const date=new Date(time).toISOString().slice(0,10);if(!hasExchangeCalendar(date,market)||!isExchangeClosed(date,market)&&!quote.bars?.some(r=>r.date===date))throw Error('New quote trading date is missing; retain previous view');}

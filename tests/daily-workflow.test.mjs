@@ -29,7 +29,7 @@ test('Cloudflare credential is scoped to writer-related steps and never inherite
  assert.doesNotMatch(workflow.slice(0,start),/CLOUDFLARE_API_TOKEN|secrets\./);
  assert.doesNotMatch(workflow,/(?:^|\n)\s*<<:|:\s*[&*][A-Za-z_]/);
  assert.equal(workflow.split(secret).length-1,3);
- assert.equal(steps.length,6);
+ assert.equal(steps.length,7);
  const allowed=[];
  for(const step of steps){
   const name=/^ {6}- name: (.+)$/m.exec(step)?.[1];
@@ -52,4 +52,13 @@ test('checkout, Node setup and dependency installation have no Cloudflare creden
  assert.ok(install);assert.doesNotMatch(install,/secrets\.|CLOUDFLARE_API_TOKEN|^ {8}env:/m);
  assert.match(workflow,/permissions:\n {2}contents: read/);
  assert.doesNotMatch(workflow,/id-token: write|contents: write/);
+});
+test('low-frequency CN recovery shares the writer queue and both modules receive one fixed UTC clock',()=>{
+ for(const cron of['37 8 * * 1-5','37 3 * * 2-6','17 12 * * *','17 20 * * *'])assert.ok(workflow.includes(`cron: '${cron}'`));
+ assert.match(workflow,/group: trendbeak-daily-writer\n  cancel-in-progress: false/);
+ assert.match(workflow,/github.event.schedule == '37 3 \* \* 2-6' && 'US' \|\| 'CN'/);
+ const clock=steps.find(s=>s.includes('id: clock'));assert.ok(clock);assert.doesNotMatch(clock,/CLOUDFLARE_API_TOKEN|secrets\./);
+ assert.equal((workflow.match(/steps.clock.outputs.at/g)||[]).length,2);
+ assert.equal((workflow.match(/args\+=\(--catch-up\)/g)||[]).length,2);
+ assert.doesNotMatch(workflow,/gh workflow run|actions\/github-script|contents: write|actions: write/);
 });
