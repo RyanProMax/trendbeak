@@ -1,4 +1,4 @@
-const CACHE_NAME = "trendbeak-shell-v2-logo11";
+const CACHE_NAME = "trendbeak-shell-v3-theme";
 const PRECACHE = [
   "/offline",
   "/manifest.webmanifest?v=11",

@@ -74,7 +74,7 @@ try {
   if (!dryRun && rows.length) {
     temporary = await mkdtemp(join(tmpdir(), "trendbeak-sentiment-"));
     const sqlFile = join(temporary, "import.sql"); await writeFile(sqlFile, sql, { mode: 0o600 });
-    const result = spawnSync(process.execPath, ["node_modules/wrangler/bin/wrangler.js", "d1", "execute", "trendbeak-sentiment", remote ? "--remote" : "--local", "--file", sqlFile, "--yes"], { stdio: "inherit", env: { ...process.env, WRANGLER_SEND_METRICS: "false" } });
+    const result = spawnSync(process.execPath, ["node_modules/wrangler/bin/wrangler.js", "d1", "execute", "SENTIMENT_DB", remote ? "--remote" : "--local", "--file", sqlFile, "--yes"], { stdio: "inherit", env: { ...process.env, WRANGLER_SEND_METRICS: "false" } });
     if (result.error) throw result.error;
     if (result.status !== 0) throw Error("Database import did not complete; inspect D1 before retrying");
     const connection=await connectD1(remote);try{console.log(JSON.stringify({httpResponses:await refreshMarketHTTP(connection.db,vite,market)}));}catch(error){throw Error('Sentiment import completed; response preparation failed. Run market:prepare for '+market+'; '+String(error));}finally{await connection.close();}

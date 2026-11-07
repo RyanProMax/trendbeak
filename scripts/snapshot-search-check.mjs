@@ -17,8 +17,8 @@ try {
         await layout(page, 'unprepared search ' + width);
         await page.screenshot({ path: `${out}/${width}-unprepared-search.png`, fullPage: true });
         await pending.click();
-        await page.getByText('尚未收录特斯拉，仍显示标普 500', { exact: true }).waitFor();
-        assert.equal(await page.locator('[data-market=US] .instrument-name').innerText(), '标普 500');
+        await page.getByText('尚未收录特斯拉，仍显示纳斯达克综合指数', { exact: true }).waitFor();
+        assert.equal(await page.locator('[data-market=US] .instrument-name').innerText(), '纳斯达克综合指数');
         await page.waitForTimeout(350);
         assert.equal(missingRequests, 1);
         assert.equal(await page.locator('[data-market=US][aria-busy=true]').count(), 0);

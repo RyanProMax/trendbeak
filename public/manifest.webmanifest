@@ -10,8 +10,8 @@
   "display_override": [
     "standalone"
   ],
-  "background_color": "#fdfdfc",
-  "theme_color": "#59685f",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "orientation": "portrait-primary",
   "categories": [
     "finance",

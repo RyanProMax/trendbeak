@@ -5,7 +5,7 @@ import {completedSession} from './completed-session';
 import {prepareMarketState,writeMarketState,type MarketState} from './market-sync';
 import {attachHTTP} from './market-http';
 import {sentimentImportSQL,type SentimentInput} from './sentiment-import';
-const symbols={CN:['000300.SS'],US:['^GSPC','NVDA']} as const;
+const symbols={CN:['000300.SS'],US:['^IXIC','^GSPC','NVDA']} as const;
 export function dailyPlan(market:Market,now:number){
  const date=completedSession(market,now);
  return{market,date,from:new Date(Date.parse(date)-14*86400000).toISOString().slice(0,10),source:market==='CN'?'baifenwei' as const:'cnn_whit3rabbit' as const,symbols:symbols[market]};

@@ -1,13 +1,22 @@
 import {prepareChinaBenchmark} from './china-overview';
 // Controlled jobs only: materialize the actual HTTP data, without timestamps that
 // change merely because somebody reads it. The reader appends tiny freshness metadata.
-import type{MarketSnapshot,SentimentData}from'../market-types';
+import {BENCHMARKS,isUSBenchmark,type MarketSnapshot,type SentimentData}from'../market-types';
+import {validUSOverview} from '../lib/us-overview';
 import type{MarketState}from'./market-sync';
 import{validSnapshot}from'../lib/snapshot-record';
 import{SENTIMENT_SOURCES,DEFAULT_SENTIMENT_SOURCE}from'../lib/sentiment-sources';
 export async function attachHTTP(db:D1Database,prepared:{payload:MarketState;text:string;bytes:number;key:string;processed:number},now=Date.now(),rebuildOverview=false){
  const view=prepared.payload.view,market=view.instrument.market,source=DEFAULT_SENTIMENT_SOURCE[market];
- const end=await db.prepare("SELECT MAX(json_extract(payload,'$.view.asOf')) AS latest FROM market_snapshot WHERE key IN (?,?)").bind('CN/000300.SS','US/^GSPC').all<{latest:string}>();if(!end.success)throw Error('Response window lookup failed');const to=[view.asOf,end.results[0]?.latest].filter(Boolean).sort().at(-1)!,from=new Date(Date.parse(to)-371*86400000).toISOString().slice(0,10);
+ // A benchmark change reuses the existing dated market sentiment checkpoint.
+ // This is a controlled writer read; no quote or indicator rebuild is involved.
+ if(market==='US'&&isUSBenchmark(view.instrument.symbol)&&!view.usOverview){
+  const result=await db.prepare("SELECT json_extract(payload,'$.source') AS source,json_extract(payload,'$.calculation.history') AS history FROM market_snapshot WHERE key=?").bind('overview/US').all<{source:string;history:string}>();
+  if(!result.success)throw Error('US sentiment checkpoint read failed');
+  const row=result.results[0];
+  if(row){const cutoff=new Date(Date.parse(view.asOf)-364*86400000).toISOString().slice(0,10),overview={sourceId:row.source,history:Object.fromEntries(Object.entries(JSON.parse(row.history)).filter(([date])=>date>=cutoff&&date<=view.asOf))};if(!validUSOverview(overview,view.asOf))throw Error('Invalid US sentiment checkpoint');prepared={...prepared,payload:{...prepared.payload,view:{...view,usOverview:overview}}};}
+ }
+ const end=await db.prepare("SELECT MAX(json_extract(payload,'$.view.asOf')) AS latest FROM market_snapshot WHERE key IN (?,?)").bind('CN/000300.SS','US/'+BENCHMARKS.US.symbol).all<{latest:string}>();if(!end.success)throw Error('Response window lookup failed');const to=[view.asOf,end.results[0]?.latest].filter(Boolean).sort().at(-1)!,from=new Date(Date.parse(to)-371*86400000).toISOString().slice(0,10);
  const result=await db.prepare('SELECT market,date,source,score,updated_at FROM sentiment_daily WHERE market=? AND source IN (?,?) AND date>=? AND date<=? ORDER BY source,date LIMIT 745').bind(market,source,market==='US'?'cnn_benzinga':source,from,to).all<{market:string;date:string;source:string;score:number;updated_at:string}>();if(!result.success||result.results.length>744)throw Error('HTTP sentiment projection failed; existing response retained');
  const info=SENTIMENT_SOURCES[source],rows=result.results.filter(r=>r.source===source),reports=result.results.filter(r=>r.source==='cnn_benzinga');if(rows.length>372||reports.length>372||result.results.some(r=>r.market!==market||![source,'cnn_benzinga'].includes(r.source)||r.date<from||r.date>to||!Number.isFinite(Date.parse(r.updated_at))))throw Error('Invalid response observation input');
  const sentiment:SentimentData={source:{name:info.name,url:info.url},description:info.description,observations:rows.map((r,i)=>({date:r.date,value:r.score,previous:rows[i-1]?.score??null})),...(reports.length?{reportedObservations:reports.map(r=>({date:r.date,value:r.score,previous:null,source:{name:SENTIMENT_SOURCES.cnn_benzinga.name,url:SENTIMENT_SOURCES.cnn_benzinga.url}}))}:{})};

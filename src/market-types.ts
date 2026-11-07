@@ -128,10 +128,14 @@ export const BENCHMARKS: Record<Market, Instrument> = {
     kind: "index",
   },
   US: {
-    symbol: "^GSPC",
-    code: "SPX",
-    name: "标普 500",
+    symbol: "^IXIC",
+    code: "IXIC",
+    name: "纳斯达克综合指数",
     market: "US",
     kind: "index",
   },
 };
+
+/** Keep explicitly requested legacy S&P snapshots readable. */
+export const US_BENCHMARK_SYMBOLS = ["^IXIC", "^GSPC"] as const;
+export function isUSBenchmark(symbol: string): boolean { return US_BENCHMARK_SYMBOLS.some(value => value === symbol); }

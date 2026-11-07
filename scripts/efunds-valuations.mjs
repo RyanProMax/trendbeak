@@ -14,7 +14,7 @@ function normalize(input,c,today){
 }
 function bound(a,v,upper=false){let lo=0,hi=a.length;while(lo<hi){const mid=(lo+hi)>>>1;if(a[mid]<v||upper&&a[mid]===v)lo=mid+1;else hi=mid;}return lo;}
 function change(a,v,remove){if(v===null)return;const i=bound(a,v);if(remove){if(a[i]!==v)throw Error('Invalid valuation calculation checkpoint');a.splice(i,1);}else a.splice(i,0,v);}
-export function valuationReading(state){const row=state.rows.at(-1),metric=(v,a,column)=>{if(v===null)return{value:null,percentile:null};const n=a.length-1,p=n<60?null:100*(bound(a,v)+(bound(a,v,true)-bound(a,v)-1)/2)/n;return{value:v,percentile:p===null?null:Math.round(p*10000)/10000,from:state.rows.find(r=>r[column]!==null)?.[0],samples:n};};
+export function valuationReading(state){const row=state.rows.at(-1),metric=(v,a,column)=>{if(v===null)return{value:null,percentile:null};const n=a.length-1,p=n<60?null:100*(bound(a,v)+(bound(a,v,true)-bound(a,v)-1)/2)/n;return{value:v,percentile:p===null?null:Math.round(p*10000)/10000,from:state.rows.find(r=>r[column]!==null)?.[0],through:state.rows.slice(0,-1).findLast(r=>r[column]!==null)?.[0],samples:n};};
  return{name:state.name,code:state.code,date:row[0],pb:metric(row[1],state.pb,1),ps:metric(row[2],state.ps,2)};
 }
 export function efundsDetail(input,expected){

@@ -38,10 +38,10 @@
 ```sh
 npm run market:schema
 npm run market:init -- --market CN --symbol 000300.SS --file /private/reviewed/cn-normalized.json
-npm run market:init -- --market US --symbol '^GSPC' --file /private/reviewed/us-normalized.json
+npm run market:init -- --market US --symbol '^IXIC' --file /private/reviewed/us-normalized.json
 npm run market:init -- --market US --symbol NVDA --file /private/reviewed/nvda-normalized.json
 npm run market:sync -- --market CN --symbol 000300.SS --dry-run
-npm run market:sync -- --market US --symbol '^GSPC'
+npm run market:sync -- --market US --symbol '^IXIC'
 npm run market:sync -- --market US --symbol NVDA
 ```
 
@@ -120,3 +120,11 @@ RSI14保留0–100原值，状态对比前一有效日；EMA保留有正负的20
 普通页面仅展示真实值与其日期，缺值为中性空值，保留正常休市。技术异常留在日志/健康接口；移除重复陈旧警告和读数下的来源说明，出处仍在数据库、API与来源文档。鼠标未点击就离图回最新；点击后的首次离图保留；重新入图浏览而未再点击，再离图回最新。触摸点选不套用桌面离图规则。日历为描边和阴影预留实际绘制边距，五行正方格和365日上限不变；可点击区域、区间端点、平移、输入分别用pointer、ew-resize、grab、text，输入保留焦点和透明底色。
 
 最新普通JSON、原生读取候选的首组11次Worker请求为0–7 ms；另4次精确旧客户端请求为2–3 ms，均无资源超限。此前更高峰值样本保留，不以低样本覆盖历史；这些仍是首次观察与有限热请求，不能保证所有隔离实例或地区的最坏值。完整浏览器和生产验收须与实际发布SHA对应。
+
+## 默认美股切换为纳斯达克综合指数
+
+默认行情、热图与大盘趋势使用 Yahoo `^IXIC`，显示“纳斯达克综合指数”。`^GSPC` 的显式读取及 SPX 搜索别名保留，既有数据不改名、不复制成纳指；日常任务仍维护旧价格快照。US CNN 六因子是市场情绪，保持原始来源和日期，不因价格基准切换而变成“纳指专属情绪”。
+
+上线前须通过独立命令初始化 `US/^IXIC`，例如 `npm run market:init -- --market US --symbol '^IXIC' --dry-run` 后执行对应实际初始化。该命令只获取一次已有 Yahoo 的有界两年日线，保存真实纳指检查点，并从已有 `overview/US` 的计算结果附上当日之前的 CNN 分项；不会复制标普价格或在读请求中补算。新标的缺失仍是明确 404；健康只检查默认 CN／IXIC 两行的元数据。
+
+此次验证使用隔离的本地数据库副本及真实 501 根 IXIC 日线，实际报价截止 2026 年 11 月 5 日；未操作生产库或发布生产版本。主要指数与行业 PB／PS 的社区来源核查见 [us-valuation-sources.md](us-valuation-sources.md)。

@@ -19,7 +19,7 @@ try{
     successfulSearches++;await page.locator(`[data-market=${market}].stock-selected`).waitFor();
     await page.waitForFunction(m=>!document.querySelector(`[data-market=${m}]`).hasAttribute("aria-busy"),market);
     assert.equal(await page.locator(".signals").count(),2);
-    assert.match(await page.locator(`[data-analysis-market=${market}] .index-end`).getAttribute("aria-label"),market==="CN"?/沪深 300/:/标普 500/);
+    assert.match(await page.locator(`[data-analysis-market=${market}] .index-end`).getAttribute("aria-label"),market==="CN"?/沪深 300/:/纳斯达克综合指数/);
     await layout(page,"stock selected");
   }
   await page.reload({waitUntil:"networkidle"});await page.locator("main[data-range-ready=true]").waitFor();await page.locator(".radar-axis").nth(7).waitFor();await search.click();

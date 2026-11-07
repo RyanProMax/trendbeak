@@ -1,72 +1,83 @@
 # trendbeak
 
-![trendbeak](public/trendbeak-wordmark.svg?v=11)
+A 股与美股市场看板，查看每日涨跌、市场情绪和指数估值。
 
-A 股与美股的每日市场信号。默认观察沪深 300 和标普 500，支持搜索个股、最近一年交易日回溯和自由日期区间趋势对照，桌面初次默认 365 天，移动端初次默认 90 天。
+**[在线 Demo → trendbeak.com](https://trendbeak.com)**
 
-- 请求失败时回退最近成功快照并保留实际数据日期；行情与计算检查点持久保存于自有 D1；5 分钟边缘缓存可被驱逐，冷读回库。最多 6 个浏览器本机备份仍有 7 天上限。
-- 行情与指数名称、点位、涨跌和实际日期合并进年度热图的市场侧栏。涨跌热力图与趋势共用所选起止日期，不额外补整年，红涨绿跌，节假日禁选；通过热图或趋势图选择全局日期，支持键盘与触摸。标题行仅显示当前全局日期。
-- 热力日历只展示周一至周五，保留平日休市和缺失状态。格子等比缩放保持正方形，不横滚或跨年分块。
-- 情绪按分值由柔绿经金色过渡到珊瑚红，大盘为深灰实线，使用同一日期轴与各自尺度。真实缺值留空，单点不画成历史曲线。曲线右端仅显示数值，完整名称与实际观测日期保留在可访问说明和浮层中；历史读数只按选中日精确匹配。悬停、触摸或键盘浏览同日读数，点击与日历双向联动。日历选日只更新游标与读数，底部范围支持自由调整起止日期、整段平移及轨道点跳，轨道与选区都限定最近365自然日，日期位于条下左右两端；桌面初次 365 日、移动初次 90 日；用户明确选择后，数据刷新、同标签页重新载入和窗口尺寸变化均保留范围。趋势读数位于图下，不覆盖曲线。
-- 四轴雷达分别观察 RSI14 动量、EMA20/60 趋势差、布林(20,2)带宽与 RVOL20 活跃度，轴旁显示原始值及单位。RSI 原刻度绘图；其他三项按此前最多252个有效完整观测的经验分位定位，不含本次观测，至少60个才画点；原始指标可用但分位历史不足时保留原值，不补50。盘中 RVOL 使用最近完整交易日，日期在对应气泡标明；波动和量能使用中性色，不解释成多空。四个方向不保证统计独立，不合成贪恐分。旧MA20/52周指标仍保留在浏览器的历史读数，未改变CN/US情绪算法。
-- 搜索框仅在悬停、焦点与交互时显示柔和彩虹旋转边框；减少动画偏好关闭旋转与图表过渡。
-- 品牌是一根连续趋势线，末端折成开放的向右鸟喙；小写 `trend` 使用鼠尾草绿→柔金→珊瑚红渐变，`beak` 为灰绿。SVG 字标已转路径，并提供深色背景和单色变体。
+- 沪深 300、纳斯达克综合指数及个股行情。
+- 涨跌日历、历史趋势、市场指标和 PB／PS 分位。
+- 支持手机、键盘操作和明暗主题切换。
 
-顶部 CN／US 滑块切换市场，两个市场分别保留选日与范围。页面跟随系统明暗主题；搜索、个股与返回大盘保留。A股六项与科创50 PB／PS 使用同一 D1 预计算快照，缺项按真实日期留空；当前范围见 [市场概览](docs/market-overview-release.md)。
+基于 React、TypeScript、Hono 和 Vite，部署在 Cloudflare Pages，数据存储使用 D1。
 
-## 数据
+## 本地运行
 
-价格与成交量：A 股来自腾讯证券前复权日线，美股来自 Yahoo Finance 日线；股票名称与代码搜索来自东方财富。当前分支的情绪数据从自有 D1 读取：A 股为[百分位自编指数](https://baifenwei.com/indicator/fear-greed/)，美股为 [CNN 社区存档](https://github.com/whit3rabbit/fear-greed-data)，明确标识发布者及取得渠道，非 CNN 直连。每个来源独立存储和读取，自有算法实验数据未导入。
-
-页面可见时最多每 5 分钟刷新行情；切回页面也遵守该间隔。页面请求只返回轻壳，浏览器分别请求两个市场的有界快照；服务端不计算历史指标、不绘制图表。独立受控命令预生成行情视图及计算检查点，日常按小窗口更新，新增日复用状态、修订重算后缀；首次回填和必要重建不在读请求或每次浏览器打开时运行。没有分钟线采集。浏览器保存最近搜索、可见且有年龄上限的最近成功快照，以及同标签页的显式日期范围；不采集分时历史。
-
-情绪库已私有导入百分位 8,036 条、美股社区存档 250 个日期，以及独立的 2026 年 3 月 12 日 Benzinga 同期报道 21.2。报道只在该日读数标明来源，默认社区曲线仍保留缺口，不无标记混接。百分位 7 月 27 日在完整 CSV 和图表导出中均缺失，仍保留真实缺失。页面和情绪接口不抓取上游，使用 5 分钟可驱逐快照，冷缓存回库；同步命令独立运行，已启用 GitHub Actions 每日调度：A股收盘后上海16:37、美股收盘后UTC 23:37；跳过已知休市日。配置与验收状态见 [每日同步说明](docs/daily-sync.md)。当前通过 main 的既有 Pages 流程发布，公开使用边界说明保留，不随仓库或构建发布原文件。详见 [情绪存储与操作说明](docs/sentiment-storage.md)。美股四项技术指标仍从真实日线计算，缺少足够历史或成交量时保留空值。
-
-历史选择只使用截至该日的日线；取回的历史可能受上游复权修订影响，不是本站当日存档。行情接口只返回已物化的最近一年日历与技术读数，不返回预热日线、递推检查点或更早历史；前端轨道及可见范围严格限定最近365自然日，历史选日不移动窗口。旧604/730日会话迁移到合法范围，重新加载不会恢复超长选区。52 周位置仍需要完整 52 周预热，新股不能用短期区间代替。
-
-详细链路、缓存、可靠性边界和已知故障见 [docs/data-flow.md](docs/data-flow.md)。CNN历史适配与访问限制见 [docs/cnn-history-adapter.md](docs/cnn-history-adapter.md)，未启用受拒绝的直连源。
-
-## 本地开发与检查
-
-需要 Node.js 22.13+，推荐 pnpm。
+需要 Node.js 22.13+ 和 pnpm。本地使用 SQLite，不需要 Cloudflare 账户。
 
 ```sh
+git clone https://github.com/RyanProMax/trendbeak.git
+cd trendbeak
 pnpm install --frozen-lockfile
-pnpm market:schema
-# 先按 docs/data-flow.md 初始化本地默认行情快照，再启动预览
-pnpm dev
+
+# 建表并获取默认指数行情
+pnpm exec wrangler d1 migrations apply SENTIMENT_DB --local
+pnpm run market:init --market CN --symbol 000300.SS
+pnpm run market:init --market US --symbol '^IXIC'
+
+pnpm run dev
 ```
 
-本地预览默认 `http://127.0.0.1:8788`。修改源文件后重新构建。
+打开 <http://127.0.0.1:8788>。数据保存在 `.wrangler/state`。当前开发命令先构建再启动预览，修改代码后需重启。
+
+## 生产部署
+
+使用自己的 Cloudflare 账户创建 Pages 项目和 D1 数据库。将以下占位符替换为自己的名称和账户 ID。
 
 ```sh
-pnpm check
-pnpm test
-pnpm security:check
-pnpm test:visual
-pnpm test:budget
+pnpm exec wrangler login
+pnpm exec wrangler d1 create YOUR_DATABASE_NAME
+pnpm exec wrangler pages project create YOUR_PROJECT_NAME --production-branch main
 ```
 
-浏览器检查使用 1440px、390px 与 320px，覆盖完整日历、日期联动、最近一年内的自由趋势窗口及旧状态迁移、说明浮层、真实搜索切换、缺失数据和失败状态。可用 `SIGNAL_PREVIEW_URL`、`SIGNAL_ARTIFACT_DIR` 与 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 指定预览、证据目录和现有浏览器。
-
-## 接口
-
-- `GET /api/markets`：已停用批量读取（410），返回按市场接口地址，避免冷请求同时处理两个市场。
-- 按市场接口返回兼容既有客户端的完整展示快照，无须版本请求头。未变化数据支持 ETag/304；未初始化标的返回明确404，绝不在请求内抓取或回填。
-- `GET /api/markets/CN?symbol=600519.SS`：指定 A 股或沪深 300。
-- `GET /api/markets/US?symbol=NVDA`：指定美股或标普 500（`^GSPC`）。
-- `GET /api/search?q=英伟达`：名称与代码搜索，结果标明历史是否已收录；未收录个股保留原大盘，不无限加载。
-- `GET /api/health`：只检查现有快照的双市场可用状态与实际行情日期，只读两个行情元数据记录，不抓上游、不查询情绪库。
-- `GET /api/sentiment/CN`、`GET /api/sentiment/US`：自有库情绪数据，可选 `source`、`from`、`to`，单次最多366自然日，默认365日；更早历史按日期分段读取，逐行返回来源，不混接曲线。
-
-## 部署
-
-仓库：[RyanProMax/trendbeak](https://github.com/RyanProMax/trendbeak)。Cloudflare Pages 项目配置名称为 `trendbeak`，构建命令 `npm run build`，产物目录 `dist`。目标自定义域名为 `trendbeak.com`。
+修改 `wrangler.jsonc`：`name` 填 Pages 项目名，`database_name`、`database_id` 填新数据库的名称和 ID，绑定名保留 `SENTIMENT_DB`。
 
 ```sh
-pnpm deploy
+export CLOUDFLARE_ACCOUNT_ID="YOUR_ACCOUNT_ID"
+
+pnpm exec wrangler d1 migrations apply SENTIMENT_DB --remote
+pnpm run market:init --market CN --symbol 000300.SS --remote
+pnpm run market:init --market US --symbol '^IXIC' --remote
+
+pnpm run build
+pnpm exec wrangler pages deploy dist --project-name YOUR_PROJECT_NAME --branch main
 ```
 
-发布前完成自动化与视觉验收，发布后核对部署对应提交、健康状态、静态资源和域名 HTTPS。域名迁移与遗留数据保留边界见 [docs/transition.md](docs/transition.md)。
+部署后访问 `/api/health` 检查行情状态。自定义域名在 Pages 项目设置中绑定。
 
-环境文件与凭据不提交。公开仓库安全检查和 GitHub Actions 继续运行。
+## 数据更新
+
+页面从数据库读取数据，部署不会自动开始采集。上述步骤只准备指数行情；情绪、市场指标和估值需要另行准备历史数据，Demo 数据库不随仓库分发。
+
+手动更新行情：
+
+```sh
+pnpm run market:sync --market CN --symbol 000300.SS
+pnpm run market:sync --market US --symbol '^IXIC'
+```
+
+这些命令默认操作本地数据库；更新生产数据时加 `--remote`，并设置 `CLOUDFLARE_ACCOUNT_ID`。
+
+行情来自腾讯证券和 Yahoo Finance；A 股情绪来自[百分位](https://baifenwei.com/indicator/fear-greed/)，CNN 情绪通过[社区存档](https://github.com/whit3rabbit/fear-greed-data)取得。A 股市场统计使用开盘红、东方财富，指数估值使用易方达数据。
+
+## 开发检查
+
+```sh
+pnpm run check          # TypeScript
+pnpm test               # 构建和自动化测试
+pnpm run test:budget    # 服务端读取性能
+pnpm run security:check # 仓库敏感信息检查
+```
+
+## License
+
+[MIT](LICENSE)

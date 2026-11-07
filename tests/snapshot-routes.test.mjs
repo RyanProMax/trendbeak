@@ -37,11 +37,11 @@ test('API and health share daily completeness without replacing acquisition time
  const quote=(await (await request('/api/markets/US')).json()).data;
  assert.equal(quote.freshness.state,health.markets.US.freshness.state);
  assert.equal(quote.freshness.storedAt,new Date(initial).toISOString());
- const original=fixture.sqlite.prepare("SELECT payload FROM market_snapshot WHERE key='US/^GSPC'").get().payload;
- try{fixture.sqlite.prepare("UPDATE market_snapshot SET payload=json_set(payload,'$.view.asOf','2026-10-29','$.view.fetchedAt',?) WHERE key='US/^GSPC'").run(new Date(clock).toISOString());
+ const original=fixture.sqlite.prepare("SELECT payload FROM market_snapshot WHERE key='US/^IXIC'").get().payload;
+ try{fixture.sqlite.prepare("UPDATE market_snapshot SET payload=json_set(payload,'$.view.asOf','2026-10-29','$.view.fetchedAt',?) WHERE key='US/^IXIC'").run(new Date(clock).toISOString());
  const response=await request('/api/health');assert.equal(response.status,503);const missing=(await response.json()).data.markets.US;
  assert.equal(missing.available,true);assert.equal(missing.asOf,'2026-10-29');assert.equal(missing.freshness.ageSeconds,0);assert.equal(missing.freshness.state,'stale');assert.equal(calls,0);
- }finally{fixture.sqlite.prepare("UPDATE market_snapshot SET payload=? WHERE key='US/^GSPC'").run(original);}
+ }finally{fixture.sqlite.prepare("UPDATE market_snapshot SET payload=? WHERE key='US/^IXIC'").run(original);}
 });
 test('a new reader instance hits the shared location cache with zero DB reads; expiration reads only the durable snapshot',async()=>{
  clock+=300001;edge.clear();const first=await request('/api/markets/CN');assert.equal(first.status,200);const tag=first.headers.get('ETag');await first.text();const before=fixture.stats.reads,writes=fixture.stats.writes,independent=(await import('../dist/_worker.js?shared-location-cache')).default;

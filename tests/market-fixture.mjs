@@ -8,7 +8,7 @@ export function compactQuote(market = 'CN', symbol = market === 'CN' ? '000300.S
             dates.unshift(new Date(t).toISOString().slice(0, 10));
     }
     const bars = dates.map((date, i) => ({ date, open: 100 + i * .01, close: 100 + i * .01, high: 102 + i * .01, low: 98 + i * .01, volume: 1000 + i }));
-    return { instrument: { market, symbol, code: symbol, name: symbol, kind: symbol === '^GSPC' || symbol === '000300.SS' ? 'index' : 'stock' }, asOf: dates.at(-1), fetchedAt: new Date(now).toISOString(), session: 'closed', price: bars.at(-1).close, change: 0, currency: market === 'CN' ? 'CNY' : 'USD', bars, days: [], history: {}, signals: [], source: market === 'CN' ? { name: '腾讯证券', url: `https://gu.qq.com/${symbol.endsWith('.SS') ? 'sh' : 'sz'}${symbol.slice(0, 6)}` } : { name: 'Yahoo Finance', url: `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}/history/` } };
+    return { instrument: { market, symbol, code: symbol, name: symbol, kind: symbol === '^IXIC' || symbol === '^GSPC' || symbol === '000300.SS' ? 'index' : 'stock' }, asOf: dates.at(-1), fetchedAt: new Date(now).toISOString(), session: 'closed', price: bars.at(-1).close, change: 0, currency: market === 'CN' ? 'CNY' : 'USD', bars, days: [], history: {}, signals: [], source: market === 'CN' ? { name: '腾讯证券', url: `https://gu.qq.com/${symbol.endsWith('.SS') ? 'sh' : 'sz'}${symbol.slice(0, 6)}` } : { name: 'Yahoo Finance', url: `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}/history/` } };
 }
 export function memoryDB() {
     const sqlite = new DatabaseSync(':memory:');
@@ -22,7 +22,7 @@ export function memoryDB() {
 }
 export async function preparedDB(vite, now = fixtureNow, { nvda = false } = {}) {
     const fixture = memoryDB(), job = await vite.ssrLoadModule('/src/server/market-sync.ts');
-    for (const [market, symbol] of [['CN', '000300.SS'], ['US', '^GSPC'], ...(nvda ? [['US', 'NVDA']] : [])]) {
+    for (const [market, symbol] of [['CN', '000300.SS'], ['US', '^IXIC'], ['US', '^GSPC'], ...(nvda ? [['US', 'NVDA']] : [])]) {
         const input = compactQuote(market, symbol, now), p = job.prepareMarketState(input, 'init', undefined, now);
         fixture.sqlite.prepare('INSERT INTO market_snapshot VALUES(?,?,?)').run(p.key, p.text, new Date(now).toISOString());
         for (const b of input.bars) {

@@ -2,7 +2,7 @@
 
 ## 实现与启用状态
 
-现有三个预备标的：CN/000300.SS、US/^GSPC、US/NVDA。`npm run daily:sync -- --market CN|US --remote [--dry-run]` 只更新已有行情和按来源隔离的恐贪，不初始化未知标的。随后 `node scripts/overview-job.mjs --market CN|US --remote` 更新已上线的 CN 辅助因子、12 项指数 PB/PS 或 US CNN 分项；CN RSI 随行情增量生成。估值使用易方达现有检查点，不依赖 Mac OpenD。
+当前默认标的为 CN/000300.SS、US/^IXIC；日常计划同时保留 US/^GSPC（旧页面兼容）和 US/NVDA。发布纳指默认值前必须显式初始化 US/^IXIC；普通日常任务不会代为回填。`npm run daily:sync -- --market CN|US --remote [--dry-run]` 只更新已有行情和按来源隔离的恐贪，不初始化未知标的。随后 `node scripts/overview-job.mjs --market CN|US --remote` 更新已上线的 CN 辅助因子、12 项指数 PB/PS 或 US CNN 分项；CN RSI 随行情增量生成。估值使用易方达现有检查点，不依赖 Mac OpenD。
 
 工作流 `.github/workflows/daily-sync.yml` 已发布并于 2026 年 11 月 5 日启用。此前最近五次定时运行均因没有启用变量而跳过；仓库也未配置执行凭据。本次经用户明确批准，创建了仅限 trendbeak 账户 D1 Write 的专用 Token，并加密保存为 Actions Secret `CLOUDFLARE_API_TOKEN`；配置账户变量与 `DAILY_SYNC_ENABLED=true`。没有升级 Cloudflare 套餐，也没有复制本机交互式登录令牌。令牌仅用于现有数据库同步。
 

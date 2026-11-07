@@ -22,7 +22,7 @@ export const OVERVIEW_SOURCES={
 }as const;
 export type OverviewSource=keyof typeof OVERVIEW_SOURCES;
 export type FactorCell=[value:number|null,percentile:number|null,samples:number,counts?:number[]];
-export interface IndexValuation{name:string;code:string;date:string;pb:{value:number|null;percentile:number|null;from?:string;samples?:number};ps:{value:number|null;percentile:number|null;from?:string;samples?:number}}
+export interface IndexValuation{name:string;code:string;date:string;pb:{value:number|null;percentile:number|null;from?:string;through?:string;samples?:number};ps:{value:number|null;percentile:number|null;from?:string;through?:string;samples?:number}}
 export interface ChinaOverview{
  sourceIds:Partial<Record<ChinaFactor,OverviewSource>>;
  history:Record<string,Partial<Record<ChinaFactor,FactorCell>>>;
@@ -49,7 +49,7 @@ export function validChinaOverview(value:any,today:string):value is ChinaOvervie
    if(c[0]!==null&&(c[0]<0||['fearGreed','rsi','breadth'].includes(id)&&c[0]>100||['turnover','relativeTurnover'].includes(id)&&c[0]===0))return false;
   }
  }
- if(value.valuations){const v=value.valuations;if(!source(v.sourceId)||typeof v.period!=='string'||!v.period.trim()||v.period.length>80||!Array.isArray(v.rows)||v.rows.length>33)return false;const seen=new Set();for(const r of v.rows){if(!r||typeof r.name!=='string'||!r.name.trim()||r.name.length>40||typeof r.code!=='string'||r.code.length>24||seen.has(r.code)||!date(r.date,today))return false;seen.add(r.code);for(const metric of[r.pb,r.ps])if(!metric||!rank(metric.percentile)||metric.value!==null&&(!finite(metric.value)||metric.value<=0)||metric.value===null&&metric.percentile!==null||metric.from!==undefined&&(!date(metric.from,today)||metric.from>r.date)||metric.samples!==undefined&&(!Number.isInteger(metric.samples)||metric.samples<0||metric.samples>2700))return false;}}
+ if(value.valuations){const v=value.valuations;if(!source(v.sourceId)||typeof v.period!=='string'||!v.period.trim()||v.period.length>80||!Array.isArray(v.rows)||v.rows.length>33)return false;const seen=new Set();for(const r of v.rows){if(!r||typeof r.name!=='string'||!r.name.trim()||r.name.length>40||typeof r.code!=='string'||r.code.length>24||seen.has(r.code)||!date(r.date,today))return false;seen.add(r.code);for(const metric of[r.pb,r.ps])if(!metric||!rank(metric.percentile)||metric.value!==null&&(!finite(metric.value)||metric.value<=0)||metric.value===null&&metric.percentile!==null||metric.from!==undefined&&(!date(metric.from,today)||metric.from>r.date)||metric.through!==undefined&&(!metric.from||!date(metric.through,today)||metric.through<metric.from||metric.through>=r.date)||metric.samples!==undefined&&(!Number.isInteger(metric.samples)||metric.samples<0||metric.samples>2700))return false;}}
  return true;
 }
 /** Exact-date lookup only. Existing published fear/RSI raw values remain useful

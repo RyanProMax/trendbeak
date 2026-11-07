@@ -4,7 +4,7 @@ const code='000688',url=`https://cdn.efunds.com.cn/etf-net/index_valuation_perce
 const rows=Array.from({length:100},(_,i)=>({trdCode:code,trdDt:new Date(Date.UTC(2001,0,1+i)).toISOString().slice(0,10),pBLf:1+i/100,pSTtm:2+i/100})),today='2001-12-31';
 test('official detail identity and static URL are fixed, and eligibility cannot become site redistribution permission',()=>{assert.equal(info.code,code);assert.equal(efundsDetail({...detail,data:{...detail.data,authorizedIndex:false}},code).code,code);assert.throws(()=>efundsDetail({...detail,data:{...detail.data,valuationPercentileJson:'https://example.invalid/data'}},code),/URL/);assert.throws(()=>efundsDetail(detail,'000905'),/identity/);});
 test('historical midrank excludes current, keeps nulls and legitimate boundary ranks, and rejects fabricated dates/zeros',()=>{
- const r=initializeEfunds(info,rows,tag,today);assert.equal(r.reading.pb.percentile,100);assert.equal(r.samples.pb,99);assert.equal(r.reading.pb.value,1.99);
+ const r=initializeEfunds(info,rows,tag,today);assert.equal(r.reading.pb.percentile,100);assert.equal(r.samples.pb,99);assert.equal(r.reading.pb.value,1.99);assert.equal(r.reading.pb.from,rows[0].trdDt);assert.equal(r.reading.pb.through,rows[98].trdDt);
  assert.equal(validateEfundsCheckpoint(r.checkpoint,today),r.checkpoint);for(const patch of[{pb:[]},{ps:[...r.checkpoint.ps].reverse()},{pb:r.checkpoint.pb.map(()=>9)}])assert.throws(()=>validateEfundsCheckpoint({...r.checkpoint,...patch},today),/checkpoint/);
  const tied=initializeEfunds(info,rows.map(r=>({...r,pBLf:2})),tag,today);assert.equal(tied.reading.pb.percentile,50);
  assert.equal(initializeEfunds(info,rows.map((r,i)=>i===99?{...r,pBLf:.5}:r),tag,today).reading.pb.percentile,0);

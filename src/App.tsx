@@ -6,6 +6,7 @@ import {
   type MarketSnapshot,
   type PageData,
 } from "./market-types";
+import ThemeSwitch, { useColorScheme, THEME_BOOTSTRAP } from "./components/ThemeSwitch";
 import StockSearch from "./components/StockSearch";
 import MarketCard, { type ViewState } from "./components/MarketCard";
 import { CalendarSkeleton, SignalsSkeleton } from "./components/MarketSkeleton";
@@ -14,7 +15,7 @@ import {MarketSentimentRadar} from "./components/ChinaSentimentRadar";
 import{US_LABELS,usReadings}from"./lib/us-overview";
 import ChinaSentimentRadar from "./components/ChinaSentimentRadar";
 import IndexValuations from "./components/IndexValuations";
-import {chinaReadings,OVERVIEW_SOURCES} from "./lib/china-overview";
+import {chinaReadings} from "./lib/china-overview";
 import MarketTrend from "./components/MarketTrend";
 import TrendRangeControl from "./components/TrendRange";
 import { clampWindow, historyBounds, latestWindow, windowDays, persistTrendWindow, restoreTrendWindow, type TrendWindow } from "./lib/trend-window";
@@ -44,8 +45,7 @@ function Dashboard({ data }: { data: PageData }) {
   const [userWindows,setUserWindows]=useState<Record<Market,TrendWindow|null>>({CN:null,US:null});
   const userWindow=userWindows[activeMarket];
   const setUserWindow=(value:TrendWindow)=>setUserWindows(old=>({...old,[activeMarket]:value}));
-  const [scheme,setScheme]=useState<'light'|'dark'>('light');
-  useEffect(()=>{const q=matchMedia('(prefers-color-scheme:dark)'),update=()=>setScheme(q.matches?'dark':'light');update();q.addEventListener('change',update);return()=>q.removeEventListener('change',update);},[]);
+  const { scheme, setScheme } = useColorScheme();
   const [navigating,setNavigating] = useState(false);
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [visibleSeries, setVisibleSeries] = useState({ mood: true, index: true });
@@ -282,10 +282,11 @@ function Dashboard({ data }: { data: PageData }) {
       <header className="topbar">
         <div className="topbar-inner">
           <a className="brand" href="/" aria-label="trendbeak 首页">
-            <picture><source media="(prefers-color-scheme: dark)" srcSet="/trendbeak-wordmark-dark.svg?v=11"/><img className="brand-wordmark" src="/trendbeak-wordmark.svg?v=11" alt="trendbeak" width="480" height="120" /></picture>
+            <img className="brand-wordmark brand-light" src="/trendbeak-wordmark.svg?v=11" alt="trendbeak" width="480" height="120" /><img className="brand-wordmark brand-dark" src="/trendbeak-wordmark-dark.svg?v=11" alt="trendbeak" width="480" height="120" />
           </a>
           <div className="market-switch"><span aria-hidden="true">CN</span><span aria-hidden="true">US</span><input type="range" min="0" max="1" step="1" value={activeMarket==='CN'?0:1} aria-label="切换市场" aria-valuetext={activeMarket==='CN'?'A股':'美股'} onChange={e=>changeMarket(e.currentTarget.value==='0'?'CN':'US')}/></div>
           <StockSearch onSelect={(instrument) => visit(instrument)} />
+          <ThemeSwitch scheme={scheme} setScheme={setScheme} />
         </div>
       </header>
       <main id="main-content" data-range-ready={rangeReady} data-market={activeMarket} data-selected-date={globalDate}>
@@ -325,8 +326,7 @@ function Dashboard({ data }: { data: PageData }) {
             </section>;
           })}</div>
         </section>
-        {activeMarket==='CN'&&benchmarks.CN?.chinaOverview?.valuations&&<IndexValuations rows={benchmarks.CN.chinaOverview.valuations.rows} period={benchmarks.CN.chinaOverview.valuations.period} source={OVERVIEW_SOURCES[benchmarks.CN.chinaOverview.valuations.sourceId]}/>}
-        {markets[activeMarket].snapshot&&<details className="data-sources"><summary>来源</summary><p><a href={markets[activeMarket].snapshot!.source.url} target="_blank" rel="noreferrer">{markets[activeMarket].snapshot!.source.name}</a>{markets[activeMarket].snapshot!.sentiment&&<> · <a href={markets[activeMarket].snapshot!.sentiment!.source.url} target="_blank" rel="noreferrer">{activeMarket==='CN'?'百分位':'CNN 社区存档'}</a></>}</p></details>}
+        {activeMarket==='CN'&&benchmarks.CN?.chinaOverview?.valuations&&<IndexValuations rows={benchmarks.CN.chinaOverview.valuations.rows}/>}
       </main>
     </>
   );
@@ -338,7 +338,7 @@ export default function Document({ data }: { data: PageData }) {
     .replaceAll("\u2028", "\\u2028")
     .replaceAll("\u2029", "\\u2029");
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" suppressHydrationWarning>
       <head>
         <meta charSet="UTF-8" />
         <meta
@@ -346,7 +346,7 @@ export default function Document({ data }: { data: PageData }) {
           content="width=device-width, initial-scale=1.0, viewport-fit=cover"
         />
         <meta name="color-scheme" content="light dark"/>
-        <meta name="theme-color" content="#fafbf8" media="(prefers-color-scheme: light)"/><meta name="theme-color" content="#151c18" media="(prefers-color-scheme: dark)"/>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
         <meta name="application-name" content="trendbeak" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />

@@ -12,8 +12,8 @@ test("web app manifest exposes installable square and maskable icons", async () 
   assert.equal(manifest.start_url, "/");
   assert.equal(manifest.scope, "/");
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.theme_color, "#59685f");
-  assert.equal(manifest.background_color, "#fdfdfc");
+  assert.equal(manifest.theme_color, "#ffffff");
+  assert.equal(manifest.background_color, "#ffffff");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
   assert.ok(manifest.icons.some((icon) => icon.purpose === "maskable"));

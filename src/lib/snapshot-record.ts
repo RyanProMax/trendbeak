@@ -1,5 +1,6 @@
 import{validUSOverview}from'./us-overview';
 import {validChinaOverview} from './china-overview';
+import { isUSBenchmark } from "../market-types";
 import type { Market, MarketSnapshot } from "../market-types";
 import { isDate, marketDate } from "./market-signals";
 import { dailySnapshotCurrent } from './daily-freshness';
@@ -32,7 +33,7 @@ export const snapshotKey = (market: Market, symbol: string) => `v${SNAPSHOT_SCHE
 
 /** Compact quote boundary. At most 640 real bars; no indicator computation or sorting. */
 export function validCompactSnapshot(v:any,market:Market,symbol:string,now:number):v is MarketSnapshot {
-  if(v?.usOverview&&(market!=='US'||symbol!=='^GSPC'||!validUSOverview(v.usOverview,marketDate(now,market))))return false;
+  if(v?.usOverview&&(market!=='US'||!isUSBenchmark(symbol)||!validUSOverview(v.usOverview,marketDate(now,market))))return false;
   if(v?.chinaOverview&&(market!=='CN'||symbol!=='000300.SS'||!validChinaOverview(v.chinaOverview,marketDate(now,market))))return false;
   if(!v || v.instrument?.market!==market || v.instrument?.symbol!==symbol || !text(v.instrument.name) || !text(v.instrument.code) || !["stock","index"].includes(v.instrument.kind) || !timestamp(v.fetchedAt) || Date.parse(v.fetchedAt)>now || !isDate(v.asOf) || v.asOf>marketDate(now,market) || !["closed","trading"].includes(v.session) || !source(v.source) || !text(v.currency) || !nullable(v.change) || !Array.isArray(v.bars) || !v.bars.length || v.bars.length>640 || !Array.isArray(v.days) || v.days.length || !Array.isArray(v.signals) || v.signals.length || !v.history || Object.keys(v.history).length)return false;
   if(v.sentiment){const today=marketDate(now,market),sentiment=v.sentiment,points=sentiment.observations,reports=sentiment.reportedObservations??[];
@@ -44,11 +45,11 @@ export function validCompactSnapshot(v:any,market:Market,symbol:string,now:numbe
 /** Treat both edge bodies and browser storage as untrusted, versioned input. */
 export function validSnapshot(v: any, market: Market, symbol: string, now: number): v is MarketSnapshot {
   if (!Number.isFinite(now) || !["CN", "US"].includes(market) || typeof symbol !== "string") return false;
-  if (market === "CN" ? !/^\d{6}\.(SS|SZ)$/.test(symbol) : symbol !== "^GSPC" && !/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol)) return false;
+  if (market === "CN" ? !/^\d{6}\.(SS|SZ)$/.test(symbol) : !isUSBenchmark(symbol) && !/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol)) return false;
   if(v?.technicalSource!==undefined&&v.technicalSource!=="trendbeak_technical_v1")return false;
   if(v?.bars) return validCompactSnapshot(v,market,symbol,now);
   const today = marketDate(now, market);
-  if(v?.usOverview&&(market!=='US'||symbol!=='^GSPC'||!validUSOverview(v.usOverview,marketDate(now,market))))return false;
+  if(v?.usOverview&&(market!=='US'||!isUSBenchmark(symbol)||!validUSOverview(v.usOverview,marketDate(now,market))))return false;
   if(v?.chinaOverview&&(market!=='CN'||v.instrument?.symbol!=='000300.SS'||!validChinaOverview(v.chinaOverview,today)))return false;
   if (!v || v.instrument?.market !== market || v.instrument?.symbol !== symbol || !text(v.instrument.name) || !text(v.instrument.code) || !["stock", "index"].includes(v.instrument.kind) ||
       !isDate(v.asOf) || v.asOf > today || !timestamp(v.fetchedAt) || Date.parse(v.fetchedAt) > now ||

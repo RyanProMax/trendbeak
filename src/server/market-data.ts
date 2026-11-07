@@ -1,5 +1,6 @@
 import {
   BENCHMARKS,
+  isUSBenchmark,
   type DailyBar,
   type Instrument,
   type Market,
@@ -90,7 +91,7 @@ async function cached<T>(
 export function validSymbol(market: Market, symbol: string): boolean {
   return market === "CN"
     ? /^\d{6}\.(SS|SZ)$/.test(symbol)
-    : symbol === "^GSPC" || /^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol);
+    : isUSBenchmark(symbol) || /^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol);
 }
 
 function cleanName(value: unknown): string | null {
@@ -148,7 +149,7 @@ export async function searchInstruments(
   const symbol=text.toUpperCase();
   const keys=/^\d{6}$/.test(symbol)?[`CN/${symbol}.SS`,`CN/${symbol}.SZ`]
     :/^\d{6}\.(SS|SZ)$/.test(symbol)?[`CN/${symbol}`]
-    :validSymbol('US',symbol)?[`US/${symbol===BENCHMARKS.US.code?BENCHMARKS.US.symbol:symbol}`]:[];
+    :validSymbol('US',symbol)?[`US/${symbol===BENCHMARKS.US.code?BENCHMARKS.US.symbol:symbol==='SPX'?'^GSPC':symbol}`]:[];
   if(db&&keys.length){
     const result=await db.prepare(`SELECT key, CASE WHEN length(CAST(json_extract(payload, '$.view.instrument') AS BLOB))<=1024 THEN json_extract(payload, '$.view.instrument') END AS instrument FROM market_snapshot WHERE key IN (${keys.map(()=>'?').join(',')}) LIMIT 2`).bind(...keys).all<{key:string;instrument:string}>();
     if(!result.success)throw Error('Prepared instrument lookup failed');
@@ -302,7 +303,7 @@ export function parseYahoo(
           symbol,
           code: symbol,
           name,
-          kind: "stock" as const,
+          kind: isUSBenchmark(symbol) ? "index" as const : "stock" as const,
         };
   return makeSnapshot(
     instrument,
@@ -353,7 +354,7 @@ export async function loadMarket(market:Market,symbol=BENCHMARKS[market].symbol,
 export { SnapshotMissing };
 export async function loadHealth(origin:string,db?:D1Database){
   const empty=Object.fromEntries((["CN","US"] as Market[]).map(m=>[m,{available:false,asOf:null,freshness:null}]));if(!db)return {status:"degraded",markets:empty};
-  try{const r=await db.prepare("SELECT key, json_extract(payload, '$.view.asOf') AS asOf, json_extract(payload, '$.view.fetchedAt') AS fetchedAt, json_extract(payload, '$.view.session') AS session FROM market_snapshot WHERE key IN (?, ?)").bind('CN/000300.SS','US/^GSPC').all<{key:string;asOf:string;fetchedAt:string;session:string}>();if(!r.success)throw Error('Health read failed');
+  try{const r=await db.prepare("SELECT key, json_extract(payload, '$.view.asOf') AS asOf, json_extract(payload, '$.view.fetchedAt') AS fetchedAt, json_extract(payload, '$.view.session') AS session FROM market_snapshot WHERE key IN (?, ?)").bind('CN/000300.SS','US/'+BENCHMARKS.US.symbol).all<{key:string;asOf:string;fetchedAt:string;session:string}>();if(!r.success)throw Error('Health read failed');
     const markets=Object.fromEntries((["CN","US"] as Market[]).map(m=>{const row=r.results.find(r=>r.key===`${m}/${BENCHMARKS[m].symbol}`),age=row?Math.max(0,Date.now()-Date.parse(row.fetchedAt)):Infinity;return [m,row?{available:true,asOf:row.asOf,freshness:{state:dailySnapshotCurrent(m,row.asOf,row.fetchedAt,row.session,Date.now())?'fresh':'stale',storedAt:row.fetchedAt,ageSeconds:Math.floor(age/1000),freshTtlSeconds:300,maxAgeSeconds:604800,via:'database'}}:empty[m]];}));return {status:Object.values(markets).every((s:any)=>s.available&&s.freshness.state==='fresh')?'ok':'degraded',markets};
   }catch{return {status:'degraded',markets:empty};}
 }
