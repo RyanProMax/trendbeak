@@ -17,13 +17,19 @@ export async function readSentimentTail(source,from,to,read=fetch,availableThrou
   if(size!==expectedSize)throw Error('Truncated source range');
   return{start,total,tag,text:Buffer.concat(chunks).toString('utf8')};
  };
- const head=await part('bytes=0-127');if(head.text.replace(/^\uFEFF/,'').split(/\r?\n/)[0]!==config.header)throw Error('Unknown source CSV header');
+ const head=await part('bytes=0-127'),header=head.text.replace(/^\uFEFF/,'').split(/\r?\n/)[0];
+ // In the provider schema observed on 2026-11-07, the existing six-factor
+ // series is short_term_sentiment; fear_greed_index is a new 50/50 composite.
+ // Preserve our verified historical series; never splice in the new composite.
+ const columns=header===config.header?(source==='baifenwei'?2:3):source==='baifenwei'&&header==='date,fear_greed_index,short_term_sentiment'?3:0;
+ if(!columns)throw Error('Unknown source CSV header');
+ const scoreColumn=source==='baifenwei'&&columns===3?2:1;
  const tail=await part('bytes=-4096',head.tag);if(tail.total!==head.total)throw Error('Source changed between ranges');
  const lines=tail.text.split(/\r?\n/);if(tail.start>0)lines.shift();else lines.shift();
  if(lines.at(-1)==='')lines.pop(); // Last line may legitimately omit its final newline.
  const rows=new Map();let prior='',anchor=false;
- for(const line of lines){const fields=line.split(','),date=fields[0],score=Number(fields[1]);
-  if(fields.length!==(source==='baifenwei'?2:3)||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date||date<prior||!fields[1]?.trim()||!Number.isFinite(score)||score<0||score>100)throw Error('Invalid source tail row');
+ for(const line of lines){const fields=line.split(','),date=fields[0],score=Number(fields[scoreColumn]);
+  if(fields.length!==columns||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date||date<prior||!fields[scoreColumn]?.trim()||!Number.isFinite(score)||score<0||score>100)throw Error('Invalid source tail row');
   prior=date;if(date<from)anchor=true;if(date>availableThrough)throw Error('Source date exceeds actual market date');
   if(rows.has(date)&&rows.get(date)!==score)throw Error('Conflicting source duplicate');rows.set(date,score);
  }
