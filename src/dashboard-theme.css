@@ -64,6 +64,7 @@
 }
 body { background: var(--page); color: var(--ink); }
 ::selection { background: var(--selection); color: var(--ink); }
+#main-content, .topbar-inner { width: calc(100% - 60px); }
 #main-content { max-width: 1060px; margin: 42px auto 64px; }
 #main-content h1, #main-content h2, #main-content h3 { color: var(--ink); }
 #main-content .annual-calendar { border: 0; margin-top: 34px; padding: 0; }
@@ -203,6 +204,7 @@ body { background: var(--page); color: var(--ink); }
   #main-content { margin-left: 30px; margin-right: 30px; }
 }
 @media(max-width:760px) {
+  #main-content, .topbar-inner { width: calc(100% - 44px); }
   .market-switch { width: 140px; height: 34px; }
   .market-switch input::-webkit-slider-thumb { width: 66px; height: 28px; margin-top: 2px; }
   #main-content { margin: 26px 22px 42px; }
@@ -218,7 +220,7 @@ body { background: var(--page); color: var(--ink); }
   .market-switch input::-webkit-slider-thumb { width: 62px; }
 }
 
-.topbar-inner { max-width:1060px; min-height:86px; height:auto; grid-template-columns:1fr auto 1fr; gap:24px; }
+.topbar-inner { max-width:1060px; margin:0 auto; min-height:86px; height:auto; grid-template-columns:1fr auto 1fr; gap:24px; }
 .market-switch { justify-self:center; }
 .topbar-inner .search-wrap { width:min(100%,280px); justify-self:end; }
 #main-content { margin-top:28px; }

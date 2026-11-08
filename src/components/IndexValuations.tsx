@@ -24,14 +24,11 @@ function ValuationHelp({ metric }: { metric: 'pb' | 'ps' }) {
     useClick(context), useDismiss(context), useRole(context, { role: 'tooltip' }),
   ]);
   return <span className="valuation-column-label">{metric.toUpperCase()} 分位
-    <button type="button" className="valuation-help" aria-label={`了解 ${metric.toUpperCase()} 与历史分位`}
+    <button type="button" className="valuation-help" aria-label={`了解 ${metric.toUpperCase()} 指标`}
       aria-expanded={open} ref={refs.setReference} {...getReferenceProps()}><span aria-hidden="true">?</span></button>
     {open && <FloatingPortal><div className="valuation-tooltip valuation-help-tooltip" ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()}>
       <strong>{metric === 'pb' ? 'PB · 市净率' : 'PS · 市销率'}</strong>
       <span>{metric === 'pb' ? '市值与净资产的比值。' : '市值与营业收入的比值。'}</span>
-      <span>分位表示当前估值在该指数自身历史中的相对位置，越高表示相对历史越高。</span>
-      <span>仅比较所选日期之前、最多十年内的有效观测，不含所选当日；分位为低于当前值的样本占比，加上相同值占比的一半。有效样本少于 60 个时不显示分位。</span>
-      <span>各指数和指标的历史长度可能不同；点按下方数值可查看数据覆盖时长。</span>
     </div></FloatingPortal>}
   </span>;
 }

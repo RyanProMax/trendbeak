@@ -21,7 +21,7 @@
 }
 #main-content .signal-radar{max-width:none;margin:0}
 #main-content .china-sentiment{max-width:none;width:100%;margin:0}
-#main-content .six-factor-readings{max-width:680px;margin-left:auto;margin-right:auto}
+#main-content .six-factor-readings{width:100%;max-width:none;margin-left:auto;margin-right:auto}
 #main-content .index-valuations table{max-width:680px;margin-left:auto;margin-right:auto}
 #main-content .panel-heading>time,#main-content .panel-heading>span{font-size:11px;color:var(--muted);text-align:right}
 
