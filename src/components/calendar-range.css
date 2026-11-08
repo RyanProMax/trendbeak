@@ -1,0 +1,42 @@
+/* The library lays out seven rows. Only our measured five-row shell clips the
+   calendar: clipping its intrinsic scroll box also cuts the translated last
+   column at scale 1. Give SVG dimensions explicitly, independent of auto sizing. */
+#main-content .calendar-section .calendar-groups {
+  height: calc(36px + var(--calendar-height));
+}
+#main-content .calendar-section .calendar-grid-shell {
+  height: calc(var(--calendar-height) + 12px);
+}
+#main-content .calendar-section .react-activity-calendar__scroll-container {
+  overflow: visible !important;
+}
+#main-content .calendar-section .react-activity-calendar svg {
+  width: var(--calendar-svg-width);
+  height: var(--calendar-svg-height);
+  max-width: none;
+}
+/* A navigator is one complete overview with an independently framed selection.
+   Keep the outline on a separate layer so it never changes drag coordinates. */
+#main-content .trend-range-control .navigator-track::before {
+  content: "";
+  position: absolute;
+  inset: 0 28px;
+  border: 1px solid color-mix(in srgb, var(--control-line) 70%, var(--page));
+  border-radius: 5px;
+  pointer-events: none;
+  z-index: 1;
+}
+#main-content .trend-range-control .navigator-preview {
+  background: color-mix(in srgb, var(--control) 70%, var(--page));
+}
+#main-content .trend-range-control .navigator-window {
+  border: 1px solid var(--control-line);
+  background: var(--range-selection);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--control-line) 12%, transparent);
+  transition: none;
+}
+#main-content .trend-range-control .navigator-thumb { z-index: 2; }
+#main-content .trend-range-control .navigator-thumb::before {
+  background: var(--control-thumb);
+  border-color: var(--control-line);
+}

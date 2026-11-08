@@ -1,0 +1,50 @@
+/* A persistent red/green surface makes the sliding choice legible in either
+   theme. The transparent native thumb retains all range input semantics. */
+.topbar .market-switch { background:linear-gradient(105deg,#c7dfcf,#edd0c8); border-color:#aabfb1; }
+:root[data-theme="dark"] .topbar .market-switch { background:linear-gradient(105deg,#244b37,#593732); border-color:#526a59; }
+.topbar .market-switch > span { color:var(--ink); font-weight:550; }
+.topbar .market-switch[data-market="CN"] > span:first-child,
+.topbar .market-switch[data-market="US"] > span:nth-child(2) { color:var(--ink); font-weight:650; }
+.market-switch .market-switch-thumb {
+ position:absolute;top:2px;bottom:2px;left:2px;width:calc((100% - 4px)/2);
+ border:1px solid #ffffffa8;border-radius:inherit;background:#ffffffc4;
+ box-shadow:0 1px 3px #203c2920;pointer-events:none;
+ transform:translateX(0);transition:transform 220ms cubic-bezier(.23,1,.32,1);
+}
+:root[data-theme="dark"] .market-switch .market-switch-thumb { background:#101b15c9;border-color:#a2b9a35c;box-shadow:0 1px 3px #0004; }
+.market-switch[data-market="US"] .market-switch-thumb { transform:translateX(100%); }
+.market-switch[data-immediate] .market-switch-thumb { transition:none; }
+.topbar .market-switch input { z-index:3; }
+.topbar .market-switch input::-webkit-slider-thumb { background:transparent;border-color:transparent;box-shadow:none; }
+.topbar .market-switch input::-moz-range-thumb { background:transparent;border-color:transparent;box-shadow:none; }
+.topbar .market-switch input::-moz-range-track,.topbar .market-switch input::-moz-range-progress { background:transparent;border:0; }
+
+/* Values live in the former legend position, centered over the whole plot.
+   Small screens get a dedicated centered row rather than cramped labels. */
+#main-content .signals-heading { display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:0;min-height:32px; }
+.signals-heading h2 { grid-column:1;grid-row:1;white-space:nowrap; }
+.trend-heading-readout { grid-column:2;grid-row:1;min-height:32px; }
+#main-content .trend-heading-readout .chart-readout { display:flex;align-items:center;justify-content:center;gap:22px;height:32px;font-size:13px;line-height:24px; }
+#main-content .trend-heading-readout .readout-item { display:flex;align-items:center;gap:6px; }
+#main-content .trend-heading-readout .readout-value { font-size:inherit; }
+#main-content .trend-heading-readout .readout-emotion .readout-value { min-width:3.5ch; }
+#main-content .trend-heading-readout .readout-price .readout-value { min-width:8ch; }
+#main-content .trend-heading-readout i { width:12px;flex:none; }
+@media(max-width:760px){
+ #main-content .signals-heading { grid-template-columns:minmax(0,1fr);row-gap:5px; }
+ .trend-heading-readout { grid-column:1;grid-row:2;justify-self:center;max-width:100%; }
+ #main-content .trend-heading-readout .chart-readout { gap:16px;font-size:12px; }
+ #main-content .trend-heading-readout .readout-item { gap:5px; }
+}
+@media(max-width:350px){
+ #main-content .trend-heading-readout .chart-readout { gap:10px;font-size:11px; }
+ #main-content .trend-heading-readout .readout-item { gap:4px; }
+ #main-content .trend-heading-readout i { width:9px; }
+}
+@media(prefers-reduced-motion:reduce){.market-switch .market-switch-thumb { transition:none; }}
+/* Keep the three balanced columns within reading distance, aligned with the
+   radar above rather than stretching tiny values across the full desktop. */
+#main-content .index-valuations { max-width:680px;margin-left:auto;margin-right:auto; }
+/* The right endpoint labels are gone; align the remaining axis title with its
+   numeric ticks instead of reserving the old large label gutter. */
+#main-content .chart-axis-head { padding-right:24px; }

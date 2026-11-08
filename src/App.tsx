@@ -8,6 +8,8 @@ import {
 } from "./market-types";
 import ThemeSwitch, { useColorScheme, THEME_BOOTSTRAP } from "./components/ThemeSwitch";
 import StockSearch from "./components/StockSearch";
+import MarketSwitch from "./components/MarketSwitch";
+import {useMarketMotion} from "./components/useMarketMotion";
 import MarketCard, { type ViewState } from "./components/MarketCard";
 import { CalendarSkeleton, SignalsSkeleton } from "./components/MarketSkeleton";
 import YearHeatmap, { HeatLegend } from "./components/YearHeatmap";
@@ -48,7 +50,14 @@ function Dashboard({ data }: { data: PageData }) {
   const { scheme, setScheme } = useColorScheme();
   const [navigating,setNavigating] = useState(false);
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
-  const [visibleSeries, setVisibleSeries] = useState({ mood: true, index: true });
+  const [trendReadoutTarget,setTrendReadoutTarget]=useState<HTMLDivElement|null>(null);
+  const marketMotion=useRef(false),pointerInput=useRef(false);
+  const mainRef=useMarketMotion(`${activeMarket}:${markets[activeMarket].snapshot?.instrument.symbol??'loading'}`,marketMotion);
+  useEffect(()=>{
+    const pointer=()=>{pointerInput.current=true;},keyboard=()=>{pointerInput.current=false;};
+    window.addEventListener('pointerdown',pointer,true);window.addEventListener('keydown',keyboard,true);
+    return()=>{window.removeEventListener('pointerdown',pointer,true);window.removeEventListener('keydown',keyboard,true);};
+  },[]);
   const [defaultDays,setDefaultDays] = useState(365);
   const [rangeReady,setRangeReady] = useState(false);
   const boundsByMarket=useMemo(()=>({CN:historyBounds([benchmarks.CN]),US:historyBounds([benchmarks.US])}),[benchmarks]);
@@ -202,7 +211,8 @@ function Dashboard({ data }: { data: PageData }) {
     }
   };
   const ensureBenchmark=async(market:Market)=>{if(benchmarkRequests.current[market])return benchmarkRequests.current[market];const task=load(BENCHMARKS[market]);benchmarkRequests.current[market]=task;try{return await task;}finally{if(benchmarkRequests.current[market]===task)delete benchmarkRequests.current[market];}};
-  const changeMarket=(market:Market,record=true)=>{
+  const changeMarket=(market:Market,record=true,animate=pointerInput.current)=>{
+    marketMotion.current=market!==shownMarket.current&&animate;
     shownMarket.current=market;setActiveMarket(market);setHoveredDate(null);setNavigating(false);
     if(record){const url=new URL(location.href);url.searchParams.set('market',market);const instrument=current.current[market].instrument;if(instrument.kind==='stock')url.searchParams.set('symbol',instrument.symbol);else url.searchParams.delete('symbol');history.pushState(null,'',url);}
   };
@@ -284,12 +294,12 @@ function Dashboard({ data }: { data: PageData }) {
           <a className="brand" href="/" aria-label="trendbeak 首页">
             <img className="brand-wordmark brand-light" src="/trendbeak-wordmark.svg?v=11" alt="trendbeak" width="480" height="120" /><img className="brand-wordmark brand-dark" src="/trendbeak-wordmark-dark.svg?v=11" alt="trendbeak" width="480" height="120" />
           </a>
-          <div className="market-switch" data-market={activeMarket}><span aria-hidden="true">CN</span><span aria-hidden="true">US</span><input type="range" min="0" max="1" step="1" value={activeMarket==='CN'?0:1} aria-label="切换市场" aria-valuetext={activeMarket==='CN'?'A股':'美股'} onChange={e=>changeMarket(e.currentTarget.value==='0'?'CN':'US')}/></div>
+          <MarketSwitch market={activeMarket} onChange={(market,animate)=>changeMarket(market,true,animate)}/>
           <StockSearch onSelect={(instrument) => visit(instrument)} />
           <ThemeSwitch scheme={scheme} setScheme={setScheme} />
         </div>
       </header>
-      <main id="main-content" data-range-ready={rangeReady} data-market={activeMarket} data-selected-date={globalDate}>
+      <main ref={mainRef} id="main-content" data-range-ready={rangeReady} data-market={activeMarket} data-selected-date={globalDate}>
         <h1 className="sr-only">每日市场信号</h1>
         <section className="annual-calendar" aria-labelledby="calendar-title">
           <div className="calendar-heading">
@@ -310,7 +320,7 @@ function Dashboard({ data }: { data: PageData }) {
         </section>
         <section className={`market-signals${navigating ? " is-navigating" : ""}`} aria-labelledby="signals-title">
           <div className="signals-heading"><h2 id="signals-title">市场信号</h2>
-            <div className="chart-legend" aria-label="情绪按分值由绿经金到红，大盘为深灰实线"><button type="button" className="emotion-key" aria-pressed={visibleSeries.mood} onClick={() => setVisibleSeries((old) => ({ ...old, mood: !old.mood }))}>情绪</button><button type="button" className="index-key" aria-pressed={visibleSeries.index} onClick={() => setVisibleSeries((old) => ({ ...old, index: !old.index }))}>大盘</button></div>
+            <div className="trend-heading-readout" ref={setTrendReadoutTarget}/>
           </div>
           <div className="analysis-grid">{[activeMarket].map((market) => {
             const snapshot = markets[market].snapshot;
@@ -319,7 +329,7 @@ function Dashboard({ data }: { data: PageData }) {
             return <section className="market-analysis" data-analysis-market={market} key={market}>
               <div className="signals" data-date={date} aria-label={`${displayDate(date, true)}指标`}>
                 <div className="analysis-heading"><h3>{market === "CN" ? "A 股" : "美股"}</h3></div>
-                {mounted ? <><MarketTrend key={market+snapshot.instrument.symbol} snapshot={snapshot} benchmark={benchmarks[market]} bounds={bounds ?? {start:shiftDate(windowEnd ?? snapshot.asOf,-364),end:windowEnd ?? snapshot.asOf}} windowEnd={windowEnd ?? snapshot.asOf} selectedDate={date} hoveredDate={hoveredDate} range={range} visible={visibleSeries} onHoverDate={setHoveredDate} onSelectDate={selectDate} dateSelected onClearDate={()=>setSelectedDate(null)} canSelectDate={selectable} />
+                {mounted ? <><MarketTrend key={market+snapshot.instrument.symbol} snapshot={snapshot} benchmark={benchmarks[market]} bounds={bounds ?? {start:shiftDate(windowEnd ?? snapshot.asOf,-364),end:windowEnd ?? snapshot.asOf}} windowEnd={windowEnd ?? snapshot.asOf} selectedDate={date} hoveredDate={hoveredDate} range={range} visible={{mood:true,index:true}} readoutTarget={trendReadoutTarget} onHoverDate={setHoveredDate} onSelectDate={selectDate} dateSelected onClearDate={()=>setSelectedDate(null)} canSelectDate={selectable} />
                 {bounds&&trendWindow&&<TrendRangeControl key={market+'-range'} bounds={bounds} value={trendWindow} benchmarks={visibleBenchmarks} onChange={chooseWindow} onDragging={setNavigating} />}
                 <div className="signal-radar">{market==='CN'?<ChinaSentimentRadar key={market+date} date={date} readings={chinaReadings(benchmarks.CN??snapshot,date)}/>:<MarketSentimentRadar key={market+date} date={date} market="US" labels={US_LABELS} readings={usReadings(benchmarks.US??snapshot,date)}/>}</div></> : <div className="signals-loading" aria-label="正在绘制市场信号"/>}
               </div>

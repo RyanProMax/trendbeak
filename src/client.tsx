@@ -4,6 +4,7 @@ import { hydrateRoot } from "react-dom/client";
 import Document, { type PageData } from "./App";
 import "./styles.css";
 import "./dashboard-theme.css";
+import "./market-interactions.css";
 
 const payload = document.querySelector<HTMLScriptElement>("#trendbeak-data");
 

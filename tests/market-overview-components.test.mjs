@@ -10,3 +10,13 @@ test('US bars label the already prepared risk-appetite rank, keeping reversed fa
 test('missing, invalid or different-date ranks do not become neutral points or a fabricated complete polygon',()=>{for(const patch of[{percentile:null},{percentile:101},{date:'2001-01-03'}]){const values=readings();Object.assign(values.fearGreed,patch);const html=renderToStaticMarkup(React.createElement(Radar,{date,readings:values}));assert.ok(!html.includes('class="six-factor-area"'));assert.equal((html.match(/class="six-factor-point"/g)||[]).length,5);}const closed=renderToStaticMarkup(React.createElement(Radar,{date:'2001-01-06',readings:readings()}));assert.equal((closed.match(/休市/g)||[]).length,6);});
 test('valuations display only PB and PS, with actual dated observations and neutral missing values',()=>{const html=renderToStaticMarkup(React.createElement(Valuations,{period:'测试样本窗口',source,rows:[{name:'布局测试指数',code:'TEST',date,pb:{value:1.23,percentile:22.3},ps:{value:null,percentile:null}}]}));assert.ok(html.includes('PB 分位'));assert.ok(html.includes('PS 分位'));assert.ok(!html.includes('PE'));assert.ok(html.includes('22.3%'));assert.ok(html.includes('2001年1月2日'));assert.ok(html.includes('—'));assert.ok(!html.includes('50.0%'));});
 test('production integrates prepared overview components without layout fixtures or a source-fetching browser',()=>{const client=readFileSync('dist/static/client.js','utf8');assert.ok(!client.includes('布局测试来源'));assert.ok(client.includes('six-factor-trigger'));assert.ok(client.includes('valuation-reading'));assert.ok(!client.includes('个人效果验收'));assert.ok(!client.includes('已保存的真实观测'));assert.ok(!client.includes('index_valuation_percentile_'));assert.ok(!client.includes('historicalRank('));});
+test('factor details are opt-in dialog triggers and never reserve an inline detail region',()=>{
+ const dom=new JSDOM(renderToStaticMarkup(React.createElement(Radar,{date,readings:readings()}))),doc=dom.window.document;
+ assert.equal(doc.querySelector('.overview-detail'),null);
+ for(const button of doc.querySelectorAll('.six-factor-trigger')){
+  assert.equal(button.getAttribute('aria-haspopup'),'dialog');
+  assert.equal(button.getAttribute('aria-expanded'),'false');
+  assert.equal(button.hasAttribute('aria-controls'),false,'closed buttons must not reference a nonexistent dialog');
+ }
+ dom.window.close();
+});

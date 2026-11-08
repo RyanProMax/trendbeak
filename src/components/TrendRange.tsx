@@ -1,3 +1,4 @@
+import "./calendar-range.css";
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import type { Market, MarketSnapshot } from "../market-types";
 import { chartSegments, calendarForRange, shiftDate } from "../lib/chart-series";

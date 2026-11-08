@@ -1,4 +1,5 @@
 import { cloneElement, memo, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import "./calendar-range.css";
 import { ActivityCalendar } from "react-activity-calendar";
 import { autoUpdate, flip, FloatingPortal, offset, shift, useDismiss, useFloating, useInteractions } from "@floating-ui/react";
 import type { CalendarDay, MarketSnapshot } from "../market-types";
@@ -107,7 +108,7 @@ function YearHeatmap({
       className="calendar-section"
       ref={container}
       aria-label={`${snapshot.instrument.name}，${displayDate(data[0].date,true)}至${displayDate(data.at(-1)!.date,true)}每日涨跌`}
-      data-start={data[0].date} data-end={data.at(-1)!.date} data-day-count={data.length} data-weeks={layout.weeks} data-visible-day-count={data.filter(day=>weekdayIndex(day.date)<5).length} style={{"--calendar-scale":layout.scale,"--calendar-height":layout.gridHeight+"px"} as CSSProperties}
+      data-start={data[0].date} data-end={data.at(-1)!.date} data-day-count={data.length} data-weeks={layout.weeks} data-visible-day-count={data.filter(day=>weekdayIndex(day.date)<5).length} style={{"--calendar-scale":layout.scale,"--calendar-height":layout.gridHeight+"px","--calendar-svg-width":layout.logicalWidth+"px","--calendar-svg-height":(7*(CALENDAR_CELL+CALENDAR_GAP)-CALENDAR_GAP)+"px"} as CSSProperties}
     >
       <div className="calendar-groups">
           <div className="calendar-months" aria-hidden="true">{(showMonths||width<680)&&months.map(month=><span key={month.x} style={{left:month.x}}>{month.label}</span>)}</div>
