@@ -267,7 +267,7 @@ function Dashboard({ data }: { data: PageData }) {
       <header className="topbar">
         <div className="topbar-inner">
           <a className="brand" href="/" aria-label="trendbeak 首页">
-            <img className="brand-wordmark brand-light" src="/trendbeak-wordmark.svg?v=11" alt="trendbeak" width="480" height="120" /><img className="brand-wordmark brand-dark" src="/trendbeak-wordmark-dark.svg?v=11" alt="trendbeak" width="480" height="120" />
+            <img className="brand-wordmark brand-light" src="/trendbeak-wordmark.svg?v=12" alt="trendbeak" width="480" height="120" /><img className="brand-wordmark brand-dark" src="/trendbeak-wordmark-dark.svg?v=12" alt="trendbeak" width="480" height="120" />
           </a>
           <MarketSwitch market={activeMarket} onChange={(market,animate)=>changeMarket(market,true,animate)}/>
           <StockSearch onSelect={(instrument) => visit(instrument)} />
@@ -311,7 +311,7 @@ function Dashboard({ data }: { data: PageData }) {
             </section>;
           })}</div>
         </section>
-        {activeMarket==='CN'&&benchmarks.CN?.chinaOverview?.valuations&&<IndexValuations rows={benchmarks.CN.chinaOverview.valuations.rows}/>}
+        {activeMarket==='CN'&&benchmarks.CN?.chinaOverview?.valuations&&<IndexValuations rows={benchmarks.CN.chinaOverview.valuations.rows} date={globalDate}/>}
       </main>
     </>
   );

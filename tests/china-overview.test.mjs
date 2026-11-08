@@ -44,3 +44,19 @@ test('reviewed import preserves current primary scores and dates, and survives t
  }finally{f.close();}
 });
 test('six-axis benchmark transport omits retired optional radar, preserving the complete checkpoint and old snapshot acceptance',async()=>{const f=await preparedDB(vite,fixtureNow,{nvda:true});try{for(const key of['CN/000300.SS','US/^GSPC']){const row=f.sqlite.prepare('SELECT * FROM market_snapshot WHERE key=?').get(key),old=JSON.parse(row.payload);let payload=old;if(key.startsWith('CN'))payload=(await writer.prepareChinaBenchmark(f.db,old,[],true)).payload;else payload={...old,view:{...old.view,usOverview:{sourceId:'cnn_whit3rabbit',history:{}}}};const result=await http.attachHTTP(f.db,{key,payload,text:'',bytes:0,processed:0},fixtureNow),data=JSON.parse(result.payload.http.overview).data;assert.ok(JSON.parse(result.payload.http.body).data.history[data.asOf].radar);assert.equal(data.history[data.asOf].radar,undefined);assert.ok(result.payload.view.history[data.asOf].radar);assert.deepEqual(result.payload.calculation,old.calculation);assert.deepEqual(data.history[data.asOf].values,old.view.history[data.asOf].values);assert.ok(record.validSnapshot(data,data.instrument.market,data.instrument.symbol,fixtureNow));assert.ok(Buffer.byteLength(result.payload.http.overview)<200000);}const stock=JSON.parse(f.sqlite.prepare("SELECT payload FROM market_snapshot WHERE key='US/NVDA'").get().payload);assert.ok(JSON.parse(stock.http.body).data.history[stock.view.asOf].radar);}finally{f.close();}});
+test('valuation rows show only the selected exact date and never carry stale rank metadata',()=>{
+ const row={name:'测试',code:'000300',date:today,pb:{value:1.2,percentile:42,from:'2020-01-01',samples:100},ps:{value:2,percentile:12}};
+ assert.deepEqual(model.valuationRowsForDate([row],today),[row]);
+ for(const date of ['2026-10-29','2026-10-31']){
+  const missing=model.valuationRowsForDate([row],date)[0];
+  assert.deepEqual(missing,{name:row.name,code:row.code,date,pb:{value:null,percentile:null},ps:{value:null,percentile:null}});
+ }
+ assert.equal(row.pb.value,1.2);
+});
+test('CN factor window displays its actual sample count including zero, not the maximum',()=>{
+ const snapshot={instrument:{market:'CN',symbol:'000300.SS'},history:{},chinaOverview:{sourceIds:{rsi:'self_csi300_rsi14_tencent'},history:{[today]:{rsi:[50,null,17]}}}};
+ assert.equal(model.chinaReadings(snapshot,today).rsi.period,'17天');
+ snapshot.chinaOverview.history[today].rsi[2]=0;
+ assert.equal(model.chinaReadings(snapshot,today).rsi.period,'0天');
+ assert.equal(model.chinaReadings(snapshot,'2026-10-29').rsi.period,'—');
+});

@@ -20,3 +20,9 @@ test('factor details are opt-in dialog triggers and never reserve an inline deta
  }
  dom.window.close();
 });
+test('valuation selection masks stale metrics synchronously and reset restores exact observations',()=>{
+ const rows=[{name:'测试指数',code:'TEST',date,pb:{value:1.23,percentile:22.3},ps:{value:2.34,percentile:33.4}}];
+ const render=selected=>renderToStaticMarkup(React.createElement(Valuations,{rows,date:selected}));
+ const historical=render('2001-01-01');assert.ok(historical.includes('正在读取估值数据'));assert.ok(historical.includes('2001年1月1日'));assert.ok(!historical.includes('22.3%'));assert.ok(!historical.includes('1.23倍'));
+ assert.ok(render(date).includes('22.3%'));assert.ok(!render(date).includes('该日期暂无估值数据'));
+});

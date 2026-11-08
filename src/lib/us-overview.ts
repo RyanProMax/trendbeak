@@ -22,5 +22,5 @@ export function validUSOverview(v:any,today:string):v is USOverview{
 export function usReadings(snapshot:MarketSnapshot,date:string):Record<string,ChinaFactorReading>{
  const r=snapshot.instrument.market==='US'&&isUSBenchmark(snapshot.instrument.symbol)?snapshot.usOverview?.history[date]:undefined;
  const published=snapshot.sentiment?.observations.find(r=>r.date===date),report=snapshot.sentiment?.reportedObservations?.find(r=>r.date===date),fallback=published??report;
- return Object.fromEntries(US_KEYS.map((key,i)=>[key,{date,value:r?.[0][i]??(i===0?fallback?.value??null:null),percentile:r?.[1][i]??null,unit:['','%','点','倍','点','个百分点'][i],period:r?`此前${r[2]}个有效交易日（最多252日）`:'—',method:i===0&&!r&&report&&!published?'CNN同期报道读数，独立来源补录；没有同源分位。':US_METHODS[i],source:i===0&&!r&&fallback?(fallback.source??snapshot.sentiment!.source):US_SOURCE}]));
+ return Object.fromEntries(US_KEYS.map((key,i)=>[key,{date,value:r?.[0][i]??(i===0?fallback?.value??null:null),percentile:r?.[1][i]??null,unit:['','%','点','倍','点','个百分点'][i],period:r?`${r[2]}天`:'—',method:i===0&&!r&&report&&!published?'CNN同期报道读数，独立来源补录；没有同源分位。':US_METHODS[i],source:i===0&&!r&&fallback?(fallback.source??snapshot.sentiment!.source):US_SOURCE}]));
 }

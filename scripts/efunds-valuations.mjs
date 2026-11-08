@@ -1,12 +1,14 @@
 // Controlled private preparation only. No D1, reader import or source approval.
 import{readFile,writeFile,rename,open,unlink,stat}from'node:fs/promises';
 import{pathToFileURL}from'node:url';
-const SOURCE='efunds_index',MAX_FULL_BYTES=8*1024*1024,TAIL_BYTES=16384,MAX_ROWS=8000,MAX_RETAINED=2700;
+const SOURCE='efunds_index',MAX_FULL_BYTES=8*1024*1024,TAIL_BYTES=16384,MAX_ROWS=8000,MAX_RETAINED=3000;
 const date=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&Number.isFinite(Date.parse(d))&&new Date(d).toISOString().slice(0,10)===d;
 const code=c=>typeof c==='string'&&/^(?:\d{6}|HSI|HSTECH)$/.test(c);
 const strong=t=>typeof t==='string'&&/^"[^"\r\n]+"$/.test(t);
 const url=c=>{if(!code(c))throw Error('Invalid index code');return`https://cdn.efunds.com.cn/etf-net/index_valuation_percentile_${c}.json`;};
 const cutoff=d=>{const v=new Date(d);v.setUTCFullYear(v.getUTCFullYear()-10);return v.toISOString().slice(0,10);};
+const historyCutoff=d=>new Date(Date.parse(d)-364*86400000).toISOString().slice(0,10);
+const retainedCutoff=d=>cutoff(historyCutoff(d));
 const value=v=>v===null||typeof v==='number'&&Number.isFinite(v)&&v>0;
 function normalize(input,c,today){
  if(!Array.isArray(input)||!input.length||input.length>MAX_ROWS)throw Error('Valuation row budget exceeded or empty');let last='';
@@ -14,8 +16,26 @@ function normalize(input,c,today){
 }
 function bound(a,v,upper=false){let lo=0,hi=a.length;while(lo<hi){const mid=(lo+hi)>>>1;if(a[mid]<v||upper&&a[mid]===v)lo=mid+1;else hi=mid;}return lo;}
 function change(a,v,remove){if(v===null)return;const i=bound(a,v);if(remove){if(a[i]!==v)throw Error('Invalid valuation calculation checkpoint');a.splice(i,1);}else a.splice(i,0,v);}
-export function valuationReading(state){const row=state.rows.at(-1),metric=(v,a,column)=>{if(v===null)return{value:null,percentile:null};const n=a.length-1,p=n<60?null:100*(bound(a,v)+(bound(a,v,true)-bound(a,v)-1)/2)/n;return{value:v,percentile:p===null?null:Math.round(p*10000)/10000,from:state.rows.find(r=>r[column]!==null)?.[0],through:state.rows.slice(0,-1).findLast(r=>r[column]!==null)?.[0],samples:n};};
+function historicalReading(state){
+ const latest=state.rows.at(-1)[0],rows=state.rows.filter(r=>r[0]>=cutoff(latest)),row=rows.at(-1);
+ const metric=(v,column)=>{if(v===null)return{value:null,percentile:null};const a=rows.slice(0,-1).filter(r=>r[column]!==null),n=a.length,less=a.filter(r=>r[column]<v).length,equal=a.filter(r=>r[column]===v).length;return{value:v,percentile:n<60?null:Math.round(1000000*(less+equal/2)/n)/10000,from:a[0]?.[0]??row[0],through:a.at(-1)?.[0],samples:n};};
+ return{name:state.name,code:state.code,date:row[0],pb:metric(row[1],1),ps:metric(row[2],2)};
+}
+export function valuationReading(state){
+ const row=state.rows.at(-1),from=cutoff(row[0]),rows=state.rows.filter(r=>r[0]>=from);
+ const metric=(v,a,column)=>{if(v===null)return{value:null,percentile:null};const n=a.length-1,p=n<60?null:100*(bound(a,v)+(bound(a,v,true)-bound(a,v)-1)/2)/n;return{value:v,percentile:p===null?null:Math.round(p*10000)/10000,from:rows.find(r=>r[column]!==null)?.[0],through:rows.slice(0,-1).findLast(r=>r[column]!==null)?.[0],samples:n};};
  return{name:state.name,code:state.code,date:row[0],pb:metric(row[1],state.pb,1),ps:metric(row[2],state.ps,2)};
+}
+/** Controlled writer only. Verified full-source initialization is required. */
+export function prepareEfundsHistory(state,previous,changedFrom){
+ if(!state.sourceStart)return state;
+ const from=historyCutoff(state.rows.at(-1)[0]),history={};
+ for(let i=0;i<state.rows.length;i++){
+  const d=state.rows[i][0];if(d<from)continue;
+  if(previous?.history?.[d]&&changedFrom&&d<changedFrom){history[d]=previous.history[d];continue;}
+  history[d]=historicalReading({...state,rows:state.rows.slice(0,i+1)});
+ }
+ state.history=history;return state;
 }
 export function efundsDetail(input,expected){
  const d=input?.data;if(input?.success!==true||input.code!=='0000'||!code(expected)||d?.trdCode!==expected||typeof d.indexName!=='string'||!d.indexName.trim()||d.indexName.length>80)throw Error('Index detail identity mismatch');
@@ -25,15 +45,22 @@ export function efundsDetail(input,expected){
 }
 export function initializeEfunds(detail,input,etag,today){
  if(!date(today)||!strong(etag)||detail.url!==url(detail.code))throw Error('Invalid initialization metadata');
- const all=normalize(input,detail.code,today),rows=all.filter(r=>r[0]>=cutoff(all.at(-1)[0]));if(rows.length>MAX_RETAINED)throw Error('Retained window exceeds 2700 dates');
- const state={source:SOURCE,code:detail.code,name:detail.name,etag,rows,pb:rows.flatMap(r=>r[1]===null?[]:[r[1]]).sort((a,b)=>a-b),ps:rows.flatMap(r=>r[2]===null?[]:[r[2]]).sort((a,b)=>a-b)};
- return{checkpoint:state,reading:valuationReading(state),sampleFrom:rows[0][0],samples:{pb:Math.max(0,state.pb.length-(rows.at(-1)[1]===null?0:1)),ps:Math.max(0,state.ps.length-(rows.at(-1)[2]===null?0:1))},initializedRows:all.length};
+ const all=normalize(input,detail.code,today),rows=all.filter(r=>r[0]>=retainedCutoff(all.at(-1)[0]));if(rows.length>MAX_RETAINED)throw Error('Retained window exceeds 3000 dates');
+ const state={sourceStart:all[0][0],source:SOURCE,code:detail.code,name:detail.name,etag,rows,pb:rows.filter(r=>r[0]>=cutoff(rows.at(-1)[0])).flatMap(r=>r[1]===null?[]:[r[1]]).sort((a,b)=>a-b),ps:rows.filter(r=>r[0]>=cutoff(rows.at(-1)[0])).flatMap(r=>r[2]===null?[]:[r[2]]).sort((a,b)=>a-b)};
+ prepareEfundsHistory(state);
+ return{checkpoint:state,reading:valuationReading(state),sampleFrom:rows[0][0],samples:{pb:valuationReading(state).pb.samples??0,ps:valuationReading(state).ps.samples??0},initializedRows:all.length};
 }
 /** Validate a disk-input boundary once, without sorting or rebuilding ranks. */
 export function validateEfundsCheckpoint(c,today){
  if(c?.source!==SOURCE||!code(c.code)||typeof c.name!=='string'||!strong(c.etag)||!Array.isArray(c.rows)||!c.rows.length||c.rows.length>MAX_RETAINED||!date(today))throw Error('Invalid disk checkpoint');
- const counts=[new Map(),new Map()];let last='';for(const r of c.rows){if(!Array.isArray(r)||r.length!==3||!date(r[0])||r[0]<=last||r[0]>today||!value(r[1])||!value(r[2]))throw Error('Invalid checkpoint observation');last=r[0];for(let i=0;i<2;i++)if(r[i+1]!==null)counts[i].set(r[i+1],(counts[i].get(r[i+1])??0)+1);}
+ const counts=[new Map(),new Map()];let last='';for(const r of c.rows){if(!Array.isArray(r)||r.length!==3||!date(r[0])||r[0]<=last||r[0]>today||!value(r[1])||!value(r[2]))throw Error('Invalid checkpoint observation');last=r[0];for(let i=0;i<2;i++)if(r[0]>=cutoff(c.rows.at(-1)[0])&&r[i+1]!==null)counts[i].set(r[i+1],(counts[i].get(r[i+1])??0)+1);}
  for(const[i,a]of[c.pb,c.ps].entries()){if(!Array.isArray(a)||a.length>MAX_RETAINED)throw Error('Invalid sorted checkpoint');for(let j=0;j<a.length;j++){const v=a[j],n=counts[i].get(v);if(typeof v!=='number'||!Number.isFinite(v)||v<=0||j&&a[j-1]>v||!n)throw Error('Invalid sorted checkpoint');if(n===1)counts[i].delete(v);else counts[i].set(v,n-1);}if(counts[i].size)throw Error('Incomplete sorted checkpoint');}
+ if(c.sourceStart!==undefined){if(!date(c.sourceStart)||c.sourceStart>c.rows[0][0])throw Error('Invalid full-source provenance');
+  const retained=retainedCutoff(last);if(c.rows[0][0]<retained||c.sourceStart>=retained&&c.rows[0][0]!==c.sourceStart)throw Error('Invalid retained valuation boundary');
+  if(!c.history||typeof c.history!=='object'||Object.keys(c.history).length>365)throw Error('Invalid prepared valuation history');
+  if(JSON.stringify(Object.keys(c.history))!==JSON.stringify(c.rows.filter(r=>r[0]>=historyCutoff(last)).map(r=>r[0])))throw Error('Prepared valuation dates do not match retained observations');
+  for(const[d,r]of Object.entries(c.history)){if(!date(d)||d<historyCutoff(last)||d>last||r?.date!==d||r.code!==c.code||r.name!==c.name)throw Error('Invalid prepared valuation identity');for(const m of[r.pb,r.ps])if(!m||!value(m.value)||!(m.percentile===null||Number.isFinite(m.percentile)&&m.percentile>=0&&m.percentile<=100)||m.value!==null&&(!Number.isInteger(m.samples)||m.samples<0||!date(m.from)||m.samples>0&&(!date(m.through)||m.through>=d)))throw Error('Invalid prepared valuation metric');}
+ }else if(c.history!==undefined)throw Error('Historical preparation requires full-source initialization');
  return c;
 }
 /** Scan backwards from a verified array suffix. Balanced objects and escaped
@@ -52,12 +79,23 @@ export function mergeEfunds(previous,input,etag,today){
  const incoming=normalize(input,previous.code,today);if(incoming.length>32||incoming.at(-1)[0]<previous.rows.at(-1)[0]||!incoming.some(r=>r[0]===previous.rows.at(-1)[0]))throw Error('Valuation overlap lost; explicit repair required');
  const byDate=new Map(incoming.map(r=>[r[0],r]));for(const r of previous.rows)if(r[0]>=incoming[0][0]&&r[0]<=incoming.at(-1)[0]&&!byDate.has(r[0]))throw Error('A stored observation disappeared; explicit repair required');
  const state={...previous,etag,rows:previous.rows.map(r=>[...r]),pb:[...previous.pb],ps:[...previous.ps]},positions=new Map(state.rows.map((r,i)=>[r[0],i]));let processed=0;
- const repairFrom=previous.rows.at(-5)?.[0]??previous.rows[0][0];
- for(const r of incoming){const i=positions.get(r[0]);if(i!==undefined){const old=state.rows[i];if(old[1]===r[1]&&old[2]===r[2])continue;if(r[0]<repairFrom)throw Error('Older valuation correction requires explicit bounded repair');change(state.pb,old[1],true);change(state.ps,old[2],true);state.rows[i]=r;}else{if(r[0]<previous.rows.at(-1)[0])throw Error('Historical insertion requires explicit repair');state.rows.push(r);}change(state.pb,r[1],false);change(state.ps,r[2],false);processed++;}
- const from=cutoff(state.rows.at(-1)[0]);while(state.rows[0][0]<from){const expired=state.rows.shift();change(state.pb,expired[1],true);change(state.ps,expired[2],true);}if(state.rows.length>MAX_RETAINED)throw Error('Valuation window budget exceeded');
- return{checkpoint:state,reading:valuationReading(state),processed,sampleFrom:state.rows[0][0],samples:{pb:Math.max(0,state.pb.length-(state.rows.at(-1)[1]===null?0:1)),ps:Math.max(0,state.ps.length-(state.rows.at(-1)[2]===null?0:1))}};
+ const repairFrom=previous.rows.at(-5)?.[0]??previous.rows[0][0],oldFrom=cutoff(previous.rows.at(-1)[0]);
+ for(const r of incoming){const i=positions.get(r[0]);if(i!==undefined){const old=state.rows[i];if(old[1]===r[1]&&old[2]===r[2])continue;if(r[0]<repairFrom)throw Error('Older valuation correction requires explicit bounded repair');if(old[0]>=oldFrom){change(state.pb,old[1],true);change(state.ps,old[2],true);}state.rows[i]=r;}else{if(r[0]<previous.rows.at(-1)[0])throw Error('Historical insertion requires explicit repair');state.rows.push(r);}if(r[0]>=oldFrom){change(state.pb,r[1],false);change(state.ps,r[2],false);}processed++;}
+ const rankFrom=cutoff(state.rows.at(-1)[0]);for(const r of state.rows)if(r[0]>=oldFrom&&r[0]<rankFrom){change(state.pb,r[1],true);change(state.ps,r[2],true);}
+ const from=state.sourceStart?retainedCutoff(state.rows.at(-1)[0]):cutoff(state.rows.at(-1)[0]);while(state.rows[0][0]<from){state.rows.shift();}if(state.rows.length>MAX_RETAINED)throw Error('Valuation window budget exceeded');
+ prepareEfundsHistory(state,previous,incoming[0][0]);
+ return{checkpoint:state,reading:valuationReading(state),processed,sampleFrom:state.rows[0][0],samples:{pb:valuationReading(state).pb.samples??0,ps:valuationReading(state).ps.samples??0}};
 }
 async function body(response,limit){const reader=response.body?.getReader();if(!reader)throw Error('Empty valuation response');const chunks=[];let n=0;try{for(;;){const{done,value}=await reader.read();if(done)break;n+=value.length;if(n>limit){await reader.cancel();throw Error('Valuation byte budget exceeded');}chunks.push(value);}}finally{reader.releaseLock();}return Buffer.concat(chunks).toString('utf8');}
+/** Explicit full-source initialization only; never invoked by refresh/read paths. */
+export async function initializeEfundsFromSource(detail,today,read=fetch){
+ if(detail.url!==url(detail.code))throw Error('Unrecognized official valuation URL');
+ const r=await read(detail.url,{headers:{'Accept-Encoding':'identity'},signal:AbortSignal.timeout(12000),redirect:'error'});
+ const tag=r.headers.get('etag');
+ if(r.status!==200||r.headers.get('content-range')!==null||!strong(tag)||![null,'identity'].includes(r.headers.get('content-encoding'))){await r.body?.cancel();throw Error(`Unverified full valuation response HTTP ${r.status}`);}
+ const text=await body(r,MAX_FULL_BYTES),result=initializeEfunds(detail,JSON.parse(text),tag,today);
+ return{...result,bytes:Buffer.byteLength(text)};
+}
 export async function refreshEfunds(previous,today,read=fetch){
  if(previous?.source!==SOURCE||!strong(previous.etag)||!code(previous.code))throw Error('Existing initialization required');
  const r=await read(url(previous.code),{headers:{Range:`bytes=-${TAIL_BYTES}`,'If-None-Match':previous.etag,'Accept-Encoding':'identity'},signal:AbortSignal.timeout(12000),redirect:'error'});

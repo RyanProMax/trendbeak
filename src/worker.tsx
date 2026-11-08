@@ -1,3 +1,4 @@
+import {valuationResponse} from './server/valuation-response';
 import{marketResponse}from"./server/market-response";
 import { Hono } from "hono";
 import {LinearRouter} from "hono/router/linear-router";
@@ -32,6 +33,8 @@ app.get("/api/sentiment/:market", async (c) => {
     return c.json({ error: "贪恐数据暂不可用" }, 503);
   }
 });
+
+app.get("/api/valuations/CN",c=>valuationResponse(new URL(c.req.url),c.env?.SENTIMENT_DB));
 
 app.get("/api/markets", (c) => { c.header("Cache-Control","no-store");return c.json({error:"请按市场读取行情",markets:["/api/markets/CN","/api/markets/US"]},410); });
 app.get("/api/markets/:market",c=>marketResponse(c.req.raw,c.env?.SENTIMENT_DB,new URL(c.req.url)));

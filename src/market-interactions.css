@@ -1,26 +1,26 @@
 /* Static optical layers give the native control a quiet glass surface.
    Only the selection translates; labels and hit targets stay stationary. */
 .topbar .market-switch {
- background:linear-gradient(180deg,#ffffff70,transparent 55%),linear-gradient(105deg,#c7dfcf,#edd0c8);
- border-color:#a6b9ad;box-shadow:inset 0 1px 0 #ffffffc9,inset 0 -1px 2px #49664f18,0 2px 5px #24432f0d;
+ background:linear-gradient(105deg,#c7dfcf99,#edd0c899);
+ border-color:#a6b9ad;box-shadow:none;
 }
 :root[data-theme="dark"] .topbar .market-switch {
- background:linear-gradient(180deg,#ffffff12,transparent 55%),linear-gradient(105deg,#244b37,#593732);
- border-color:#65796b;box-shadow:inset 0 1px 0 #ffffff24,inset 0 -1px 2px #0005,0 2px 5px #0004;
+ background:linear-gradient(105deg,#244b3799,#59373299);
+ border-color:#65796b;box-shadow:none;
 }
 .topbar .market-switch > span { color:var(--ink);font-weight:550; }
 .topbar .market-switch[data-market="CN"] > span:first-child,
 .topbar .market-switch[data-market="US"] > span:nth-child(2) { color:var(--ink);font-weight:650; }
 .market-switch .market-switch-thumb {
  position:absolute;top:2px;bottom:2px;left:2px;width:calc((100% - 4px)/2);
- border:1px solid #ffffffdb;border-radius:inherit;
- background:linear-gradient(160deg,#fffffff2,#ffffff80 48%,#ffffffb8);
- box-shadow:inset 0 1px 1px #fff,inset 0 -1px 1px #53745b22,0 2px 4px #203c2929;
+ border:1px solid #ffffff80;border-radius:inherit;
+ background:#ffffff99;
+ box-shadow:none;
  pointer-events:none;transform:translateX(0);transition:transform 180ms cubic-bezier(.77,0,.175,1);
 }
 :root[data-theme="dark"] .market-switch .market-switch-thumb {
- background:linear-gradient(160deg,#486352e8,#26392fe0 48%,#354c3fe8);
- border-color:#a9c0b082;box-shadow:inset 0 1px 1px #ffffff38,inset 0 -1px 1px #0004,0 2px 4px #0005;
+ background:#69837355;
+ border-color:#a9c0b082;box-shadow:none;
 }
 @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) {
  .market-switch .market-switch-thumb { -webkit-backdrop-filter:blur(8px) saturate(1.2);backdrop-filter:blur(8px) saturate(1.2); }

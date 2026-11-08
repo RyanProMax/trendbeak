@@ -12,13 +12,13 @@ const date='2026-11-02',keys=['fearGreed','rsi','breadth','limitRatio','turnover
 async function valuationLayout(page,width){
  const layout=await page.locator('.index-valuations').evaluate(e=>{
   const cells=[...e.querySelectorAll('tbody tr:first-child>*')],rects=cells.map(c=>c.getBoundingClientRect()),bars=[...e.querySelectorAll('tbody tr:first-child .valuation-track')].map(c=>c.getBoundingClientRect());
-  return{starts:rects.map(c=>c.x),columns:rects.map(c=>c.width),bars:bars.map(b=>b.width),gutters:cells.map(c=>parseFloat(getComputedStyle(c).paddingRight)),metricGap:bars[1].left-bars[0].right,tableWidth:e.querySelector('table').getBoundingClientRect().width,nativeTable:getComputedStyle(e.querySelector('table')).display,nameOverflow:[...e.querySelectorAll('tbody th strong')].some(n=>n.scrollWidth>n.clientWidth),pageOverflow:document.documentElement.scrollWidth>innerWidth};
+  return{starts:rects.map(c=>c.x),columns:rects.map(c=>c.width),bars:bars.map(b=>b.width),gutters:cells.map(c=>parseFloat(getComputedStyle(c).paddingRight)),metricGap:bars[1].left-bars[0].right,sectionWidth:e.getBoundingClientRect().width,tableLeft:e.querySelector('table').getBoundingClientRect().left,sectionLeft:e.getBoundingClientRect().left,tableWidth:e.querySelector('table').getBoundingClientRect().width,nativeTable:getComputedStyle(e.querySelector('table')).display,nameOverflow:[...e.querySelectorAll('tbody th strong')].some(n=>n.scrollWidth>n.clientWidth),pageOverflow:document.documentElement.scrollWidth>innerWidth};
  });
- assert.equal(layout.nativeTable,'table');assert.ok(layout.tableWidth<=520.5);
+ assert.equal(layout.nativeTable,'table');assert.ok(layout.tableWidth<=680.5);assert.ok(Math.abs(layout.tableWidth-layout.sectionWidth)<1,'table fills analysis measure');assert.ok(Math.abs(layout.tableLeft-layout.sectionLeft)<1,'table aligns with heading');
  assert.ok(layout.columns[0]<layout.columns[1],'name column must remain narrower than metric columns');
  assert.ok(Math.abs(layout.bars[0]-layout.bars[1])<1,'PB/PS bars must match');
- const gutter=width<=760?12:24;assert.ok(layout.gutters.every(g=>g===gutter));assert.ok(Math.abs(layout.metricGap-gutter)<1,'visible metric gutter must match name-cell gutter');
- assert.ok(layout.bars.every(w=>w>(width<=760?72:92)&&w<=200),'bars must be wider than old bounds without sprawling');
+ const gutter=width<=760?12:32;assert.ok(layout.gutters.every(g=>g===gutter));assert.ok(Math.abs(layout.metricGap-gutter)<1,'visible metric gutter must match name-cell gutter');
+ assert.ok(layout.bars.every(w=>w>(width<=760?72:92)&&w<=225),'bars must be wider than old bounds without sprawling');
  assert.equal(layout.nameOverflow,false);assert.equal(layout.pageOverflow,false);return layout;
 }
 await vite.listen();const browser=await chromium.launch({channel:'chrome'}),results=[];

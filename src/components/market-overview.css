@@ -26,9 +26,9 @@
 .overview-detail dt { color:#8a9783; font-size:11px; }
 .overview-detail dd { margin:0; color:#64765d; font-variant-numeric:tabular-nums; }
 .overview-detail a,.index-valuations a { color:#788e70; font-size:11px; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
-.index-valuations table { width:min(100%,520px); table-layout:fixed; border-collapse:collapse; margin:14px auto 0; text-align:left; }
-.valuation-name-column { width:96px; }
-.index-valuations th,.index-valuations td { padding:12px 8px; border-bottom:1px solid #edf0e9; vertical-align:middle; overflow-wrap:anywhere; }
+.index-valuations table { width:100%; table-layout:fixed; border-collapse:collapse; margin:20px 0 0; text-align:left; }
+.valuation-name-column { width:26%; }
+.index-valuations th,.index-valuations td { padding:20px 16px; border-bottom:1px solid #edf0e9; vertical-align:middle; overflow-wrap:anywhere; }
 .index-valuations th:first-child { padding-left:0; }
 .index-valuations thead th { font-size:11px; color:#899480; font-weight:500; }
 .index-valuations tbody th strong { display:block; font-size:12px; font-weight:500; }
@@ -45,7 +45,7 @@
 
 /* Content-led name column, wider paired metrics and the same gutter between
    each column. Keep native table layout and wrap long index names. */
-.index-valuations th,.index-valuations td { padding-left:0; padding-right:24px; }
+.index-valuations th,.index-valuations td { padding-left:0; padding-right:32px; }
 .index-valuations tbody th strong { max-width:100%; word-break:normal; overflow-wrap:anywhere; }
 .valuation-reading { width:100%; }
 .six-factor-popover-positioner { z-index:65; width:min(344px,calc(100vw - 24px)); overscroll-behavior:contain; }
@@ -65,3 +65,20 @@
 }
 
 .china-sentiment .six-factor-skeleton { cursor:default; }
+
+/* The table uses the entire analysis measure; paired readings have equal gutters. */
+.index-valuations th:first-child { padding-left:0; }
+.index-valuations th:last-child,.index-valuations td:last-child { padding-left:0; }
+.index-valuations thead th { padding-top:0; padding-bottom:12px; }
+.valuation-reading b { font-size:16px; line-height:1.5; }
+.valuation-track { margin:8px 0; }
+@media(max-width:760px){
+ .index-valuations table { margin-top:18px; }
+ .index-valuations th,.index-valuations td { padding:16px 12px 16px 0; }
+ .index-valuations th:last-child,.index-valuations td:last-child { padding-left:0; padding-right:12px; }
+ .valuation-reading b { font-size:14px; }
+}
+/* Keep the valuation table stationary across loading, empty and ready states. */
+.index-valuations .valuation-status{margin:0 0 8px;min-height:20px;line-height:20px;font-size:12px;color:var(--muted)}
+/* Numeric units and missing-value dashes use different fallback glyph metrics. */
+.valuation-reading small{line-height:16px;min-height:16px}

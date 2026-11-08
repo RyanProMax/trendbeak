@@ -59,6 +59,11 @@ export function chinaReadings(snapshot:MarketSnapshot,date:string):Record<ChinaF
  return Object.fromEntries(CHINA_FACTORS.map(id=>{
   const cell=overview?.history[date]?.[id],fallback=id==='fearGreed'&&snapshot.instrument.market==='CN'?snapshot.sentiment?.observations.find(p=>p.date===date)?.value:id==='rsi'&&snapshot.instrument.market==='CN'&&snapshot.instrument.symbol==='000300.SS'?snapshot.history[date]?.values.rsi:undefined;
   const sourceId=cell?overview?.sourceIds[id]:id==='fearGreed'?'baifenwei':id==='rsi'?'self_csi300_rsi14_tencent':undefined;
-  return[id,{date,value:cell?cell[0]:fallback??null,percentile:cell?.[1]??null,unit:FACTOR_METHODS[id].unit,period:cell?`此前${cell[2]}个有效交易日（最多252日）`:'—',source:sourceId?OVERVIEW_SOURCES[sourceId]:null,method:FACTOR_METHODS[id].method,...(cell?.[3]?{counts:cell[3]}:{})}];
+  return[id,{date,value:cell?cell[0]:fallback??null,percentile:cell?.[1]??null,unit:FACTOR_METHODS[id].unit,period:cell?`${cell[2]}天`:'—',source:sourceId?OVERVIEW_SOURCES[sourceId]:null,method:FACTOR_METHODS[id].method,...(cell?.[3]?{counts:cell[3]}:{})}];
  }))as Record<ChinaFactor,ChinaFactorReading>;
+}
+
+/** Only an observation on the selected date may be displayed. No latest fallback. */
+export function valuationRowsForDate(rows:IndexValuation[],date:string):IndexValuation[]{
+ return rows.map(row=>row.date===date?row:{name:row.name,code:row.code,date,pb:{value:null,percentile:null},ps:{value:null,percentile:null}});
 }
