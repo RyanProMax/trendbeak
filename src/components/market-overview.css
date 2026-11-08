@@ -27,7 +27,7 @@
 .overview-detail dd { margin:0; color:#64765d; font-variant-numeric:tabular-nums; }
 .overview-detail a,.index-valuations a { color:#788e70; font-size:11px; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
 .index-valuations table { width:100%; table-layout:fixed; border-collapse:collapse; margin-top:14px; text-align:left; }
-.valuation-name-column { width:42%; }
+.valuation-name-column { width:26%; }
 .index-valuations th,.index-valuations td { padding:12px 8px; border-bottom:1px solid #edf0e9; vertical-align:middle; overflow-wrap:anywhere; }
 .index-valuations th:first-child { padding-left:0; }
 .index-valuations thead th { font-size:11px; color:#899480; font-weight:500; }
@@ -38,7 +38,7 @@
 .valuation-track { display:block; height:3px; width:100%; margin:5px 0; background:#edf1e8; border-radius:2px; overflow:hidden; }
 .valuation-track i { display:block; height:100%; background:#9eaf91; border-radius:2px; }
 .index-valuations footer { margin-top:10px; }
-@media(max-width:760px){.six-factor-readings{column-gap:8px}.six-factor-trigger{font-size:11px}.six-factor-heading{flex-direction:column;align-items:flex-start;gap:4px}.china-sentiment .six-factor-trigger{min-height:108px;padding:10px}.six-factor-percentile-label{font-size:10px}.overview-detail dl{column-gap:12px}.index-valuations th,.index-valuations td{padding:12px 6px}.valuation-name-column{width:40%}}
+@media(max-width:760px){.six-factor-readings{column-gap:8px}.six-factor-trigger{font-size:11px}.six-factor-heading{flex-direction:column;align-items:flex-start;gap:4px}.china-sentiment .six-factor-trigger{min-height:108px;padding:10px}.six-factor-percentile-label{font-size:10px}.overview-detail dl{column-gap:12px}.index-valuations th,.index-valuations td{padding:12px 6px}.valuation-name-column{width:32%}}
 .overview-detail>p { margin:8px 0; color:#7c8976; }
 .index-valuations { margin-top:32px; }
 @media(max-width:760px){.china-sentiment .six-factor-trigger b{font-size:14px}}

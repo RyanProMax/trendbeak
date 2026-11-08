@@ -284,7 +284,7 @@ function Dashboard({ data }: { data: PageData }) {
           <a className="brand" href="/" aria-label="trendbeak 首页">
             <img className="brand-wordmark brand-light" src="/trendbeak-wordmark.svg?v=11" alt="trendbeak" width="480" height="120" /><img className="brand-wordmark brand-dark" src="/trendbeak-wordmark-dark.svg?v=11" alt="trendbeak" width="480" height="120" />
           </a>
-          <div className="market-switch"><span aria-hidden="true">CN</span><span aria-hidden="true">US</span><input type="range" min="0" max="1" step="1" value={activeMarket==='CN'?0:1} aria-label="切换市场" aria-valuetext={activeMarket==='CN'?'A股':'美股'} onChange={e=>changeMarket(e.currentTarget.value==='0'?'CN':'US')}/></div>
+          <div className="market-switch" data-market={activeMarket}><span aria-hidden="true">CN</span><span aria-hidden="true">US</span><input type="range" min="0" max="1" step="1" value={activeMarket==='CN'?0:1} aria-label="切换市场" aria-valuetext={activeMarket==='CN'?'A股':'美股'} onChange={e=>changeMarket(e.currentTarget.value==='0'?'CN':'US')}/></div>
           <StockSearch onSelect={(instrument) => visit(instrument)} />
           <ThemeSwitch scheme={scheme} setScheme={setScheme} />
         </div>

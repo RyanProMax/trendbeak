@@ -6,23 +6,23 @@
   --ink: #252525;
   --secondary: #555555;
   --muted: #666666;
-  --accent: #454545;
+  --accent: #426f52;
   --line: #dedede;
   --surface: #f5f5f5;
   --surface-raised: #ffffff;
-  --control: #f4f4f4;
-  --control-thumb: #ffffff;
-  --control-line: #888888;
+  --control: #f0f5f1;
+  --control-thumb: #dceadf;
+  --control-line: #6f947e;
   --hover: #eeeeee;
-  --focus: #454545;
+  --focus: #426f52;
   --grid: #dedede;
   --price-line: #555555;
-  --data: #454545;
+  --data: #3f684d;
   --green: #386c55;
   --red: #9d5145;
-  --range-line: #888888;
-  --range-selection: #77777712;
-  --selection: #dddddd;
+  --range-line: #779b83;
+  --range-selection: linear-gradient(90deg,#4f9d831c,#c8bd8316,#cb77741a);
+  --selection: #dce8d7;
   --calendar-missing: #ffffff;
   --calendar-missing-stroke: #888888;
   --calendar-selected: #555555;
@@ -39,23 +39,23 @@
     --ink: #eeeeee;
     --secondary: #bdbdbd;
     --muted: #aaaaaa;
-    --accent: #cccccc;
+    --accent: #b3d1b8;
     --line: #303030;
     --surface: #141414;
     --surface-raised: #191919;
-    --control: #141414;
-    --control-thumb: #303030;
-    --control-line: #777777;
+    --control: #142019;
+    --control-thumb: #304b3b;
+    --control-line: #809c86;
     --hover: #262626;
-    --focus: #cccccc;
+    --focus: #b3d1b8;
     --grid: #303030;
     --price-line: #cccccc;
-    --data: #dddddd;
+    --data: #a8cbb1;
     --green: #98c5aa;
     --red: #e1a28b;
-    --range-line: #999999;
-    --range-selection: #aaaaaa0e;
-    --selection: #333333;
+    --range-line: #8da88f;
+    --range-selection: linear-gradient(90deg,#4f9d8326,#c8bd831c,#cb777422);
+    --selection: #304b3b;
     --calendar-missing: #000000;
     --calendar-missing-stroke: #777777;
     --calendar-selected: #cccccc;
@@ -89,8 +89,10 @@ body { background: var(--page); color: var(--ink); }
 }
 .market-switch > span {
   width: 50%; text-align: center; font-size: 12px; font-weight: 550;
-  color: var(--ink); pointer-events: none; z-index: 2;
+  color: var(--secondary); pointer-events: none; z-index: 2;
 }
+.market-switch[data-market="CN"] > span:first-child,
+.market-switch[data-market="US"] > span:nth-child(2) { color: var(--accent); font-weight: 650; }
 .market-switch input {
   position: absolute; inset: 0; width: 100%; height: 100%; margin: 0;
   appearance: none; -webkit-appearance: none; background: transparent;
@@ -129,7 +131,7 @@ body { background: var(--page); color: var(--ink); }
 #main-content .readout-index { background: var(--price-line); }
 #main-content .chart-crosshair { stroke: var(--control-line); }
 #main-content .chart-hit-area:focus-visible { stroke: var(--focus); }
-#main-content .navigator-preview { border: 0; background: var(--surface); }
+#main-content .navigator-preview { border: 0; background: var(--control); }
 #main-content .navigator-preview path { stroke: var(--range-line); }
 #main-content .navigator-preview circle { fill: var(--range-line); }
 #main-content .navigator-window { border-color: var(--control-line); background: var(--range-selection); }
