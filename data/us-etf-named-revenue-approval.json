@@ -1,0 +1,30 @@
+{
+  "id": "xle-named-revenue-only-delta-r2",
+  "bundleSha256": "fc1ce9e2fa27dfa6ca0fdb6491882dfc2083693eb57a57ca052890ed698a04ae",
+  "manifestSha256": "dd4d7f539b4bd1abbd11b162312f725ab1fea71229579a30b5352e2066bab4ad",
+  "beforeInputsSha256": "65db5f2571d09dcadf857acbced19983e37cb890b07d01620297913c58565daa",
+  "afterInputsSha256": "bf1d7f04ef9df34a4e6ec72bfa967c9b4df7b32306c7ef51e5366d93feeeba8d",
+  "deltaSha256": "2312b04cffa5c40edba1bf3bfaf2df8c5a70a28c5df2700de00e48c3ea0da353",
+  "baselinePayloadSha256": "a1b99c12b4b10f630a17f7218c7bbcdaaf15ee3e20c5ec865fe9c1e78f1ac6a8",
+  "targets": [
+    {
+      "date": "2021-06-30",
+      "symbol": "PXD",
+      "securityId": "US7237871071",
+      "revenue": 8078000000
+    },
+    {
+      "date": "2021-12-31",
+      "symbol": "COP",
+      "securityId": "US20825C1045",
+      "revenue": 36199000000
+    },
+    {
+      "date": "2025-09-30",
+      "symbol": "EOG",
+      "securityId": "US26875P1012",
+      "revenue": 22642000000
+    }
+  ],
+  "envelopeSha256": "d3cfdc7c0bd82d90ab02e344e1c4491ae092aceded2a008b910eca9fbe45eb94"
+}
