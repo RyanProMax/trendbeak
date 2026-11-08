@@ -56,3 +56,6 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+
+# local design explorations
+/design-demos/

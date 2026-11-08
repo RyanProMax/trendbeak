@@ -1,14 +1,14 @@
-const CACHE_NAME = "trendbeak-shell-v3-theme";
+const CACHE_NAME = "trendbeak-shell-v4-logo13";
 const PRECACHE = [
   "/offline",
-  "/manifest.webmanifest?v=11",
-  "/favicon.svg?v=11",
-  "/trendbeak-wordmark.svg?v=12",
-  "/trendbeak-wordmark-dark.svg?v=12",
-  "/apple-touch-icon.png?v=11",
-  "/app-icon-192.png?v=11",
-  "/app-icon-512.png?v=11",
-  "/app-icon-maskable-512.png?v=11",
+  "/manifest.webmanifest?v=13",
+  "/favicon.svg?v=13",
+  "/trendbeak-wordmark.svg?v=13",
+  "/trendbeak-wordmark-dark.svg?v=13",
+  "/apple-touch-icon.png?v=13",
+  "/app-icon-192.png?v=13",
+  "/app-icon-512.png?v=13",
+  "/app-icon-maskable-512.png?v=13",
 ];
 
 self.addEventListener("install", (event) => {

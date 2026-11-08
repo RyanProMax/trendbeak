@@ -22,7 +22,7 @@ h1, h2, h3, p { margin: 0; }
 .topbar { padding-left: 0; }
 .topbar-inner { max-width: 1248px; margin: auto; height: 84px; display: grid; grid-template-columns: minmax(190px,1fr) minmax(200px,336px) minmax(190px,1fr); gap: 24px; align-items: center; }
 .brand { justify-self: start; display: block; }
-.brand-wordmark { display: block; width: 172px; height: auto; aspect-ratio: 339 / 68; object-fit: cover; }
+.brand-wordmark { display: block; width: 172px; height: auto; aspect-ratio: 598 / 115; object-fit: contain; }
 .search-wrap { position: relative; width: 100%; min-width: 0; z-index: 20; }
 .search-field { display: flex; align-items: center; gap: 10px; background: transparent; height: 36px; padding: 0 12px; border: 1px solid transparent; border-radius: 6px; color: #959ba4; }
 .search-field.is-open { background: transparent; border-color: #c5d2ba; box-shadow: 0 0 0 3px #f3f6ed; }

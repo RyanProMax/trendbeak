@@ -21,7 +21,7 @@ test("web app manifest exposes installable square and maskable icons", async () 
 
 test("document includes iOS and standards-based installation metadata", async () => {
   const app = await readFile(new URL("src/App.tsx", root), "utf8");
-  assert.match(app, /rel="manifest" href="\/manifest\.webmanifest\?v=11"/);
+  assert.match(app, /rel="manifest" href="\/manifest\.webmanifest\?v=13"/);
   assert.match(app, /apple-mobile-web-app-capable/);
   assert.match(app, /apple-mobile-web-app-status-bar-style/);
   assert.match(app, /rel="apple-touch-icon"/);

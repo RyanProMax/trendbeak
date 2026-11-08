@@ -292,7 +292,7 @@ function Dashboard({ data }: { data: PageData }) {
       <StickyHeader className="topbar">
         <div className="topbar-inner">
           <a className="brand" href="/" aria-label="trendbeak 首页">
-            <img className="brand-wordmark brand-light" src="/trendbeak-wordmark.svg?v=12" alt="trendbeak" width="480" height="120" /><img className="brand-wordmark brand-dark" src="/trendbeak-wordmark-dark.svg?v=12" alt="trendbeak" width="480" height="120" />
+            <img className="brand-wordmark brand-light" src="/trendbeak-wordmark.svg?v=13" alt="trendbeak" width="1196" height="230" /><img className="brand-wordmark brand-dark" src="/trendbeak-wordmark-dark.svg?v=13" alt="trendbeak" width="1196" height="230" />
           </a>
           <MarketSwitch market={activeMarket} onChange={(market,animate)=>changeMarket(market,true,animate)}/>
           <StockSearch selectedInstrument={activeSnapshot?.instrument??BENCHMARKS[activeMarket]} selectionFeedback={selectionFeedback} onDismissFeedback={()=>setMarkets(states=>({...states,[activeMarket]:{...states[activeMarket],error:null,failedInstrument:undefined}}))} onClear={() => void visit(BENCHMARKS[activeMarket])} onSelect={(instrument) => visit(instrument)} />
@@ -371,19 +371,19 @@ export default function Document({ data }: { data: PageData }) {
           content="A 股与美股每日行情、年度涨跌与关键技术指标。"
         />
         <meta property="og:url" content={data.requestUrl} />
-        <meta property="og:image" content={new URL("/og.png?v=11", data.requestUrl).href} />
+        <meta property="og:image" content={new URL("/og.png?v=13", data.requestUrl).href} />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="trendbeak · 每日市场信号" />
-        <meta name="twitter:image" content={new URL("/og.png?v=11", data.requestUrl).href} />
+        <meta name="twitter:image" content={new URL("/og.png?v=13", data.requestUrl).href} />
         <link rel="canonical" href={data.requestUrl} />
-        <link rel="manifest" href="/manifest.webmanifest?v=11" />
-        <link rel="icon" href="/favicon.ico?v=11" sizes="any" />
-        <link rel="icon" href="/favicon-16.png?v=11" type="image/png" sizes="16x16" />
-        <link rel="icon" href="/favicon-32.png?v=11" type="image/png" sizes="32x32" />
-        <link rel="icon" href="/favicon.svg?v=11" type="image/svg+xml" sizes="any" />
+        <link rel="manifest" href="/manifest.webmanifest?v=13" />
+        <link rel="icon" href="/favicon.ico?v=13" sizes="any" />
+        <link rel="icon" href="/favicon-16.png?v=13" type="image/png" sizes="16x16" />
+        <link rel="icon" href="/favicon-32.png?v=13" type="image/png" sizes="32x32" />
+        <link rel="icon" href="/favicon.svg?v=13" type="image/svg+xml" sizes="any" />
         <link
           rel="apple-touch-icon"
-          href="/apple-touch-icon.png?v=11"
+          href="/apple-touch-icon.png?v=13"
           sizes="180x180"
         />
         <link rel="stylesheet" href={`/static/client.css?v=${DATA_VERSION}`} />

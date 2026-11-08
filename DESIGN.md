@@ -1,6 +1,8 @@
 # trendbeak visual system
 
-Coordinated light and dark sage canvases, whitespace and tabular figures form the foundation. Permanent section and readout separators are removed; chart reference lines stay faint. Both palettes follow the system preference, including native controls, search, heatmaps, range handles and expanded details. The brand is one continuous trend line folded into an open right-facing beak. Its outlined `trend` wordmark blends sage through muted gold to coral; `beak` is gray green. Dark-background and one-color variants preserve the same geometry. Existing market-chart colors remain; factor radars retain soft directional accents while volatility and activity use direction-neutral colors. Small text uses darker related tones for legibility.
+Coordinated light and dark sage canvases, whitespace and tabular figures form the foundation. Permanent section and readout separators are removed; chart reference lines stay faint. Both palettes follow the system preference, including native controls, search, heatmaps, range handles and expanded details. The brand is a rising bird with a curved negative-space wing and a short right-facing beak. Its lighter outlined `trend` lettering shares one green-to-coral gradient; `beak` is gray green. Dark-background and one-color variants preserve the same geometry. Existing market-chart colors remain; factor radars retain soft directional accents while volatility and activity use direction-neutral colors. Small text uses darker related tones for legibility.
+
+Brand SVG masters live in `public/`. Rebuild the PNG, ICO and share-card exports with `node scripts/render-brand-assets.mjs`; the header uses the SVGs at their intrinsic 598:115 ratio. Run `scripts/logo-assets-check.mjs` and `scripts/brand-ui-check.mjs` with `SIGNAL_PREVIEW_URL` against a prepared local preview before publishing.
 
 ## Calendar and quotes
 
