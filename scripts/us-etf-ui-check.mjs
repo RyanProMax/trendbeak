@@ -42,7 +42,7 @@ try {
     await page.screenshot({path:`${out}/${width}-${scheme}-quarterly-full.png`,fullPage:true}); await panel.screenshot({path:`${out}/${width}-${scheme}-quarterly.png`});
     const conflict=panel.getByRole('button',{name:'XLK 持仓来源有差异',exact:true});await conflict.scrollIntoViewIfNeeded();await conflict.click();
     const tooltip=page.getByRole('tooltip');await tooltip.waitFor({state:'visible'});
-    assert.ok((await tooltip.innerText()).includes('核验日期：2026年11月8日'));assert.ok((await tooltip.innerText()).includes('PB 12.50倍 / 10.00倍'));assert.ok((await tooltip.innerText()).includes('PS 5.00倍 / 4.00倍'));assert.ok((await tooltip.innerText()).includes('PB −20.0%'));
+    assert.ok((await tooltip.innerText()).includes('核验日期：2026年11月8日'));assert.ok((await tooltip.innerText()).includes('PB 12.50倍 / 10.00倍'));assert.ok((await tooltip.innerText()).includes('PS 5.00倍 / 4.00倍'));assert.ok((await tooltip.innerText()).includes('PB −20.00%'));
     const conflictLayout=await tooltip.evaluate(e=>{const r=e.getBoundingClientRect();return{fits:e.scrollWidth<=e.clientWidth+1,left:r.left,right:r.right,width:innerWidth};});assert.ok(conflictLayout.fits&&conflictLayout.left>=0&&conflictLayout.right<=conflictLayout.width);
     await page.screenshot({path:`${out}/${width}-${scheme}-source-conflict.png`,clip:await tooltip.boundingBox()});
     await page.keyboard.press('Escape');await tooltip.waitFor({state:'hidden'});

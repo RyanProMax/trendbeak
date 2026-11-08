@@ -16,7 +16,7 @@ function SourceComparison({ row }: { row: ETFValuation }) {
     {open&&<FloatingPortal><div className="valuation-tooltip" ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()}>
       <strong>{row.code} · 当前核验</strong><span>核验日期：{displayDate(new Date(c.observedAt).toISOString().slice(0, 10), true)}</span><span>监管申报主值 / 发行方披露备值</span>
       <span>{values('pb')}</span><span>{values('ps')}</span>
-      <span>备值差异：{(['pb','ps']as const).map(m=>`${m.toUpperCase()} ${c.deltaPercent[m]===null?'—':number(c.deltaPercent[m]!,1)+'%'}`).join('；')}</span>
+      <span>备值差异：{(['pb','ps']as const).map(m=>`${m.toUpperCase()} ${c.deltaPercent[m]===null?'—':number(c.deltaPercent[m]!,Math.abs(c.deltaPercent[m]!) < .1 ? 4 : 2,true)+'%'}`).join('；')}</span>
       <span>两份持仓披露的权重不同，不代表估值区间。</span>
     </div></FloatingPortal>}
   </>;
