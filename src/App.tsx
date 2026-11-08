@@ -114,6 +114,12 @@ function Dashboard({ data }: { data: PageData }) {
     if (selectable(date)) setSelectedDate(date);
   }, [selectable]);
   const globalDate = selectedDate ?? calendarEnd;
+  const failedSelection=markets[activeMarket].failedInstrument;
+  const selectionFeedback=markets[activeMarket].error&&failedSelection?{
+    message:`${markets[activeMarket].error==="该股票的历史数据尚未收录"?"尚未收录":"暂未载入"}${failedSelection.name}${activeSnapshot?`，仍显示${activeSnapshot.instrument.name}`:"，暂无可用行情"}`,
+    placeholder:`${failedSelection.name}${markets[activeMarket].error==="该股票的历史数据尚未收录"?"未收录":"暂不可用"} · ${activeSnapshot?(activeSnapshot.instrument.kind==="stock"?`仍显示${activeSnapshot.instrument.code}`:"仍显示大盘"):"暂无行情"}`,
+  }:null;
+
   const controllers = useRef<Partial<Record<Market, AbortController>>>({});
   const requestedSymbols = useRef<Partial<Record<Market,string>>>({});
   const benchmarkRequests = useRef<Partial<Record<Market,Promise<unknown>>>>({});
@@ -289,7 +295,7 @@ function Dashboard({ data }: { data: PageData }) {
             <img className="brand-wordmark brand-light" src="/trendbeak-wordmark.svg?v=12" alt="trendbeak" width="480" height="120" /><img className="brand-wordmark brand-dark" src="/trendbeak-wordmark-dark.svg?v=12" alt="trendbeak" width="480" height="120" />
           </a>
           <MarketSwitch market={activeMarket} onChange={(market,animate)=>changeMarket(market,true,animate)}/>
-          <StockSearch selectedInstrument={activeSnapshot?.instrument??markets[activeMarket].instrument} onClear={() => void visit(BENCHMARKS[activeMarket])} onSelect={(instrument) => visit(instrument)} />
+          <StockSearch selectedInstrument={activeSnapshot?.instrument??BENCHMARKS[activeMarket]} selectionFeedback={selectionFeedback} onDismissFeedback={()=>setMarkets(states=>({...states,[activeMarket]:{...states[activeMarket],error:null,failedInstrument:undefined}}))} onClear={() => void visit(BENCHMARKS[activeMarket])} onSelect={(instrument) => visit(instrument)} />
           <ThemeSwitch scheme={scheme} setScheme={setScheme} />
         </div>
       </StickyHeader>
@@ -302,7 +308,6 @@ function Dashboard({ data }: { data: PageData }) {
               return <div className="calendar-row" data-calendar-market={market} key={market}>
                 <span className="sr-only">{markets[market].instrument.name}每日涨跌</span>
                 {markets[market].pendingInstrument&&<span className="sr-only" role="status">正在切换至{markets[market].pendingInstrument!.name}</span>}
-                {markets[market].error&&markets[market].failedInstrument&&<p className="selection-status" role="status">{markets[market].error==="该股票的历史数据尚未收录"?"尚未收录":"暂未载入"}{markets[market].failedInstrument!.name}{snapshot?`，仍显示${markets[market].instrument.name}`:""}</p>}
                 {snapshot && mounted ? <YearHeatmap key={market} colorScheme={scheme} snapshot={snapshot} days={alignedDays[market]} selectedDate={selectedDate ?? snapshot.asOf} onSelectDate={selectDate} onHoverDate={setHoveredDate} showMonths />
                   : snapshot || markets[market].loading ? <CalendarSkeleton /> : <p className="calendar-unavailable">—</p>}
               </div>;

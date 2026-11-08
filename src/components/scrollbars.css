@@ -1,0 +1,27 @@
+/* ryanzh.me keeps the root scroll track reserved, including short pages.
+   Keep the same fallback here; both edges keep centered content centered. */
+html{
+ overflow-y:scroll;
+ scrollbar-gutter:stable both-edges;
+ --scrollbar-thumb:#babec3;
+ --scrollbar-thumb-hover:#8c929b;
+ --scrollbar-track:var(--page,#fff);
+ scrollbar-width:thin;
+ scrollbar-color:var(--scrollbar-thumb) var(--scrollbar-track);
+}
+html[data-theme=dark]{--scrollbar-thumb:#484d55;--scrollbar-thumb-hover:#707782;--scrollbar-track:var(--page,#000)}
+/* Standard properties cover Firefox and current Chromium; pseudo-elements
+   retain a visible, draggable track on older WebKit implementations. */
+.search-popover{scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) transparent}
+html::-webkit-scrollbar,.search-popover::-webkit-scrollbar{width:10px;height:10px}
+html::-webkit-scrollbar-track{background:var(--scrollbar-track)}
+.search-popover::-webkit-scrollbar-track{background:transparent}
+html::-webkit-scrollbar-thumb,.search-popover::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border:2px solid transparent;background-clip:padding-box;border-radius:8px}
+@media(hover:hover) and (pointer:fine){
+ html::-webkit-scrollbar-thumb:hover,.search-popover::-webkit-scrollbar-thumb:hover{background-color:var(--scrollbar-thumb-hover)}
+}
+@media(forced-colors:active){
+ html,.search-popover{scrollbar-color:auto;scrollbar-width:auto}
+ html::-webkit-scrollbar-thumb,.search-popover::-webkit-scrollbar-thumb{background:ButtonText}
+ html::-webkit-scrollbar-track{background:Canvas}
+}

@@ -11,6 +11,7 @@ export function calendarForRange(snapshot: MarketSnapshot, end: string, count = 
   return Array.from({ length: count }, (_, index) => {
     const date = shiftDate(end, index + 1 - count);
     const reading = snapshot.history?.[date];
+    if (isExchangeClosed(date, snapshot.instrument.market)) return { date, change: null, status: "closed" };
     return known.get(date) ?? (reading ? { date, change: reading.change, status: "trading" } : {
       date, change: null,
       status: isExchangeClosed(date, snapshot.instrument.market) ? "closed" : "missing",
@@ -30,9 +31,10 @@ export function chartSegments(days: CalendarDay[], observations: ChartPoint[]): 
   const segments: ChartPoint[][] = [];
   let segment: ChartPoint[] = [];
   for (const day of days) {
+    if (day.status === "closed") continue;
     const value = values.get(day.date);
     if (value !== undefined && Number.isFinite(value)) segment.push({ date: day.date, value });
-    else if (day.status !== "closed" && segment.length) {
+    else if (segment.length) {
       segments.push(segment); segment = [];
     }
   }
@@ -48,7 +50,10 @@ export function trendSeries(snapshot: MarketSnapshot, benchmark: MarketSnapshot 
   const priceSnapshot = snapshot.instrument.kind === "stock" ? snapshot : benchmark;
   const mood = (snapshot.instrument.kind === "stock" ? [] : snapshot.sentiment?.observations ?? []).filter((point) => point.date >= start && point.date <= end).sort((a, b) => a.date.localeCompare(b.date));
   const prices = Object.entries(priceSnapshot?.history ?? {}).filter(([date]) => date >= start && date <= end).sort(([a], [b]) => a.localeCompare(b)).map(([date, row]) => ({ date, value: row.price }));
-  return { start, end, days, mood, prices,
+  const sessions = new Set(days.filter(day => day.status !== "closed").map(day => day.date));
+  const sessionMood = mood.filter(point => sessions.has(point.date));
+  const sessionPrices = prices.filter(point => sessions.has(point.date));
+  return { start, end, days, mood: sessionMood, prices: sessionPrices,
     moodSegments: chartSegments(days, mood),
     priceSegments: chartSegments(priceSnapshot ? calendarForRange(priceSnapshot, end, range).filter((day) => day.date >= start) : days, prices),
   };

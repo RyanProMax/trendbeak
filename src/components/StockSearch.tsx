@@ -1,14 +1,17 @@
 import { useEffect, useId, useRef, useState } from "react";
+import "./search-state.css";
 import { Search, X } from "lucide-react";
 import type { Instrument } from "../market-types";
 import { HISTORY_KEY, LEGACY_HISTORY_KEY, parseHistory, remember } from "../lib/search-history";
 
 export default function StockSearch({
-  onSelect, selectedInstrument, onClear,
+  onSelect, selectedInstrument, onClear, selectionFeedback, onDismissFeedback,
 }: {
   onSelect: (instrument: Instrument) => Promise<boolean>;
   selectedInstrument: Instrument;
   onClear: () => void;
+  selectionFeedback?: {message:string;placeholder:string}|null;
+  onDismissFeedback?: () => void;
 }) {
   const [draft, setQuery] = useState<string | null>(null);
   const query = draft ?? "";
@@ -24,6 +27,7 @@ export default function StockSearch({
   const id = useId();
   const candidates = query.trim() ? results : history;
   const show = open && Boolean(query.trim() || history.length);
+  const feedbackVisible=!!selectionFeedback&&!!selectedLabel&&!query.trim()&&!show;
   useEffect(() => { setQuery(null); setOpen(false); }, [selectedInstrument.market, selectedInstrument.symbol]);
   useEffect(() => {
     try {
@@ -108,7 +112,7 @@ export default function StockSearch({
         }
       }}
     >
-      <div className={`search-field${show ? " is-open" : ""}`}>
+      <div className={`search-field${show ? " is-open" : ""}${selectedLabel?" has-selection":""}${selectionFeedback?" has-feedback":""}`}>
         <Search size={19} aria-hidden="true" />
         <input
           ref={input}
@@ -120,7 +124,9 @@ export default function StockSearch({
           aria-activedescendant={
             show && candidates[active] ? `${id}-${active}` : undefined
           }
-          placeholder="搜索股票名称或代码"
+          placeholder={selectionFeedback?.placeholder??"搜索股票名称或代码"}
+          aria-describedby={selectionFeedback?`${id}-feedback`:undefined}
+          title={selectionFeedback?.message}
           autoComplete="off"
           maxLength={60}
           value={draft ?? selectedLabel}
@@ -153,7 +159,7 @@ export default function StockSearch({
             }
           }}
         />
-        {query || selectedLabel ? (
+        {query || selectedLabel || selectionFeedback ? (
           <button
             className="icon-button"
             type="button"
@@ -161,6 +167,7 @@ export default function StockSearch({
             onClick={() => {
               setQuery(null);
               setOpen(false);
+              onDismissFeedback?.();
               if (selectedLabel) onClear();
               else input.current?.focus();
             }}
@@ -171,6 +178,7 @@ export default function StockSearch({
           <kbd aria-hidden="true">/</kbd>
         )}
       </div>
+      {selectionFeedback&&<p id={`${id}-feedback`} role="status" className={feedbackVisible?"search-selection-feedback":"sr-only"}>{selectionFeedback.message}</p>}
       {show && (
         <div className="search-popover">
           {!query.trim() && (
@@ -189,6 +197,7 @@ export default function StockSearch({
               </button>
             </div>
           )}
+          {selectionFeedback&&!query.trim()&&<p className="search-feedback-inline">{selectionFeedback.message}</p>}
           <div id={id} role="listbox" aria-label="股票搜索结果">
             {candidates.map((instrument, index) => (
               <button

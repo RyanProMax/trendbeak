@@ -1,0 +1,9 @@
+/* Selection styling reflects the displayed instrument, never the typed query. */
+.topbar .search-field.has-selection{border-color:var(--control-line);background:color-mix(in srgb,var(--accent) 7%,var(--page));color:var(--accent);box-shadow:none}
+.topbar .search-field.has-selection input{color:var(--accent)}
+.topbar .search-field.has-selection:focus-within{outline:2px solid color-mix(in srgb,var(--accent) 22%,transparent);outline-offset:1px}
+.topbar .search-field.has-feedback input::placeholder{font-size:11px;color:var(--secondary);opacity:1}
+.search-selection-feedback{position:absolute;top:calc(100% + 7px);left:0;right:0;z-index:1;margin:0;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface-raised);color:var(--secondary);font-size:11px;line-height:1.5;box-shadow:var(--popover-shadow);overflow-wrap:anywhere}
+.search-feedback-inline{margin:0 0 10px;color:var(--secondary);font-size:11px;line-height:1.6}
+@media(max-width:760px){.topbar .search-field.has-feedback input::placeholder{font-size:12px}}
+@media(forced-colors:active){.topbar .search-field.has-selection{border-color:Highlight}.topbar .search-field.has-selection input{color:Highlight}}

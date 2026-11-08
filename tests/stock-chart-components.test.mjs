@@ -15,8 +15,20 @@ for(const market of ['CN','US'])test(`${market} stock chart labels and geometry 
  assert.equal(doc.querySelector('[data-series="sentiment"]'),null);
  assert.equal(doc.querySelector('.trend-chart').dataset.emotionObservations,'0');
  assert.ok(Number(doc.querySelector('.trend-chart').dataset.priceMax)<11);
- assert.match(doc.querySelector('.chart-axis-head').textContent,market==='US'?/股价 · 美元/:/股价 · 元/);
+ assert.match(doc.querySelector('.chart-axis-head').textContent,market==='US'?/股价 · USD/:/股价 · 元/);
  assert.match(doc.querySelector('[role="slider"]').getAttribute('aria-valuetext'),new RegExp(snapshot.instrument.name));
  assert.doesNotMatch(doc.querySelector('[role="slider"]').getAttribute('aria-valuetext'),/情绪|Benchmark/);
  assert.match(doc.querySelector('[role="slider"]').getAttribute('aria-valuetext'),/\(\+1\.50%\)/);
+});
+
+test('compressed ticks show actual sessions while data bounds retain selected natural dates',()=>{
+ const snapshot=stock('US');
+ const doc=new JSDOM(renderToStaticMarkup(React.createElement(Trend,{snapshot,benchmark:null,bounds:{start:'2026-10-25',end:'2026-11-01'},windowEnd:'2026-11-01',selectedDate:'2026-10-30',hoveredDate:null,range:8,visible:{mood:false,index:true},onHoverDate:()=>{},onSelectDate:()=>{},canSelectDate:()=>true,readoutTarget:null}))).window.document;
+ assert.equal(doc.querySelector('.trend-chart').dataset.start,'2026-10-25');assert.equal(doc.querySelector('.trend-chart').dataset.end,'2026-11-01');
+ assert.equal(doc.querySelector('[data-session-bound="start"]').textContent,'10月26日');assert.equal(doc.querySelector('[data-session-bound="end"]').textContent,'10月30日');
+});
+test('all-closed windows show no fabricated endpoint dates',()=>{
+ const snapshot=stock('CN');
+ const doc=new JSDOM(renderToStaticMarkup(React.createElement(Trend,{snapshot,benchmark:null,bounds:{start:'2026-10-01',end:'2026-10-07'},windowEnd:'2026-10-07',selectedDate:'2026-10-07',hoveredDate:null,range:7,visible:{mood:false,index:true},onHoverDate:()=>{},onSelectDate:()=>{},canSelectDate:()=>true,readoutTarget:null}))).window.document;
+ assert.equal(doc.querySelector('.trend-chart').dataset.sessionCount,'0');assert.equal(doc.querySelector('[data-session-bound="start"]').textContent,'');assert.equal(doc.querySelector('[data-session-bound="end"]').textContent,'');assert.equal(doc.querySelector('.chart-active'),null);
 });

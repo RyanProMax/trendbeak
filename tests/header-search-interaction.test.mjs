@@ -63,3 +63,23 @@ test('header stays in document flow and valuation help buttons are outside panel
   dom.window.close();
  }finally{await vite.close();}
 });
+
+test('unavailable stock feedback is a placeholder/status, never a successful selected value',async()=>{
+ const vite=await createServer({configFile:false,appType:'custom',logLevel:'silent',server:{middlewareMode:true,hmr:false,ws:false}});
+ try{
+  const Search=(await vite.ssrLoadModule('/src/components/StockSearch.tsx')).default;
+  const benchmark={market:'CN',symbol:'000300.SS',name:'沪深 300',code:'000300',kind:'index'};
+  const failure={message:'尚未收录平安银行，仍显示沪深 300',placeholder:'平安银行未收录 · 仍显示大盘'};
+  const render=selectedInstrument=>new JSDOM(renderToStaticMarkup(React.createElement(Search,{selectedInstrument,selectionFeedback:failure,onClear(){},onSelect:async()=>false}))).window.document;
+  const d=render(benchmark),input=d.querySelector('input');
+  assert.equal(input.getAttribute('value'),'');
+  assert.equal(input.getAttribute('placeholder'),failure.placeholder);
+  assert.equal(d.querySelector('.has-selection'),null);
+  assert.equal(d.getElementById(input.getAttribute('aria-describedby')).textContent,failure.message);
+  assert.equal(d.querySelector('[role=status]').textContent,failure.message);
+  const stock=render({...benchmark,kind:'stock',symbol:'600519.SS',code:'600519',name:'贵州茅台'});
+  assert.equal(stock.querySelector('input').getAttribute('value'),'贵州茅台 · 600519');
+  assert.ok(stock.querySelector('.has-selection'));
+  assert.equal(stock.querySelector('.search-selection-feedback').textContent,failure.message);
+ }finally{await vite.close();}
+});

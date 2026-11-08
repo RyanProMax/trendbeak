@@ -1,8 +1,9 @@
 import { memo, useMemo } from "react";
 import type { MarketSnapshot, TrendRange } from "../market-types";
 import { shiftDate, trendSeries } from "../lib/chart-series";
+import { sessionAxis } from "../lib/session-axis";
 import { chartPath } from "../lib/chart-path";
-import { dateDistance, windowDays, type TrendWindow } from "../lib/trend-window";
+import { windowDays, type TrendWindow } from "../lib/trend-window";
 import { EMOTION_STOPS, sentimentColor } from "../lib/brand-palette";
 
 /** Animate the viewport over fixed real paths; never interpolate observations or gaps. */
@@ -12,24 +13,27 @@ function TrendScene({ snapshot, benchmark, bounds, end, range, left, right, top,
   visible: { mood: boolean; index: boolean }; id: string;
 }) {
   const full = useMemo(() => trendSeries(snapshot, benchmark, bounds.end, windowDays(bounds)), [snapshot, benchmark, bounds.start, bounds.end]);
+  const axis = useMemo(() => sessionAxis(full.days), [full]);
+  const start = shiftDate(end, 1 - range);
+  const windowAxis = useMemo(() => sessionAxis(full.days.filter(day => day.date >= start && day.date <= end)), [full, start, end]);
   const geometry = useMemo(() => {
     const values = full.prices.map((point) => point.value);
     const low = values.length ? Math.min(...values) : 0, high = values.length ? Math.max(...values) : 100;
     const padding = Math.max((high - low) * .18, high * .003, snapshot.instrument.kind === "stock" ? .01 : 1), baseMin = Math.max(0, low - padding), baseMax = high + padding;
-    const x = (date: string) => left + (Date.parse(date) - Date.parse(full.start)) / 86400000 / Math.max(1,dateDistance(full.start,full.end)) * (right - left);
+    const x = (date: string) => left + axis.fraction(date) * (right - left);
     const yPrice = (value: number) => bottom - (value - baseMin) / (baseMax - baseMin) * (bottom - top);
     const yMood = (value: number) => bottom - value / 100 * (bottom - top);
     return { baseMin, baseMax,
       prices: full.priceSegments.filter((segment) => segment.length > 1).map((segment) => chartPath(segment, x, yPrice)),
       moods: full.moodSegments.filter((segment) => segment.length > 1).map((segment) => chartPath(segment, x, yMood)),
     };
-  }, [full, left, right, top, bottom, snapshot.instrument.kind]);
-  const scaleX = Math.max(1,dateDistance(full.start,full.end)) / Math.max(1,range - 1);
-  const translateX = left * (1-scaleX) - dateDistance(full.start,shiftDate(end,1-range)) / Math.max(1,range-1) * (right-left);
+  }, [full, axis, left, right, top, bottom, snapshot.instrument.kind]);
+  const scaleX = Math.max(1, axis.last) / Math.max(1, windowAxis.last);
+  const firstIndex = windowAxis.dates.length ? axis.index(windowAxis.dates[0]) : 0;
+  const translateX = left * (1 - scaleX) - firstIndex / Math.max(1, windowAxis.last) * (right - left);
   const scaleY = (geometry.baseMax - geometry.baseMin) / (max - min);
   const translateY = bottom * (1 - scaleY) - (geometry.baseMin - min) / (max - min) * (bottom - top);
-  const x = (date: string) => right - (Date.parse(end) - Date.parse(date)) / 86400000 / Math.max(1,range - 1) * (right - left);
-  const start = new Date(Date.parse(end) - (range - 1) * 86400000).toISOString().slice(0,10);
+  const x = (date: string) => left + windowAxis.fraction(date) * (right - left);
   const singletonMood = full.moodSegments.filter((segment) => segment.length === 1 && segment[0].date >= start && segment[0].date <= end);
   const singletonPrice = full.priceSegments.filter((segment) => segment.length === 1 && segment[0].date >= start && segment[0].date <= end);
   return <>
@@ -41,10 +45,10 @@ function TrendScene({ snapshot, benchmark, bounds, end, range, left, right, top,
       <clipPath id={`${id}-plot`}><rect x={left - 2} y={top - 3} width={right - left + 4} height={bottom - top + 6} /></clipPath>
     </defs>
     <g className="trend-series" clipPath={`url(#${id}-plot)`}>
-      {visible.index && <g className="trend-view index-view" style={{ transform: `matrix(${scaleX}, 0, 0, ${scaleY}, ${translateX}, ${translateY})` }}>
+      {visible.index && windowAxis.dates.length > 0 && <g className="trend-view index-view" style={{ transform: `matrix(${scaleX}, 0, 0, ${scaleY}, ${translateX}, ${translateY})` }}>
         {geometry.prices.map((path, i) => <path key={i} className="index-line" d={path} data-series={snapshot.instrument.kind === "stock" ? "stock" : "index"} vectorEffect="non-scaling-stroke" />)}
       </g>}
-      {visible.mood && <g className="trend-view emotion-view" style={{ transform: `matrix(${scaleX}, 0, 0, 1, ${translateX}, 0)` }}>
+      {visible.mood && windowAxis.dates.length > 0 && <g className="trend-view emotion-view" style={{ transform: `matrix(${scaleX}, 0, 0, 1, ${translateX}, 0)` }}>
         {geometry.moods.map((path, i) => <path key={i} className="emotion-line" d={path} stroke={`url(#${id}-emotion)`} data-series="sentiment" vectorEffect="non-scaling-stroke" />)}
       </g>}
       {visible.mood && singletonMood.map(([point]) => <circle key={point.date} className="emotion-dot" cx={x(point.date)} cy={bottom - point.value / 100 * (bottom - top)} r="3" fill={sentimentColor(point.value)} data-observation={point.date} />)}
