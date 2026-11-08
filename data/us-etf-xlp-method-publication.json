@@ -1,0 +1,9 @@
+{
+  "schema": "verified-xlp-method-publication-v1",
+  "entry": {
+    "version": "2026-11-08T21:32:28.401Z",
+    "verifiedAt": "2026-11-08T21:32:30.799Z",
+    "payloadSha256": "491d9c6086ca0133e4a32fa7e10c0161adf344bd5a5d3dc6a401ef70047e9412",
+    "preparedReading": "{\"code\":\"XLP\",\"name\":\"必需消费\",\"date\":\"2026-06-30\",\"asOf\":\"2026-06-30T20:00:00.000Z\",\"availableAt\":\"2026-08-28T16:22:26.000Z\",\"availableDate\":\"2026-08-28\",\"latestPriceMarketSession\":\"2026-06-30\",\"pricingBasis\":\"portfolio_fair_value_per_share\",\"methodVersion\":\"xlp_class_conversion_value_v1\",\"revenueDefinition\":\"operating_revenue_v2\",\"scope\":\"covered_holdings\",\"estimated\":true,\"capitalizationBasis\":\"class_specific_fund_marks_and_reviewed_conversion_values\",\"comparisonKey\":\"xlp_class_conversion_value_v1|retrospective_nport_fair_value|operating_revenue_v2|positive_harmonic_v1\",\"rankEligible\":false,\"pb\":{\"value\":4.594195668719793,\"percentile\":null,\"coverage\":0.8813239679147343,\"verifiedCoverage\":0.9959279747537192,\"count\":30,\"missingWeight\":0.004072025246280656,\"excludedWeight\":0.11460400683898488},\"ps\":{\"value\":1.3460495089998008,\"percentile\":null,\"coverage\":0.9959279747537193,\"verifiedCoverage\":0.9959279747537193,\"count\":33,\"missingWeight\":0.004072025246280656,\"excludedWeight\":0}}"
+  }
+}

@@ -20,6 +20,7 @@ export function publicationEntries(value: unknown): ETFPublicationEntry[] {
       const prior = perFund.get(e.code);
       if (prior && (prior.version !== e.version || prior.hash !== e.payloadSha256 || prior.count >= 41)) return [];
       const row = JSON.parse(e.preparedReading);
+      if (row.methodVersion === 'xlp_class_conversion_value_v1') return [];
       if (row.code !== e.code || row.date !== e.date || row.pricingBasis !== 'portfolio_fair_value_per_share' || !validETFValuation(row, row.availableDate) || Date.parse(row.availableAt) > Date.parse(p.verifiedAt!)) return [];
       if (prior && (prior.method !== row.methodVersion || prior.definition !== row.revenueDefinition)) return [];
       perFund.set(e.code, { count: (prior?.count ?? 0) + 1, version: e.version, hash: e.payloadSha256, method: row.methodVersion, definition: row.revenueDefinition });

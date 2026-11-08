@@ -13,7 +13,7 @@ test('US date changes abort, ignore late responses and distinguish absent histor
     const render = async date => act(async () => root.render(React.createElement(Component, { date })));
     const tick = () => act(async () => new Promise(r => setTimeout(r, 170)));
     await render('2026-11-04'); await tick(); await render('2026-11-05'); await tick();
-    assert.equal(requests[0].options.signal.aborted, true);assert.equal(new URL(requests[1].url,'https://test').searchParams.get('format'),'metric-estimates-v6');
+    assert.equal(requests[0].options.signal.aborted, true);assert.equal(new URL(requests[1].url,'https://test').searchParams.get('format'),'sector-methods-v7');
     const row = calculateETF(etfInput()).reading;
     await act(async () => requests[1].resolve(Response.json({ data: { date: '2026-11-05', rows: [row] } })));
     assert.equal(document.querySelector('tbody td b').textContent, '12.50');

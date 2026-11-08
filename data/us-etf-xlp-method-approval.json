@@ -1,0 +1,15 @@
+{
+  "methodId": "xlp_class_conversion_value_v1",
+  "code": "XLP",
+  "date": "2026-06-30",
+  "availableAt": "2026-08-28T16:22:26.000Z",
+  "sourceInputSha256": "8bd31719395e88a28b8a011b1a78460ee9b577a4d614ca627aaa888d16864a22",
+  "sourceInputBytes": 1865073,
+  "sourcePackageSha256": "7d2d752f01b5ca63e616476236726dd32bcfae26bf270869c1fbdf6f5702d4e7",
+  "parentAuditSha256": "6cada5926f31f95f657b13cf778cd1bbb70ec10b7bafd9452fdf65d56a98b2d8",
+  "peerAuditSha256": "53e58863f6e7ea54e0c216f81c9fae5d481388d9919e49f72b2dd031ff92db3d",
+  "expectedPB": 4.594195668719794,
+  "expectedPS": 1.3460495089998008,
+  "expectedCoverage": 0.9959279747537193,
+  "compactInputSha256": "58eb8f028188f7802c9e8069cf3934af2e035b245b32287346ad3e4aacc2638b"
+}

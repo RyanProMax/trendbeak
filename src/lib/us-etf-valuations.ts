@@ -1,3 +1,4 @@
+import {validXLPMethodReading, XLP_CLASS_METHOD} from './us-etf-xlp-method';
 import preferredApprovals from '../../data/us-etf-preferred-estimate-approvals.json';
 import quarterlySessions from '../../data/us-etf-quarterly-sessions.json';
 /** Only dated, prepared observations are public. Raw inputs stay in the writer. */
@@ -42,10 +43,11 @@ export interface ETFValuation {
   availableDate: string;
   latestPriceMarketSession?: string;
   pricingBasis: 'unadjusted_close' | 'portfolio_fair_value_per_share';
-  qualityFlags: { sharesOver90Days: number; corporateActionsUnreviewed: number; shareClassesUnreviewed: number; comparableRevenue: number; eventReconstructedShares: number; eventProForma: number };
-  methodVersion: typeof ETF_METHOD_VERSION | typeof ETF_OPERATING_METHOD;
+  qualityFlags?: { sharesOver90Days: number; corporateActionsUnreviewed: number; shareClassesUnreviewed: number; comparableRevenue: number; eventReconstructedShares: number; eventProForma: number };
+  methodVersion: typeof ETF_METHOD_VERSION | typeof ETF_OPERATING_METHOD | typeof XLP_CLASS_METHOD;
   revenueDefinition?: typeof ETF_OPERATING_REVENUE;
   scope: 'covered_holdings';
+  estimated?: true; capitalizationBasis?: string; comparisonKey?: string; rankEligible?: false;
   sourceComparison?: { sourceConflict: boolean; observedAt: string; alternateSourceValues: { pb: number | null; ps: number | null }; deltaPercent: { pb: number | null; ps: number | null } };
   pb: ETFMetric;
   ps: ETFMetric;
@@ -57,6 +59,7 @@ const weight = (v: unknown): v is number => typeof v === 'number' && Number.isFi
 const instant = (v: unknown): v is string => typeof v === 'string' && /(?:Z|[+-]\d{2}:\d{2})$/.test(v) && Number.isFinite(Date.parse(v));
 const eastern = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23', minute: '2-digit', second: '2-digit' });
 export function validETFValuation(row: any, selectedDate: string): row is ETFValuation {
+  if(row?.methodVersion===XLP_CLASS_METHOD)return validXLPMethodReading(row,selectedDate);
   if (!row || !validETFDate(selectedDate) || !validETFDate(row.date) || row.date > selectedDate || !US_SECTOR_ETFS.some(([code, name]) => code === row.code && name === row.name) || !(row.methodVersion === ETF_METHOD_VERSION && row.revenueDefinition === undefined || row.code === 'XLE' && row.methodVersion === ETF_OPERATING_METHOD && row.revenueDefinition === ETF_OPERATING_REVENUE) || row.scope !== 'covered_holdings' || !['unadjusted_close', 'portfolio_fair_value_per_share'].includes(row.pricingBasis) || !instant(row.asOf) || !instant(row.availableAt) || Date.parse(row.availableAt) < Date.parse(row.asOf) || Date.parse(row.availableAt) < Date.parse(row.date)) return false;
   const at = Object.fromEntries(eastern.formatToParts(new Date(row.asOf)).map(p => [p.type, p.value]));
   const exceptions: Record<string, string> = quarterlySessions.exceptions;

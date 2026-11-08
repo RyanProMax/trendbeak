@@ -1,0 +1,10 @@
+import type {ETFValuation} from './us-etf-valuations';
+export const XLP_CLASS_METHOD='xlp_class_conversion_value_v1';
+const weight=(x:unknown):x is number=>typeof x==='number'&&Number.isFinite(x)&&x>=0&&x<=1;
+/** One approved observation, separate method pool. No legacy ranks or fallback. */
+export function validXLPMethodReading(r:any,selectedDate:string):r is ETFValuation{
+ const allowed=['code','name','date','asOf','availableAt','availableDate','latestPriceMarketSession','pricingBasis','methodVersion','revenueDefinition','scope','estimated','capitalizationBasis','comparisonKey','rankEligible','pb','ps'];
+ if(!r||Object.keys(r).some(k=>!allowed.includes(k))||r.code!=='XLP'||r.name!=='必需消费'||r.methodVersion!==XLP_CLASS_METHOD||r.date!=='2026-06-30'||r.asOf!=='2026-06-30T20:00:00.000Z'||r.availableAt!=='2026-08-28T16:22:26.000Z'||r.availableDate!=='2026-08-28'||typeof selectedDate!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)||!Number.isFinite(Date.parse(selectedDate))||new Date(selectedDate).toISOString().slice(0,10)!==selectedDate||selectedDate<r.availableDate||r.latestPriceMarketSession!==r.date||r.pricingBasis!=='portfolio_fair_value_per_share'||r.revenueDefinition!=='operating_revenue_v2'||r.scope!=='covered_holdings'||r.estimated!==true||r.capitalizationBasis!=='class_specific_fund_marks_and_reviewed_conversion_values'||r.comparisonKey!=='xlp_class_conversion_value_v1|retrospective_nport_fair_value|operating_revenue_v2|positive_harmonic_v1'||r.rankEligible!==false)return false;
+ for(const k of ['pb','ps']){const m=r[k];if(!m||Object.keys(m).some(x=>!['value','percentile','coverage','verifiedCoverage','count','missingWeight','excludedWeight'].includes(x))||m.percentile!==null||![m.coverage,m.verifiedCoverage,m.missingWeight,m.excludedWeight].every(weight)||Math.abs(m.coverage+m.excludedWeight-m.verifiedCoverage)>1e-10||Math.abs(m.verifiedCoverage+m.missingWeight-1)>1e-10||!Number.isInteger(m.count)||m.count<0||m.count>34||m.value!==null&&(!Number.isFinite(m.value)||m.value<=0||m.verifiedCoverage<.98||m.count===0))return false;}
+ return true;
+}
