@@ -3,9 +3,9 @@ import { readFile, writeFile, stat, mkdir, rm } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
-import { calculateETF, METHOD, SECTORS } from './us-etf-valuations.mjs';
+import { calculateETF, valuationMethod, OPERATING_METHOD, OPERATING_REVENUE, SECTORS } from './us-etf-valuations.mjs';
 import { connectD1 } from './d1-client.mjs';
-import { prepareQuarterlyETFRanks } from './us-etf-valuation-history.mjs';
+import { baseETFReading, withQuarterlyETFHistory } from './us-etf-valuation-history.mjs';
 import { provenanceText, compactProvenance, reviewedHistoryInputs } from './us-etf-provenance.mjs';
 const hash = text => createHash('sha256').update(text).digest('hex');
 export const MAX_HISTORY_INPUTS = 44, MAX_INPUT_BYTES = 12_000_000, MAX_OBSERVATIONS = 366;
@@ -14,7 +14,7 @@ export async function importETFValuations({ db, inputs, now = Date.now(), dryRun
   if (typeof backfill !== 'boolean' || !Number.isFinite(now)) throw Error('Invalid import options');
   if (!Array.isArray(inputs) || !inputs.length || inputs.length > (backfill ? MAX_HISTORY_INPUTS : 11)) throw Error(backfill ? 'One to 44 reviewed history inputs required' : 'One to eleven reviewed ETF inputs required');
   if (Buffer.byteLength(JSON.stringify(inputs)) > MAX_INPUT_BYTES) throw Error('Input byte budget exceeded');
-  if (quarterlyHistory && (!backfill || !/^[a-f0-9]{64}$/.test(expectedCurrentHash ?? '') || inputs.some(x => x.code !== 'XLU' || x.sourceSeriesId !== 'sec_nport_quarterly'))) throw Error('Explicit reviewed XLU quarterly history and current checkpoint hash required');
+  if (quarterlyHistory && (!backfill || !/^[a-f0-9]{64}$/.test(expectedCurrentHash ?? '') || new Set(inputs.map(x => x.code)).size !== 1 || inputs.some(x => !Object.hasOwn(SECTORS, x.code) || x.sourceSeriesId !== 'sec_nport_quarterly'))) throw Error('Explicit reviewed single-fund quarterly history and current checkpoint hash required');
   const groups = new Map(), seen = new Set(), prepared = [], prior = [];
   // Validate the whole incoming batch before reading or preparing any publication.
   for (const input of inputs) {
@@ -31,17 +31,19 @@ export async function importETFValuations({ db, inputs, now = Date.now(), dryRun
     const read = await db.prepare('SELECT payload,updated_at FROM market_snapshot WHERE key=?').bind(key).all();
     if (!read.success || read.results.length > 1) throw Error('ETF checkpoint read failed');
     const row = read.results[0], old = row ? JSON.parse(row.payload) : null;
-    if (old && (old.source !== 'self_us_etf' || old.code !== code || old.methodVersion !== METHOD || !old.history || !old.latest || !old.latest.quality || !old.latest.input || !old.provenance?.[old.latest.input.date] || Object.keys(old.history).length > MAX_OBSERVATIONS)) throw Error('Invalid ETF checkpoint');
+    if (old && (old.source !== 'self_us_etf' || old.code !== code || valuationMethod(old) !== old.methodVersion || !old.history || !old.latest || !old.latest.quality || !old.latest.input || !old.provenance?.[old.latest.input.date] || Object.keys(old.history).length > MAX_OBSERVATIONS)) throw Error('Invalid ETF checkpoint');
     if (quarterlyHistory && (!row || hash(row.payload) !== expectedCurrentHash)) throw Error('Current ETF checkpoint hash changed before historical preparation');
+    const methodVersion = candidates[0].result.reading.methodVersion;
+    if (candidates.some(x => x.result.reading.methodVersion !== methodVersion) || old && (old.methodVersion !== methodVersion || Object.values(old.history).some(r => valuationMethod(r) !== methodVersion))) throw Error('Historical append cannot mix valuation methods; explicit reviewed method migration required');
     const hasRanks = !!old?.history?.[old.latest?.input.date]?.ps?.quarterlyHistory;
     if (hasRanks && candidates.some(x => x.input.sourceSeriesId !== 'sec_nport_quarterly')) throw Error('Existing historical source series must remain unchanged');
     const dates = Object.keys(old?.history ?? {}).sort();
     if (old && old.latest.input.date !== dates.at(-1)) throw Error('Latest ETF input does not match history');
     if (!backfill && dates.at(-1) > candidates[0].input.date) throw Error('Older inputs cannot roll back the latest valuation');
-    const history = { ...old?.history }, provenance = { ...old?.provenance };
+    let history = { ...old?.history }; const provenance = { ...old?.provenance };
     let latest = old?.latest;
     for (const { input, result } of candidates) {
-      if (history[input.date] && (JSON.stringify(baseReading(history[input.date])) !== JSON.stringify(result.reading) || provenanceText(provenance[input.date]) !== JSON.stringify(input.sources))) throw Error('Existing observation differs; explicit reviewed repair required');
+      if (history[input.date] && (JSON.stringify(baseETFReading(history[input.date])) !== JSON.stringify(result.reading) || provenanceText(provenance[input.date]) !== JSON.stringify(input.sources))) throw Error('Existing observation differs; explicit reviewed repair required');
       const { sources, ...consumed } = input;
       if (history[input.date]) {
         if (input.date === latest.input.date && (JSON.stringify(latest.input) !== JSON.stringify(consumed) || JSON.stringify(latest.quality) !== JSON.stringify(result.quality))) throw Error('Existing consumed input or quality differs; explicit reviewed repair required');
@@ -50,16 +52,13 @@ export async function importETFValuations({ db, inputs, now = Date.now(), dryRun
       history[input.date] = result.reading; provenance[input.date] = sources;
       if (!latest || input.date > latest.input.date) latest = { input: consumed, quality: result.quality };
     }
-    if (quarterlyHistory || hasRanks) {
-      const ranks = prepareQuarterlyETFRanks(Object.values(history).map(reading => ({ reading: baseReading(reading), sourceSeriesId: 'sec_nport_quarterly' })));
-      for (const rank of ranks) for (const metric of ['pb', 'ps']) history[rank.date] = { ...history[rank.date], [metric]: { ...history[rank.date][metric], percentile: rank[metric].percentile, quarterlyHistory: rank[metric].history } };
-    }
+    if (quarterlyHistory || hasRanks) history = withQuarterlyETFHistory(history);
     // Never silently drop old observations to make a backfill fit its budget.
     if (Object.keys(history).length > MAX_OBSERVATIONS) throw Error('ETF observation budget exceeded');
     const ordered = object => Object.fromEntries(Object.entries(object).sort(([a], [b]) => a.localeCompare(b)));
     // Revalidate every compressed source on any write, including ordinary appends.
     const checkedProvenance = compactProvenance(provenance);
-    const next = { source: 'self_us_etf', code, methodVersion: METHOD, history: ordered(history), provenance: ordered(backfill ? checkedProvenance : provenance), latest };
+    const next = { source: 'self_us_etf', code, methodVersion, ...(methodVersion === OPERATING_METHOD ? { revenueDefinition: OPERATING_REVENUE } : {}), history: ordered(history), provenance: ordered(backfill || hasRanks ? checkedProvenance : provenance), latest };
     const payload = JSON.stringify(next);
     if (Buffer.byteLength(payload) > 1_500_000) throw Error('ETF checkpoint exceeds byte budget');
     prior.push({ key, ...(row ?? {}) });
@@ -68,7 +67,6 @@ export async function importETFValuations({ db, inputs, now = Date.now(), dryRun
   if (quarterlyHistory && !dryRun && prepared.length && (!/^[a-f0-9]{64}$/.test(expectedNewHash ?? '') || prepared.length !== 1 || hash(prepared[0].payload) !== expectedNewHash)) throw Error('Exact reviewed new historical payload hash required');
   return publishPrepared({ db, prepared, prior, now, dryRun, backup });
 }
-function baseReading(reading) { const result = { ...reading }; for (const metric of ['pb', 'ps']) { const { quarterlyHistory, ...plain } = result[metric]; result[metric] = { ...plain, percentile: null }; } return result; }
 async function publishPrepared({ db, prepared, prior, now, dryRun, backup }) {
   const report = { dryRun, sourceCalls: 0, changedKeys: prepared.map(p => p.key), corrections: prepared.map(p => ({ key: p.key, oldHash: p.previousPayload === null ? null : hash(p.previousPayload), newHash: hash(p.payload) })), checkpointBytes: prepared.reduce((n,p) => n + Buffer.byteLength(p.payload), 0), writes: 0 };
   if (dryRun || !prepared.length) return report;
@@ -94,7 +92,7 @@ export async function restoreETFValuations({ db, prior, expectedVersion, now = D
     if (!/^[a-f0-9]{64}$/.test(before.publication?.newHash ?? '') || hash(before.payload) !== before.publication?.oldHash) throw Error('Invalid or changed pre-publication backup hash');
     seen.add(before.key);
     const old = JSON.parse(before.payload);
-    if (old.source !== 'self_us_etf' || old.code !== code || old.methodVersion !== METHOD || !old.history || !old.latest?.input || !old.latest?.quality || !old.provenance?.[old.latest.input.date] || Object.keys(old.history).length > MAX_OBSERVATIONS || Object.keys(old.history).sort().at(-1) !== old.latest.input.date) throw Error('Invalid restore checkpoint');
+    if (old.source !== 'self_us_etf' || old.code !== code || valuationMethod(old) !== old.methodVersion || !old.history || !old.latest?.input || !old.latest?.quality || !old.provenance?.[old.latest.input.date] || Object.keys(old.history).length > MAX_OBSERVATIONS || Object.keys(old.history).sort().at(-1) !== old.latest.input.date) throw Error('Invalid restore checkpoint');
     compactProvenance(old.provenance);
     const read = await db.prepare('SELECT payload,updated_at FROM market_snapshot WHERE key=?').bind(before.key).all();
     if (!read.success || read.results.length !== 1 || read.results[0].updated_at !== expectedVersion) throw Error('Published ETF version changed; restore refused');

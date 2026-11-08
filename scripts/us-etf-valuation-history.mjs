@@ -1,7 +1,7 @@
 import quarterlySessions from '../data/us-etf-quarterly-sessions.json' with { type: 'json' };
 // Offline preparation only. No reader, importer or UI enables ranks until the
 // comparable series and a single minimum-sample/span policy have been reviewed.
-import { METHOD, MIN_COVERAGE, SECTORS } from './us-etf-valuations.mjs';
+import { OPERATING_METHOD, OPERATING_REVENUE, valuationMethod, MIN_COVERAGE, SECTORS } from './us-etf-valuations.mjs';
 export const QUARTERLY_RANK_METHOD = 'midrank-prior-quarter-observations-v1';
 export const QUARTERLY_WINDOW_YEARS = 10;
 export const DEFAULT_QUARTERLY_POLICY = Object.freeze({ minimumSamples: 20, minimumSpanQuarters: 20 });
@@ -21,7 +21,7 @@ export function prepareQuarterlyETFRanks(observations, policy = DEFAULT_QUARTERL
   const dates=new Set(),first=observations[0],rows=[];
   if (typeof first?.sourceSeriesId!=='string' || !/^[a-z0-9_\-]{1,80}$/.test(first.sourceSeriesId)) throw Error('Reviewed source series identity required');
   for (const {reading:r,sourceSeriesId} of observations) {
-    if (!r || sourceSeriesId!==first.sourceSeriesId || r.code!==first.reading?.code || !Object.hasOwn(SECTORS,r.code) || r.methodVersion!==METHOD || r.pricingBasis!=='portfolio_fair_value_per_share' || r.scope!=='covered_holdings') throw Error('Historical source, fund, method and pricing basis must be identical');
+    if (!r || sourceSeriesId!==first.sourceSeriesId || r.code!==first.reading?.code || !Object.hasOwn(SECTORS,r.code) || valuationMethod(r)!==valuationMethod(first.reading) || r.pricingBasis!=='portfolio_fair_value_per_share' || r.scope!=='covered_holdings') throw Error('Historical source, fund, method and pricing basis must be identical');
     const quarter=quarterIndex(r.date);
     if (dates.has(r.date)) throw Error('Duplicate historical quarter'); dates.add(r.date);
     if (!instant(r.asOf) || !instant(r.availableAt) || Date.parse(r.availableAt)<Date.parse(r.asOf) || Date.parse(r.availableAt)<Date.parse(r.date)) throw Error('Real financial cutoff and disclosure timestamps required');
@@ -47,11 +47,22 @@ export function prepareQuarterlyETFRanks(observations, policy = DEFAULT_QUARTERL
       const withoutSpan=withoutN>1?without.at(-1).quarter-without[0].quarter:0;
       const withoutRank=r[metric].value!==null&&policy!==null&&withoutN>=policy.minimumSamples&&withoutSpan>=policy.minimumSpanQuarters?(without.filter(p=>p.reading[metric].value<r[metric].value).length+without.filter(p=>p.reading[metric].value===r[metric].value).length/2)/withoutN*100:null;
       return [metric,{percentile:status==='available'?(below+equal/2)/n*100:null,history:{
-        frequency:'quarterly',scope:'reported_recast_and_reviewed_scope_estimates',currentExcluded:true,missingQuarterCount:preceding.length-n,withoutOfficialProForma:{sampleCount:withoutN,percentile:withoutRank},method:QUARTERLY_RANK_METHOD,sourceSeriesId:first.sourceSeriesId,
+        ...(r.methodVersion===OPERATING_METHOD?{valuationMethodVersion:OPERATING_METHOD,revenueDefinition:OPERATING_REVENUE}:{}),frequency:'quarterly',scope:'reported_recast_and_reviewed_scope_estimates',currentExcluded:true,missingQuarterCount:preceding.length-n,withoutOfficialProForma:{sampleCount:withoutN,percentile:withoutRank},method:QUARTERLY_RANK_METHOD,sourceSeriesId:first.sourceSeriesId,
         maximumWindowYears:QUARTERLY_WINDOW_YEARS,evaluatedAt:r.asOf,
         sampleCount:n,windowStart:sample[0]?.reading.date??null,windowEnd:sample.at(-1)?.reading.date??null,spanQuarters:span,
         minimumSamples:policy?.minimumSamples??null,minimumSpanQuarters:policy?.minimumSpanQuarters??null,status,
       }}];
     }))};
   });
+}
+
+/** Strip only writer-produced statistics before exact source-reading comparisons. */
+export function baseETFReading(reading) {
+ const result={...reading};for(const metric of['pb','ps']){const{quarterlyHistory,...plain}=result[metric];result[metric]={...plain,percentile:null};}return result;
+}
+/** Bounded controlled-writer preparation, shared by appends and reviewed repairs. */
+export function withQuarterlyETFHistory(history) {
+ const result={...history},ranks=prepareQuarterlyETFRanks(Object.values(history).map(reading=>({reading:baseETFReading(reading),sourceSeriesId:'sec_nport_quarterly'})));
+ for(const rank of ranks)for(const metric of['pb','ps'])result[rank.date]={...result[rank.date],[metric]:{...result[rank.date][metric],percentile:rank[metric].percentile,quarterlyHistory:rank[metric].history}};
+ return result;
 }

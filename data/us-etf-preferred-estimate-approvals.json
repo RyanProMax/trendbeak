@@ -1,0 +1,29 @@
+[
+  {
+    "code": "XLB",
+    "date": "2026-06-30",
+    "overlaySHA256": "6208d71b34ff615b574bcbddb900ab5a7b08fcbc6bd507263b4e2b7e99be7148",
+    "baselineSHA256": "f66fed9b002ff96c672cef0aa1659ff368b9e8f82d2f7017ff0fa85e59dfbc26",
+    "originalInputSHA256": "4df93a5b8c387ea19e4b986e9f158da96760bf4eae00bf92de6c807ab010ac1d",
+    "originalFundSHA256": "5516e630d2a13af61b3a50b569be5bafe25bd112be3aadc018ea11f8a8ef8a3d",
+    "proofHash": "d1af2dc017bddcd68140f5b7e67bbac2729ddd094ecc500966cad2d77bb6fc10"
+  },
+  {
+    "code": "XLV",
+    "date": "2026-06-30",
+    "overlaySHA256": "0ad38659b6a7f76ea2d720f1fd5c301d262b47066521e29a43800c1658fc87b8",
+    "baselineSHA256": "502c96da4369452ed7bb6fa779225b6786a354f58ca7e7fa60805403e741003e",
+    "originalInputSHA256": "4df93a5b8c387ea19e4b986e9f158da96760bf4eae00bf92de6c807ab010ac1d",
+    "originalFundSHA256": "2f178fbe8f65c93d071146ca9af00c081e347012cff2403c91e47041a7ffaf8f",
+    "proofHash": "4c98d7c4ddb0d40dc84332cff966f9149da82a03f49161096abdc45943d01993"
+  },
+  {
+    "code": "XLE",
+    "date": "2026-06-30",
+    "overlaySHA256": "99674323a24682959ef277bd5334f6cd763b0ee2f4d7a3fc2f88699cbaaf105b",
+    "baselineSHA256": "9f48fe819e02c58fafcfaa31604bfcc9400d6efa27d2cda6c0d6fe447f056994",
+    "originalInputSHA256": "65db5f2571d09dcadf857acbced19983e37cb890b07d01620297913c58565daa",
+    "originalFundSHA256": "9ca6ff7912e47ae64db44140ab919712e93ef25c631e5879dac1661e85583a7b",
+    "proofHash": "b517c4b9024ae5f49977a60f7644c5e9c04cbc1f03d256b264fd0f07bfad542e"
+  }
+]

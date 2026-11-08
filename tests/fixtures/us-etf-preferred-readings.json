@@ -1,0 +1,124 @@
+[
+  {
+    "code": "XLB",
+    "name": "原材料",
+    "date": "2026-06-30",
+    "asOf": "2026-06-30T20:00:00Z",
+    "availableAt": "2026-08-28T16:23:11.000Z",
+    "availableDate": "2026-08-28",
+    "pricingBasis": "portfolio_fair_value_per_share",
+    "qualityFlags": {
+      "sharesOver90Days": 6,
+      "corporateActionsUnreviewed": 26,
+      "shareClassesUnreviewed": 26,
+      "comparableRevenue": 0,
+      "eventReconstructedShares": 1,
+      "eventProForma": 0
+    },
+    "methodVersion": "common-equity-harmonic-v1",
+    "scope": "covered_holdings",
+    "pb": {
+      "value": null,
+      "percentile": null,
+      "coverage": 0.9659094403763999,
+      "verifiedCoverage": 0.9674788208105838,
+      "count": 25,
+      "missingWeight": 0.03246842547407,
+      "excludedWeight": 0,
+      "estimate": {
+        "methodId": "common-equity-harmonic-preferred-value-estimate-v1",
+        "basis": "common_estimate",
+        "value": 2.8378371081385314,
+        "percentile": null,
+        "historyStatus": "no_method_matched_history",
+        "coverage": 1,
+        "strictKnownCoverage": 0.9674788208105838,
+        "estimatedCoverage": 0.03252117918941613,
+        "preferredValueBasis": "par",
+        "proofHash": "d1af2dc017bddcd68140f5b7e67bbac2729ddd094ecc500966cad2d77bb6fc10"
+      }
+    },
+    "ps": {
+      "value": 1.997908417336115,
+      "percentile": null,
+      "coverage": 0.99837786585047,
+      "verifiedCoverage": 1,
+      "count": 26,
+      "missingWeight": 0,
+      "excludedWeight": 0
+    },
+    "sourceComparison": {
+      "sourceConflict": false,
+      "observedAt": "2026-11-08T15:16:13.336712+00:00",
+      "alternateSourceValues": {
+        "pb": null,
+        "ps": 1.997911730559557
+      },
+      "deltaPercent": {
+        "pb": null,
+        "ps": 0.00016583460049623966
+      }
+    }
+  },
+  {
+    "code": "XLV",
+    "name": "医疗保健",
+    "date": "2026-06-30",
+    "asOf": "2026-06-30T20:00:00Z",
+    "availableAt": "2026-08-28T16:24:58.000Z",
+    "availableDate": "2026-08-28",
+    "pricingBasis": "portfolio_fair_value_per_share",
+    "qualityFlags": {
+      "sharesOver90Days": 6,
+      "corporateActionsUnreviewed": 49,
+      "shareClassesUnreviewed": 58,
+      "comparableRevenue": 0,
+      "eventReconstructedShares": 0,
+      "eventProForma": 0
+    },
+    "methodVersion": "common-equity-harmonic-v1",
+    "scope": "covered_holdings",
+    "pb": {
+      "value": null,
+      "percentile": null,
+      "coverage": 0.8407692592899298,
+      "verifiedCoverage": 0.9617072301047357,
+      "count": 43,
+      "missingWeight": 0.03817098106385,
+      "excludedWeight": 0.11787929420203001,
+      "estimate": {
+        "methodId": "common-equity-harmonic-preferred-value-estimate-v1",
+        "basis": "common_estimate",
+        "value": 4.497004527734354,
+        "percentile": null,
+        "historyStatus": "no_method_matched_history",
+        "coverage": 0.9822474753716424,
+        "strictKnownCoverage": 0.9617072301047357,
+        "estimatedCoverage": 0.020540245266906582,
+        "preferredValueBasis": "redemption",
+        "proofHash": "4c98d7c4ddb0d40dc84332cff966f9149da82a03f49161096abdc45943d01993"
+      }
+    },
+    "ps": {
+      "value": 1.5741073298028083,
+      "percentile": null,
+      "coverage": 0.97912347121858,
+      "verifiedCoverage": 0.9822474753716425,
+      "count": 49,
+      "missingWeight": 0.017696063337230002,
+      "excludedWeight": 0
+    },
+    "sourceComparison": {
+      "sourceConflict": false,
+      "observedAt": "2026-11-08T15:16:13.336712+00:00",
+      "alternateSourceValues": {
+        "pb": null,
+        "ps": 1.574094259645671
+      },
+      "deltaPercent": {
+        "pb": null,
+        "ps": -0.0008303218522520694
+      }
+    }
+  }
+]

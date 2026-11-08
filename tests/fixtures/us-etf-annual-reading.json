@@ -1,0 +1,63 @@
+{
+  "code": "XLE",
+  "name": "能源",
+  "date": "2026-06-30",
+  "asOf": "2026-06-30T20:00:00Z",
+  "availableAt": "2026-08-28T16:27:25.000Z",
+  "availableDate": "2026-08-28",
+  "pricingBasis": "portfolio_fair_value_per_share",
+  "latestPriceMarketSession": "2026-06-30",
+  "qualityFlags": {
+    "sharesOver90Days": 5,
+    "corporateActionsUnreviewed": 21,
+    "shareClassesUnreviewed": 21,
+    "comparableRevenue": 0,
+    "eventReconstructedShares": 0,
+    "eventProForma": 1
+  },
+  "methodVersion": "common-equity-harmonic-operating-revenue-v2",
+  "revenueDefinition": "operating_revenue_v2",
+  "scope": "covered_holdings",
+  "pb": {
+    "value": 2.2610327952228673,
+    "percentile": null,
+    "coverage": 0.9982757319283497,
+    "verifiedCoverage": 0.9999999999999998,
+    "count": 21,
+    "missingWeight": 2.220446049250313e-16,
+    "excludedWeight": 0
+  },
+  "ps": {
+    "value": null,
+    "percentile": null,
+    "coverage": 0.9696860914951797,
+    "verifiedCoverage": 0.9713609782159642,
+    "count": 20,
+    "missingWeight": 0.02858964043317022,
+    "excludedWeight": 0,
+    "estimate": {
+      "methodId": "common-equity-harmonic-annual-event-revenue-estimate-v1",
+      "basis": "latest_complete_annual_event_proforma_revenue_fallback",
+      "value": 1.5348087896171814,
+      "percentile": null,
+      "historyStatus": "no_method_matched_history",
+      "coverage": 0.9999999999999998,
+      "strictKnownCoverage": 0.9713609782159642,
+      "estimatedCoverage": 0.0286390217840355,
+      "annualRevenueEnd": "2025-12-31",
+      "proofHash": "b517c4b9024ae5f49977a60f7644c5e9c04cbc1f03d256b264fd0f07bfad542e"
+    }
+  },
+  "sourceComparison": {
+    "sourceConflict": true,
+    "observedAt": "2026-11-08T15:16:13.336712+00:00",
+    "alternateSourceValues": {
+      "pb": 2.2579561144587195,
+      "ps": null
+    },
+    "deltaPercent": {
+      "pb": -0.13607413261090828,
+      "ps": null
+    }
+  }
+}
