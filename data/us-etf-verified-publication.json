@@ -1,1 +1,85 @@
-{"schema":"verified-etf-publication-v1","entries":[]}
+{
+  "schema": "verified-etf-publication-v1",
+  "auditSha256": "ec3f2f61d9f1165052a3c37bf2c7637a19d0e4eba1ff66ffe96f7cd9b3792b6f",
+  "bundleSha256": "0749ab2bb7e9765e305b06d89cdd547335b8a4e57cb7bcba281832564cfeeef3",
+  "verifiedAt": "2026-11-08T15:31:38.373Z",
+  "entries": [
+    {
+      "code": "XLB",
+      "date": "2026-06-30",
+      "version": "2026-11-08T15:30:45.914Z",
+      "payloadSha256": "bc0a5f01e75820f4b472b6c0bf5a0d4d63e52de92764edc30f80c0965197ebea",
+      "preparedReading": "{\"code\":\"XLB\",\"name\":\"原材料\",\"date\":\"2026-06-30\",\"asOf\":\"2026-06-30T20:00:00Z\",\"availableAt\":\"2026-08-28T16:23:11.000Z\",\"availableDate\":\"2026-08-28\",\"pricingBasis\":\"portfolio_fair_value_per_share\",\"qualityFlags\":{\"sharesOver90Days\":6,\"corporateActionsUnreviewed\":26,\"shareClassesUnreviewed\":26,\"comparableRevenue\":0,\"eventReconstructedShares\":1,\"eventProForma\":0},\"methodVersion\":\"common-equity-harmonic-v1\",\"scope\":\"covered_holdings\",\"pb\":{\"value\":null,\"percentile\":null,\"coverage\":0.9659094403763999,\"verifiedCoverage\":0.9674788208105838,\"count\":25,\"missingWeight\":0.03246842547407,\"excludedWeight\":0},\"ps\":{\"value\":1.997908417336115,\"percentile\":null,\"coverage\":0.99837786585047,\"verifiedCoverage\":1,\"count\":26,\"missingWeight\":0,\"excludedWeight\":0},\"sourceComparison\":{\"sourceConflict\":false,\"observedAt\":\"2026-11-08T15:16:13.336712+00:00\",\"alternateSourceValues\":{\"pb\":null,\"ps\":1.997911730559557},\"deltaPercent\":{\"pb\":null,\"ps\":0.00016583460049623966}}}"
+    },
+    {
+      "code": "XLC",
+      "date": "2026-06-30",
+      "version": "2026-11-08T15:30:45.914Z",
+      "payloadSha256": "3ee83fc431bb1b7c2988f6bdd83322d6ded190de0246352064aa1ca0d0b306bb",
+      "preparedReading": "{\"code\":\"XLC\",\"name\":\"通信服务\",\"date\":\"2026-06-30\",\"asOf\":\"2026-06-30T20:00:00Z\",\"availableAt\":\"2026-08-28T16:25:58.000Z\",\"availableDate\":\"2026-08-28\",\"pricingBasis\":\"portfolio_fair_value_per_share\",\"qualityFlags\":{\"sharesOver90Days\":3,\"corporateActionsUnreviewed\":22,\"shareClassesUnreviewed\":11,\"comparableRevenue\":1,\"eventReconstructedShares\":0,\"eventProForma\":0},\"methodVersion\":\"common-equity-harmonic-v1\",\"scope\":\"covered_holdings\",\"pb\":{\"value\":3.240753953827956,\"percentile\":null,\"coverage\":0.9596055410987199,\"verifiedCoverage\":0.9962424901323875,\"count\":21,\"missingWeight\":0.003751142893330222,\"excludedWeight\":0.0349488495909},\"ps\":{\"value\":2.411291060100648,\"percentile\":null,\"coverage\":0.9945543906896198,\"verifiedCoverage\":0.9962424901323874,\"count\":22,\"missingWeight\":0.003751142893330222,\"excludedWeight\":0},\"sourceComparison\":{\"sourceConflict\":true,\"observedAt\":\"2026-11-08T15:16:13.336712+00:00\",\"alternateSourceValues\":{\"pb\":3.000588784432599,\"ps\":2.115508755520338},\"deltaPercent\":{\"pb\":-7.4107807262466014,\"ps\":-12.266553361167599}}}"
+    },
+    {
+      "code": "XLE",
+      "date": "2026-06-30",
+      "version": "2026-11-08T15:30:45.914Z",
+      "payloadSha256": "63445cbfed36ddc9984acb0cb15a7a71999350cebb2d4f8247c1beee632f532f",
+      "preparedReading": "{\"code\":\"XLE\",\"name\":\"能源\",\"date\":\"2026-06-30\",\"asOf\":\"2026-06-30T20:00:00Z\",\"availableAt\":\"2026-08-28T16:27:25.000Z\",\"availableDate\":\"2026-08-28\",\"pricingBasis\":\"portfolio_fair_value_per_share\",\"qualityFlags\":{\"sharesOver90Days\":5,\"corporateActionsUnreviewed\":21,\"shareClassesUnreviewed\":21,\"comparableRevenue\":0,\"eventReconstructedShares\":0,\"eventProForma\":1},\"methodVersion\":\"common-equity-harmonic-v1\",\"scope\":\"covered_holdings\",\"pb\":{\"value\":2.261036394310427,\"percentile\":null,\"coverage\":0.9982757319283497,\"verifiedCoverage\":0.9999999999999998,\"count\":21,\"missingWeight\":2.220446049250313e-16,\"excludedWeight\":0},\"ps\":{\"value\":null,\"percentile\":null,\"coverage\":0.9696860914951797,\"verifiedCoverage\":0.9713609782159642,\"count\":20,\"missingWeight\":0.02858964043317022,\"excludedWeight\":0},\"sourceComparison\":{\"sourceConflict\":true,\"observedAt\":\"2026-11-08T15:16:13.336712+00:00\",\"alternateSourceValues\":{\"pb\":2.2579586775549485,\"ps\":null},\"deltaPercent\":{\"pb\":-0.13611973532239308,\"ps\":null}}}"
+    },
+    {
+      "code": "XLF",
+      "date": "2026-06-30",
+      "version": "2026-11-08T15:30:45.914Z",
+      "payloadSha256": "701c4e2c2cff8c8def0c52e7a01190f95f129d6d417f58385647284b82ddff2d",
+      "preparedReading": "{\"code\":\"XLF\",\"name\":\"金融\",\"date\":\"2026-06-30\",\"asOf\":\"2026-06-30T20:00:00Z\",\"availableAt\":\"2026-08-28T16:30:52.000Z\",\"availableDate\":\"2026-08-28\",\"pricingBasis\":\"portfolio_fair_value_per_share\",\"qualityFlags\":{\"sharesOver90Days\":10,\"corporateActionsUnreviewed\":70,\"shareClassesUnreviewed\":66,\"comparableRevenue\":0,\"eventReconstructedShares\":1,\"eventProForma\":0},\"methodVersion\":\"common-equity-harmonic-v1\",\"scope\":\"covered_holdings\",\"pb\":{\"value\":2.3478434237953687,\"percentile\":null,\"coverage\":0.9744911070993,\"verifiedCoverage\":0.9815397777228922,\"count\":69,\"missingWeight\":0.018428650354590112,\"excludedWeight\":0.0053699748124},\"ps\":{\"value\":3.3892102978877072,\"percentile\":null,\"coverage\":0.9798610819117,\"verifiedCoverage\":0.9815397777228922,\"count\":70,\"missingWeight\":0.018428650354590112,\"excludedWeight\":0},\"sourceComparison\":{\"sourceConflict\":false,\"observedAt\":\"2026-11-08T15:16:13.336712+00:00\",\"alternateSourceValues\":{\"pb\":2.3478401037823633,\"ps\":3.389204282693628},\"deltaPercent\":{\"pb\":-0.0001414069171645771,\"ps\":-0.0001774806975829435}}}"
+    },
+    {
+      "code": "XLI",
+      "date": "2026-06-30",
+      "version": "2026-11-08T15:30:45.914Z",
+      "payloadSha256": "4213944a94be5fb1187e0f5adfd9dd4f5d379b75b80dab127436cec74a2459dc",
+      "preparedReading": "{\"code\":\"XLI\",\"name\":\"工业\",\"date\":\"2026-06-30\",\"asOf\":\"2026-06-30T20:00:00Z\",\"availableAt\":\"2026-08-28T16:20:40.000Z\",\"availableDate\":\"2026-08-28\",\"pricingBasis\":\"portfolio_fair_value_per_share\",\"qualityFlags\":{\"sharesOver90Days\":21,\"corporateActionsUnreviewed\":79,\"shareClassesUnreviewed\":78,\"comparableRevenue\":0,\"eventReconstructedShares\":0,\"eventProForma\":2},\"methodVersion\":\"common-equity-harmonic-v1\",\"scope\":\"covered_holdings\",\"pb\":{\"value\":null,\"percentile\":null,\"coverage\":0.9339879474737802,\"verifiedCoverage\":0.9745233860279489,\"count\":72,\"missingWeight\":0.025453264058719997,\"excludedWeight\":0.03964226504893},\"ps\":{\"value\":null,\"percentile\":null,\"coverage\":0.9736302125227102,\"verifiedCoverage\":0.9745233860279489,\"count\":78,\"missingWeight\":0.025453264058719997,\"excludedWeight\":0},\"sourceComparison\":{\"sourceConflict\":false,\"observedAt\":\"2026-11-08T15:16:13.336712+00:00\",\"alternateSourceValues\":{\"pb\":null,\"ps\":null},\"deltaPercent\":{\"pb\":null,\"ps\":null}}}"
+    },
+    {
+      "code": "XLK",
+      "date": "2026-06-30",
+      "version": "2026-11-08T15:30:45.914Z",
+      "payloadSha256": "71d3b0eb4cbdc3393cede0d3ba44604b5dd94c30bb8cee42392b8a54a90291ef",
+      "preparedReading": "{\"code\":\"XLK\",\"name\":\"信息技术\",\"date\":\"2026-06-30\",\"asOf\":\"2026-06-30T20:00:00Z\",\"availableAt\":\"2026-08-28T16:30:53.000Z\",\"availableDate\":\"2026-08-28\",\"pricingBasis\":\"portfolio_fair_value_per_share\",\"qualityFlags\":{\"sharesOver90Days\":3,\"corporateActionsUnreviewed\":64,\"shareClassesUnreviewed\":71,\"comparableRevenue\":0,\"eventReconstructedShares\":1,\"eventProForma\":0},\"methodVersion\":\"common-equity-harmonic-v1\",\"scope\":\"covered_holdings\",\"pb\":{\"value\":12.869473063498662,\"percentile\":null,\"coverage\":0.9742578751501099,\"verifiedCoverage\":0.9841874204593025,\"count\":61,\"missingWeight\":0.015801171906440228,\"excludedWeight\":0.00921952515692},\"ps\":{\"value\":9.952444428002913,\"percentile\":null,\"coverage\":0.9834774003070299,\"verifiedCoverage\":0.9841874204593025,\"count\":64,\"missingWeight\":0.015801171906440228,\"excludedWeight\":0},\"sourceComparison\":{\"sourceConflict\":true,\"observedAt\":\"2026-11-08T15:16:13.336712+00:00\",\"alternateSourceValues\":{\"pb\":12.485238897095442,\"ps\":9.60093959667545},\"deltaPercent\":{\"pb\":-2.9856246989087065,\"ps\":-3.531844200390033}}}"
+    },
+    {
+      "code": "XLP",
+      "date": "2026-06-30",
+      "version": "2026-11-08T15:30:45.914Z",
+      "payloadSha256": "6e6de63e74a2b57addde598285700294ea4c24ad2e6fbe8f32d5fbc074e0a958",
+      "preparedReading": "{\"code\":\"XLP\",\"name\":\"必需消费\",\"date\":\"2026-06-30\",\"asOf\":\"2026-06-30T20:00:00Z\",\"availableAt\":\"2026-08-28T16:22:26.000Z\",\"availableDate\":\"2026-08-28\",\"pricingBasis\":\"portfolio_fair_value_per_share\",\"qualityFlags\":{\"sharesOver90Days\":4,\"corporateActionsUnreviewed\":31,\"shareClassesUnreviewed\":29,\"comparableRevenue\":0,\"eventReconstructedShares\":0,\"eventProForma\":0},\"methodVersion\":\"common-equity-harmonic-v1\",\"scope\":\"covered_holdings\",\"pb\":{\"value\":4.643841764984009,\"percentile\":null,\"coverage\":0.8704300123045299,\"verifiedCoverage\":0.9882892012700488,\"count\":28,\"missingWeight\":0.011667166557909999,\"excludedWeight\":0.11417701446568},\"ps\":{\"value\":1.3450840314188603,\"percentile\":null,\"coverage\":0.9846070267702098,\"verifiedCoverage\":0.9882892012700488,\"count\":31,\"missingWeight\":0.011667166557909999,\"excludedWeight\":0},\"sourceComparison\":{\"sourceConflict\":false,\"observedAt\":\"2026-11-08T15:16:13.336712+00:00\",\"alternateSourceValues\":{\"pb\":4.643842915196752,\"ps\":1.3450841433787717},\"deltaPercent\":{\"pb\":0.00002476856020283691,\"ps\":0.00000832363693525906}}}"
+    },
+    {
+      "code": "XLRE",
+      "date": "2026-06-30",
+      "version": "2026-11-08T15:30:45.914Z",
+      "payloadSha256": "03423bd97a8e241b87a379806b6cc5afefabaf3294f985e5de047c1c369a80c8",
+      "preparedReading": "{\"code\":\"XLRE\",\"name\":\"房地产\",\"date\":\"2026-06-30\",\"asOf\":\"2026-06-30T20:00:00Z\",\"availableAt\":\"2026-08-28T16:22:05.000Z\",\"availableDate\":\"2026-08-28\",\"pricingBasis\":\"portfolio_fair_value_per_share\",\"qualityFlags\":{\"sharesOver90Days\":1,\"corporateActionsUnreviewed\":31,\"shareClassesUnreviewed\":30,\"comparableRevenue\":0,\"eventReconstructedShares\":0,\"eventProForma\":0},\"methodVersion\":\"common-equity-harmonic-v1\",\"scope\":\"covered_holdings\",\"pb\":{\"value\":2.920147940711736,\"percentile\":null,\"coverage\":0.88337409224429,\"verifiedCoverage\":0.9812892439948617,\"count\":26,\"missingWeight\":0.018608238393430003,\"excludedWeight\":0.09253859563163},\"ps\":{\"value\":6.072568093988913,\"percentile\":null,\"coverage\":0.9945209262693501,\"verifiedCoverage\":1.0000000000000002,\"count\":31,\"missingWeight\":0,\"excludedWeight\":0},\"sourceComparison\":{\"sourceConflict\":true,\"observedAt\":\"2026-11-08T15:16:13.336712+00:00\",\"alternateSourceValues\":{\"pb\":2.9200543842041533,\"ps\":6.073776378140691},\"deltaPercent\":{\"pb\":-0.003203827664977066,\"ps\":0.019897416267333767}}}"
+    },
+    {
+      "code": "XLU",
+      "date": "2026-06-30",
+      "version": "2026-11-08T15:30:45.914Z",
+      "payloadSha256": "7b15c093a58b32a90380512f096f0b95cb9b81e83d4eed8e00f15aedc334663b",
+      "preparedReading": "{\"code\":\"XLU\",\"name\":\"公用事业\",\"date\":\"2026-06-30\",\"asOf\":\"2026-06-30T20:00:00Z\",\"availableAt\":\"2026-08-28T16:28:36.000Z\",\"availableDate\":\"2026-08-28\",\"pricingBasis\":\"portfolio_fair_value_per_share\",\"qualityFlags\":{\"sharesOver90Days\":8,\"corporateActionsUnreviewed\":31,\"shareClassesUnreviewed\":31,\"comparableRevenue\":0,\"eventReconstructedShares\":0,\"eventProForma\":0},\"methodVersion\":\"common-equity-harmonic-v1\",\"scope\":\"covered_holdings\",\"pb\":{\"value\":2.360129288051631,\"percentile\":null,\"coverage\":0.9966518719565701,\"verifiedCoverage\":1.0000000000000002,\"count\":31,\"missingWeight\":0,\"excludedWeight\":0},\"ps\":{\"value\":2.9395153077166984,\"percentile\":null,\"coverage\":0.9966518719565701,\"verifiedCoverage\":1.0000000000000002,\"count\":31,\"missingWeight\":0,\"excludedWeight\":0},\"sourceComparison\":{\"sourceConflict\":false,\"observedAt\":\"2026-11-08T15:16:13.336712+00:00\",\"alternateSourceValues\":{\"pb\":2.3601296465809494,\"ps\":2.9395152825599347},\"deltaPercent\":{\"pb\":0.000015191088054145041,\"ps\":-8.558133313130156e-7}}}"
+    },
+    {
+      "code": "XLV",
+      "date": "2026-06-30",
+      "version": "2026-11-08T15:30:45.914Z",
+      "payloadSha256": "00d6df916b3ed99f3bdd4b89ee71430a417d55a3e4839fb035e73635cd5bc057",
+      "preparedReading": "{\"code\":\"XLV\",\"name\":\"医疗保健\",\"date\":\"2026-06-30\",\"asOf\":\"2026-06-30T20:00:00Z\",\"availableAt\":\"2026-08-28T16:24:58.000Z\",\"availableDate\":\"2026-08-28\",\"pricingBasis\":\"portfolio_fair_value_per_share\",\"qualityFlags\":{\"sharesOver90Days\":6,\"corporateActionsUnreviewed\":49,\"shareClassesUnreviewed\":58,\"comparableRevenue\":0,\"eventReconstructedShares\":0,\"eventProForma\":0},\"methodVersion\":\"common-equity-harmonic-v1\",\"scope\":\"covered_holdings\",\"pb\":{\"value\":null,\"percentile\":null,\"coverage\":0.8407692592899298,\"verifiedCoverage\":0.9617072301047357,\"count\":43,\"missingWeight\":0.03817098106385,\"excludedWeight\":0.11787929420203001},\"ps\":{\"value\":1.5741073298028083,\"percentile\":null,\"coverage\":0.97912347121858,\"verifiedCoverage\":0.9822474753716425,\"count\":49,\"missingWeight\":0.017696063337230002,\"excludedWeight\":0},\"sourceComparison\":{\"sourceConflict\":false,\"observedAt\":\"2026-11-08T15:16:13.336712+00:00\",\"alternateSourceValues\":{\"pb\":null,\"ps\":1.574094259645671},\"deltaPercent\":{\"pb\":null,\"ps\":-0.0008303218522520694}}}"
+    },
+    {
+      "code": "XLY",
+      "date": "2026-06-30",
+      "version": "2026-11-08T15:30:45.914Z",
+      "payloadSha256": "f08148475cb735aaff43304bda27c9b85de85b34fdb0c15d9892a0aa0b936421",
+      "preparedReading": "{\"code\":\"XLY\",\"name\":\"可选消费\",\"date\":\"2026-06-30\",\"asOf\":\"2026-06-30T20:00:00Z\",\"availableAt\":\"2026-08-28T16:28:39.000Z\",\"availableDate\":\"2026-08-28\",\"pricingBasis\":\"portfolio_fair_value_per_share\",\"qualityFlags\":{\"sharesOver90Days\":4,\"corporateActionsUnreviewed\":44,\"shareClassesUnreviewed\":42,\"comparableRevenue\":0,\"eventReconstructedShares\":2,\"eventProForma\":0},\"methodVersion\":\"common-equity-harmonic-v1\",\"scope\":\"covered_holdings\",\"pb\":{\"value\":6.694122336578806,\"percentile\":null,\"coverage\":0.7638597431777401,\"verifiedCoverage\":0.9846787202523302,\"count\":33,\"missingWeight\":0.01530566680628,\"excludedWeight\":0.21981555363997002},\"ps\":{\"value\":2.557044731050613,\"percentile\":null,\"coverage\":0.9882503465732899,\"verifiedCoverage\":0.9892584369057716,\"count\":44,\"missingWeight\":0.0107306170507,\"excludedWeight\":0},\"sourceComparison\":{\"sourceConflict\":false,\"observedAt\":\"2026-11-08T15:16:13.336712+00:00\",\"alternateSourceValues\":{\"pb\":6.69412391880067,\"ps\":2.557045131285445},\"deltaPercent\":{\"pb\":0.00002363598667898259,\"ps\":0.00001565224212463079}}}"
+    }
+  ]
+}
