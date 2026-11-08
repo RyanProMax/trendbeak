@@ -1,3 +1,4 @@
+import quarterlySessions from '../data/us-etf-quarterly-sessions.json' with { type: 'json' };
 // Pure, bounded calculation. No fetches, inferred filings, or backfilled memberships.
 export const METHOD = 'common-equity-harmonic-v1', MIN_COVERAGE = .98;
 export const SECTORS = { XLK: '信息技术', XLF: '金融', XLV: '医疗保健', XLY: '可选消费', XLP: '必需消费', XLC: '通信服务', XLI: '工业', XLE: '能源', XLB: '原材料', XLU: '公用事业', XLRE: '房地产' };
@@ -27,12 +28,15 @@ export function calculateETF(input, { researchOnly = false } = {}) {
   if (!['unadjusted_close', 'portfolio_fair_value_per_share'].includes(pricingBasis) && !(researchOnly && pricingBasis === 'reported_snapshot_price')) throw Error('Unrecognized pricing basis');
   if (pricingBasis === 'portfolio_fair_value_per_share' && !instant(input.availableAt)) throw Error('Quarterly publication time is required');
   const availableAt = input.availableAt ?? input.cutoff;
-  if (!instant(availableAt) || Date.parse(availableAt) < Date.parse(input.cutoff)) throw Error('Invalid snapshot publication time');
+  if (!instant(availableAt) || Date.parse(availableAt) < Date.parse(input.cutoff) || Date.parse(availableAt) < Date.parse(input.date)) throw Error('Invalid snapshot publication time');
   if (pricingBasis === 'portfolio_fair_value_per_share' && !['03-31', '06-30', '09-30', '12-31'].includes(input.date.slice(5))) throw Error('Portfolio marks require an actual quarter end');
   const release = Object.fromEntries(eastern(availableAt).map(p => [p.type, p.value]));
   let availableDate = `${release.year}-${release.month}-${release.day}`;
   if (`${release.hour}:${release.minute}:${release.second}` > '16:00:00') availableDate = new Date(Date.parse(availableDate) + 86400000).toISOString().slice(0, 10);
-  if (`${parts.year}-${parts.month}-${parts.day}` !== input.date || `${parts.hour}:${parts.minute}:${parts.second}` !== '16:00:00') throw Error('Cutoff must be the observation date at 16:00 New York');
+  const financialDate = pricingBasis === 'portfolio_fair_value_per_share' ? quarterlySessions.exceptions[input.date] ?? input.date : input.date;
+  const weekendQuarter = [0, 6].includes(new Date(input.date + 'T12:00:00Z').getUTCDay());
+  if (pricingBasis === 'portfolio_fair_value_per_share' && (weekendQuarter && !quarterlySessions.exceptions[input.date] || (input.latestPriceMarketSession ?? input.date) !== financialDate)) throw Error('Explicit verified quarter-end financial session required');
+  if (`${parts.year}-${parts.month}-${parts.day}` !== financialDate || `${parts.hour}:${parts.minute}:${parts.second}` !== '16:00:00') throw Error('Cutoff must be the verified financial session at 16:00 New York');
   if (!Array.isArray(input.sources) || !input.sources.length || input.sources.length > 2400) throw Error('Source references required');
   const sources = new Map();
   const stockWeight = input.stockWeight ?? 1;
@@ -71,6 +75,12 @@ export function calculateETF(input, { researchOnly = false } = {}) {
       const spec = input.date === '2026-06-30' ? REVIEWED_SPLITS[input.code + '/' + holding.symbol] : undefined;
       if (spec && s && s.basis !== 'estimated_split_adjusted_last_known_common_outstanding') throw Error('Reviewed split-adjusted common share basis required');
       const splitAdjusted = !!spec && s?.basis === 'estimated_split_adjusted_last_known_common_outstanding';
+      const actualSplitAdjusted = input.code === 'XLU' && input.date === '2020-12-31' && holding.symbol === 'NEE' && s?.basis === 'split_adjusted_actual_common_outstanding';
+      if (actualSplitAdjusted) {
+        const a=s.splitAdjustment;
+        if (s.asOf !== '2020-09-30' || s.value !== 489768531 * 4 || !sources.has(s.source) || !a || a.baseValue !== 489768531 || a.baseAsOf !== s.asOf || a.effectiveDate !== '2020-10-26' || a.numerator !== 4 || a.denominator !== 1 || !sources.has(a.source) || Date.parse(s.availableAt) < Date.parse('2020-10-27T00:00:00-04:00')) throw Error('Exact reviewed NextEra 2020 split basis required');
+        warn('split_adjusted_actual_common_share_basis');
+      }
       if (splitAdjusted) {
         const a=s.splitAdjustment;
         if (!a || Object.entries(spec).some(([k,v]) => k !== 'availableAt' && a[k] !== v) || s.asOf !== spec.baseAsOf || Math.abs(s.value - spec.baseValue * spec.numerator / spec.denominator) > .000001 || !sources.has(s.source) || !sources.has(a.source) || Date.parse(s.availableAt) < Date.parse(spec.availableAt)) throw Error('Exact reviewed split event bridge required');
@@ -99,7 +109,7 @@ export function calculateETF(input, { researchOnly = false } = {}) {
         if (holding.corporateActionsCheckedThrough !== input.date) warn('corporate_action_review_incomplete');
       }
       if (p == null || s == null) return null;
-      if (!positive(p.value) || p.asOf !== input.date || p.basis !== pricingBasis || !positive(s.value) || (s.basis !== 'actual_common_outstanding' && !reconstructed && !splitAdjusted && !eventAdjusted) || !s.shareBasis || !p.shareBasis || sameClass && p.shareBasis !== s.shareBasis) throw Error('Price and actual common shares must have matching split/share basis');
+      if (!positive(p.value) || p.asOf !== input.date || p.basis !== pricingBasis || !positive(s.value) || (s.basis !== 'actual_common_outstanding' && !reconstructed && !splitAdjusted && !eventAdjusted && !actualSplitAdjusted) || !s.shareBasis || !p.shareBasis || sameClass && p.shareBasis !== s.shareBasis) throw Error('Price and actual common shares must have matching split/share basis');
       const cap = p.value * s.value;
       if (!positive(cap)) throw Error('Invalid market capitalization');
       return cap;
@@ -132,9 +142,10 @@ export function calculateETF(input, { researchOnly = false } = {}) {
     }
     if (holding.revenue != null) {
       fact(holding.revenue);
-      const comparable = input.code === 'XLC' && holding.symbol === 'CMCSA' && holding.revenue.basis === 'ttm_pro_forma_comparable';
+      const historicalComparable = input.code === 'XLU' && (holding.symbol === 'DTE' && input.date === '2021-12-31' || holding.symbol === 'EXC' && ['2022-03-31', '2022-06-30'].includes(input.date) || holding.symbol === 'PPL' && ['2021-06-30', '2021-09-30', '2021-12-31'].includes(input.date));
+      const comparable = (input.code === 'XLC' && holding.symbol === 'CMCSA' || historicalComparable) && holding.revenue.basis === 'ttm_pro_forma_comparable';
       const carveOut = input.code === 'XLI' && ['HONA', 'FDXF'].includes(holding.symbol) && holding.revenue.basis === 'ttm_carve_out_reported';
-      if (holding.revenue.basis !== 'ttm' && !comparable && !carveOut) throw Error('Revenue must be trailing twelve months or a reviewed Comcast comparable / HONA or FDXF carve-out basis');
+      if (holding.revenue.basis !== 'ttm' && !comparable && !carveOut) throw Error('Revenue must use a reported or narrowly reviewed comparable / carve-out twelve-month basis');
       if (carveOut) warn('event_pro_forma_fundamentals');
       if (comparable) warn('comparable_revenue_basis');
       revenue = holding.revenue.value;
@@ -175,7 +186,7 @@ export function calculateETF(input, { researchOnly = false } = {}) {
     sourceComparison = { sourceConflict: c.sourceConflict ?? true, observedAt: c.observedAt, alternateSourceValues, deltaPercent };
   }
   return {
-    reading: { code: input.code, name: SECTORS[input.code], date: input.date, asOf: input.cutoff, availableAt, availableDate, pricingBasis, qualityFlags: { sharesOver90Days: warnings.filter(w => w.reason === 'shares_older_than_90_days').length, corporateActionsUnreviewed: warnings.filter(w => w.reason === 'corporate_action_review_incomplete').length, shareClassesUnreviewed: warnings.filter(w => w.reason === 'share_class_review_incomplete').length, comparableRevenue: warnings.filter(w => w.reason === 'comparable_revenue_basis').length, eventReconstructedShares: warnings.filter(w => ['event_reconstructed_common_equivalent', 'split_adjusted_common_share_estimate', 'event_adjusted_common_share_estimate'].includes(w.reason)).length, eventProForma: warnings.filter(w => w.reason === 'event_pro_forma_fundamentals').length }, methodVersion: METHOD, scope: 'covered_holdings', ...metrics, ...(sourceComparison ? { sourceComparison } : {}) },
+    reading: { code: input.code, name: SECTORS[input.code], date: input.date, asOf: input.cutoff, availableAt, availableDate, pricingBasis, ...(input.latestPriceMarketSession !== undefined ? { latestPriceMarketSession: financialDate } : {}), qualityFlags: { sharesOver90Days: warnings.filter(w => w.reason === 'shares_older_than_90_days').length, corporateActionsUnreviewed: warnings.filter(w => w.reason === 'corporate_action_review_incomplete').length, shareClassesUnreviewed: warnings.filter(w => w.reason === 'share_class_review_incomplete').length, comparableRevenue: warnings.filter(w => w.reason === 'comparable_revenue_basis').length, eventReconstructedShares: warnings.filter(w => ['event_reconstructed_common_equivalent', 'split_adjusted_common_share_estimate', 'event_adjusted_common_share_estimate', 'split_adjusted_actual_common_share_basis'].includes(w.reason)).length, eventProForma: warnings.filter(w => w.reason === 'event_pro_forma_fundamentals').length }, methodVersion: METHOD, scope: 'covered_holdings', ...metrics, ...(sourceComparison ? { sourceComparison } : {}) },
     quality: { warnings, stockWeight, shareAgeDays: Object.fromEntries(input.holdings.filter(h => h.shares).map(h => [h.symbol, (Date.parse(input.date) - Date.parse(h.shares.asOf)) / 86400000])), holdingsWeight: totalWeight, minimumCoverage: MIN_COVERAGE, missing: { pb: totals.pb.missing, ps: totals.ps.missing }, excluded: { pb: totals.pb.excluded, ps: totals.ps.excluded } },
     sources: input.sources,
   };

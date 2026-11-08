@@ -21,6 +21,24 @@ function SourceComparison({ row }: { row: ETFValuation }) {
     </div></FloatingPortal>}
   </>;
 }
+function HistoricalRank({ row, metric }: { row: ETFValuation; metric: 'pb' | 'ps' }) {
+  const value = row[metric], h = value.quarterlyHistory!;
+  const [open, setOpen] = useState(false), visible = usePanelVisible();
+  useEffect(() => { setOpen(false); }, [visible, row.date]);
+  const { refs, floatingStyles, context } = useFloating({ open, onOpenChange: setOpen, placement: 'top', strategy: 'fixed', whileElementsMounted: autoUpdate, middleware: [offset(8), flip(), shift({ padding: 12 })] });
+  const { getReferenceProps, getFloatingProps } = useInteractions([useHover(context, { mouseOnly: true }), useFocus(context), useClick(context), useDismiss(context), useRole(context, { role: 'tooltip' })]);
+  const quarter = (date: string) => `${date.slice(0, 4)}年第${Number(date.slice(5, 7)) / 3}季度`;
+  return <><button type="button" className="valuation-quarterly-rank" aria-label={`${row.code} ${metric.toUpperCase()} 季度历史分位`} aria-expanded={open} ref={refs.setReference} {...getReferenceProps()}>季度分位 {number(value.percentile!, 1)}%</button>
+    {open && <FloatingPortal><div className="valuation-tooltip" ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()}>
+      <strong>{row.code} {metric.toUpperCase()} · 季度样本分位</strong>
+      <span>{h.sampleCount}期有效样本，{quarter(h.windowStart!)}至{quarter(h.windowEnd!)}。</span>
+      <span>{h.missingQuarterCount}期缺失，未补值；当前季度不计入样本。</span>
+      <span>包含已核验的可比财务估算，并非纯原报表口径。</span>
+      {h.withoutOfficialProForma.percentile !== null && <span>剔除官方备考估算季度：{h.withoutOfficialProForma.sampleCount}期，分位 {number(h.withoutOfficialProForma.percentile, 1)}%。</span>}
+      <span>仅达到20期、跨5年才展示。缺失样本可能影响排名，不代表统计置信度。</span>
+    </div></FloatingPortal>}
+  </>;
+}
 export default function USSectorValuations({ date }: { date: string }) {
   const cache = useRef(new Map<string, Result>()), [loaded, setLoaded] = useState<Result | null>(null), [refresh, setRefresh] = useState(0);
   useEffect(() => {
@@ -40,7 +58,7 @@ export default function USSectorValuations({ date }: { date: string }) {
     };
     const timer = setTimeout(() => { void (async () => {
       try {
-        const response = await fetch(`/api/valuations/US?date=${encodeURIComponent(date)}&format=audited-events-v3`, { signal: controller.signal });
+        const response = await fetch(`/api/valuations/US?date=${encodeURIComponent(date)}&format=quarterly-history-v4`, { signal: controller.signal });
         if (!response.ok) throw Error('ETF valuations unavailable');
         const { data } = await response.json() as { data: { date: string; rows: ETFValuation[] } };
         if (data?.date !== date || !Array.isArray(data.rows) || data.rows.length > 11 || new Set(data.rows.map(r => r.code)).size !== data.rows.length || data.rows.some(r => !validETFValuation(r, date))) throw Error('Invalid ETF valuations');
@@ -68,7 +86,7 @@ export default function USSectorValuations({ date }: { date: string }) {
       <tbody>{US_SECTOR_ETFS.map(([code, name]) => {
         const row = result?.rows.find(r => r.code === code);
         return <tr key={code}><th scope="row"><strong>{name}</strong><small>{code}</small>{row?.pricingBasis === 'portfolio_fair_value_per_share'&&!quarter&&<small>{displayDate(row.date, true)}</small>}{row?.sourceComparison?.sourceConflict&&<SourceComparison row={row}/>}</th>
-          {(['pb', 'ps'] as const).map(metric => <td key={metric}><div className="etf-valuation-reading"><b className={row?.[metric].value == null ? "is-missing" : undefined}>{row?.[metric].value != null ? number(row[metric].value) : '—'}</b></div></td>)}
+          {(['pb', 'ps'] as const).map(metric => <td key={metric}><div className="etf-valuation-reading"><b className={row?.[metric].value == null ? "is-missing" : undefined}>{row?.[metric].value != null ? number(row[metric].value) : '—'}</b>{row?.[metric].percentile != null && row[metric].quarterlyHistory && <HistoricalRank row={row} metric={metric}/>}</div></td>)}
         </tr>;
       })}</tbody>
     </table>

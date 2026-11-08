@@ -1,0 +1,14 @@
+{
+  "authority": "New York Stock Exchange",
+  "sources": [
+    "https://ir.theice.com/press/news-details/2021/NYSE-Group-Announces-2022-2023-and-2024-Holiday-and-Early-Closings-Calendar/default.aspx",
+    "https://ir.theice.com/press/news-details/2023/NYSE-Group-Announces-2024-2025-and-2026-Holiday-and-Early-Closings-Calendar/default.aspx"
+  ],
+  "exceptions": {
+    "2022-12-31": "2022-12-30",
+    "2023-09-30": "2023-09-29",
+    "2023-12-31": "2023-12-29",
+    "2024-03-31": "2024-03-28",
+    "2024-06-30": "2024-06-28"
+  }
+}

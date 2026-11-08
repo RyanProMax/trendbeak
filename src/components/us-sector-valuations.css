@@ -7,3 +7,5 @@
 .valuation-source-conflict { display:block; font-size:10px; line-height:1.5; text-align:left; color:var(--muted); text-decoration:underline dotted; text-underline-offset:3px; margin-top:3px; }
 
 .etf-valuation-reading b.is-missing { color:var(--muted); }
+
+.valuation-quarterly-rank { display: block; width: fit-content; border: 0; border-bottom: 1px dotted currentColor; padding: 0 0 1px; margin-top: 5px; background: none; color: var(--muted); font: inherit; font-size: 11px; line-height: 1.5; cursor: pointer; text-align: left; }

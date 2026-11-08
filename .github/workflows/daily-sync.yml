@@ -70,3 +70,18 @@ jobs:
           args=(--market "$MARKET" --remote --at "${{ steps.clock.outputs.at }}")
           if [ "$SYNC_MODE" = 'catch_up' ]; then args+=(--catch-up); fi
           node scripts/overview-job.mjs "${args[@]}"
+      - name: Check new quarterly ETF filings and append only audited releases
+        id: etf_quarterly
+        if: ${{ !cancelled() && steps.connection.outcome == 'success' && env.MARKET == 'US' && env.SYNC_MODE == 'primary' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          node scripts/us-etf-quarterly-job.mjs --remote --write --at "${{ steps.clock.outputs.at }}" --output "$RUNNER_TEMP/etf-quarterly-review"
+      - name: Retain bounded quarterly review candidates and pre-append backup
+        if: ${{ !cancelled() && steps.etf_quarterly.outcome != 'skipped' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: etf-quarterly-review-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/etf-quarterly-review/
+          retention-days: 7
+          if-no-files-found: ignore

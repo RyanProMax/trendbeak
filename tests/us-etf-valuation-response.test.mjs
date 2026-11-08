@@ -100,7 +100,25 @@ test('only exact verified version and prepared quarter reading release holds; sa
    for(const format of['','&format=event-equity-v2','&format=audited-events-v3']){const result=await respond(new URL('https://test/api/valuations/US?date=2026-11-05'+format),f.db,entries);assert.equal(result.status,200);const r=(await result.json()).data.rows[0];assert.equal(r.pb.value,null);assert.equal(r.ps.value,null);assert.equal(r.sourceComparison,undefined);}
   }
   save(row,'2026-11-08T12:00:00.001Z');const body=await(await respond(new URL('https://test/api/valuations/US?date=2026-11-05&format=audited-events-v3'),f.db,entries)).json();assert.equal(body.data.rows[0].pb.value,null);assert.equal(body.data.rows[0].ps.value,null);
-  for(const malformed of[{},null,{...proof,entries:[null]},{...proof,auditSha256:'wrong'},{...proof,entries:[...proof.entries,...proof.entries]},{...proof,entries:[{...proof.entries[0],preparedReading:'invalid'}]}])assert.deepEqual(publicationEntries(malformed),[]);
+  for(const malformed of[{},null,{...proof,entries:[null]},{...proof,entries:[{...proof.entries[0],extra:'x'.repeat(250001)}]},{...proof,auditSha256:'wrong'},{...proof,entries:[...proof.entries,...proof.entries]},{...proof,entries:[{...proof.entries[0],preparedReading:'invalid'}]}])assert.deepEqual(publicationEntries(malformed),[]);
   assert.equal(f.stats.writes,0);
+ }finally{f.close();}
+});
+
+test('quarterly v4 binds ranks and every historical reading; older clients never receive ranks or pre-feature history',async()=>{
+ const f=memoryDB();try{
+  const row={...calculateETF({...etfInput(),code:'XLU'}).reading,date:'2026-06-30',asOf:'2026-06-30T20:00:00Z',availableAt:'2026-08-28T15:00:00Z',availableDate:'2026-08-28',pricingBasis:'portfolio_fair_value_per_share'};
+  row.ps.percentile=79.16666666666666;row.ps.quarterlyHistory={frequency:'quarterly',scope:'reported_recast_and_reviewed_scope_estimates',currentExcluded:true,method:'midrank-prior-quarter-observations-v1',sourceSeriesId:'sec_nport_quarterly',maximumWindowYears:10,evaluatedAt:row.asOf,sampleCount:24,windowStart:'2019-09-30',windowEnd:'2026-03-31',spanQuarters:26,minimumSamples:20,minimumSpanQuarters:20,status:'available',missingQuarterCount:3,withoutOfficialProForma:{sampleCount:21,percentile:85.71428571428571}};
+  assert.equal(valid(row,'2026-11-05'),true);
+  for(const change of [{sampleCount:19},{windowEnd:row.date},{minimumSamples:19},{spanQuarters:19},{sampleCount:41},{currentExcluded:false},{withoutOfficialProForma:{sampleCount:25,percentile:88}}])assert.equal(valid({...row,ps:{...row.ps,quarterlyHistory:{...row.ps.quarterlyHistory,...change}}},'2026-11-05'),false);
+  const old=structuredClone(row);Object.assign(old,{date:'2026-03-31',asOf:'2026-03-31T20:00:00Z',availableAt:'2026-05-28T15:00:00Z',availableDate:'2026-05-28'});old.ps.percentile=null;delete old.ps.quarterlyHistory;
+  const version='2026-11-08T12:00:00.000Z';f.sqlite.prepare('INSERT INTO market_snapshot VALUES(?,?,?)').run('valuation/US/XLU',JSON.stringify({source:'self_us_etf',history:{[old.date]:old,[row.date]:row}}),version);
+  const approved=[old,row].map(r=>({code:r.code,date:r.date,version,payloadSha256:'a'.repeat(64),preparedReading:JSON.stringify(r)}));
+  const bounded={prepare(sql){return{bind(...values){assert.ok(values.length<=100);assert.equal(values.length,15);return f.db.prepare(sql).bind(...values);}};}};
+  const get=async(date,format,proof=approved)=>{const result=await respond(new URL('https://test/api/valuations/US?date='+date+'&format='+format),bounded,proof);assert.equal(result.status,200);return(await result.json()).data.rows;};
+  assert.deepEqual(await get('2026-05-28','quarterly-history-v4'),[old]);assert.deepEqual(await get('2026-05-28','audited-events-v3'),[]);assert.deepEqual(await get('2026-05-27','quarterly-history-v4'),[]);
+  assert.deepEqual(await get('2026-11-05','quarterly-history-v4'),[row]);const scaled=[...approved,...Array.from({length:36},(_,i)=>({...approved[0],code:'fixture-'+i}))];assert.equal(scaled.length,38);assert.deepEqual(await get('2026-11-05','quarterly-history-v4',scaled),[row]);const legacy=(await get('2026-11-05','audited-events-v3'))[0];assert.equal(legacy.ps.value,row.ps.value);assert.equal(legacy.ps.percentile,null);assert.equal(legacy.ps.quarterlyHistory,undefined);
+  const unproved=(await get('2026-05-28','quarterly-history-v4',approved.slice(1)))[0];assert.equal(unproved.ps.value,null);assert.equal(unproved.pb.value,null);
+  f.sqlite.prepare('UPDATE market_snapshot SET updated_at=?').run('2026-11-08T12:00:00.001Z');const changed=(await get('2026-11-05','quarterly-history-v4'))[0];assert.equal(changed.ps.value,null);assert.equal(changed.ps.percentile,null);assert.equal(changed.ps.quarterlyHistory,undefined);
  }finally{f.close();}
 });

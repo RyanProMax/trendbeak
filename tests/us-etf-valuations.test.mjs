@@ -78,8 +78,8 @@ test('shared issuer capitalization sums listed classes once and uses economic pr
 test('two holdings cannot assign conflicting full-company ratios to one issuer',()=>{const x=etfInput();for(const h of x.holdings)h.issuerId='same';assert.throws(()=>calculateETF(x),/One issuer/);});
 test('only the reviewed Comcast comparable revenue basis is admitted, with an observation-level flag',()=>{
  const x=etfInput();x.code='XLC';x.holdings[0].symbol='CMCSA';x.holdings[0].revenue.basis='ttm_pro_forma_comparable';let r=calculateETF(x);assert.equal(r.reading.qualityFlags.comparableRevenue,1);assert.equal(r.reading.ps.value,5);
- x.holdings[0].symbol='OTHER';assert.throws(()=>calculateETF(x),/reviewed Comcast/);
- x.holdings[0].symbol='CMCSA';x.code='XLK';assert.throws(()=>calculateETF(x),/reviewed Comcast/);
+ x.holdings[0].symbol='OTHER';assert.throws(()=>calculateETF(x),/narrowly reviewed comparable/);
+ x.holdings[0].symbol='CMCSA';x.code='XLK';assert.throws(()=>calculateETF(x),/narrowly reviewed comparable/);
 });
 test('Visa event reconstruction is a distinct sourced estimate, never accepted as generic actual shares',()=>{
  const x=etfInput();x.code='XLF';const h=x.holdings[0];h.symbol='V';h.issuerId='visa';h.capitalizationScope='all_common_classes';h.capitalizationComponents=[{classId:'all_common_A_equivalent',priceClassId:'A',economicUnitFactor:1,economicEquivalenceSource:'filing',price:h.price,shares:{...h.shares,basis:'event_reconstructed_common_equivalent',unit:'common_equivalent_shares'}}];
