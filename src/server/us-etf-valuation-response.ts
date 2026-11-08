@@ -14,7 +14,7 @@ export async function usETFValuationResponse(url: URL, db?: D1Database): Promise
     const compatible = format === 'event-equity-v2' ? 'reading' : `CASE WHEN json_extract(reading,'$.code')='XLE' AND json_extract(reading,'$.qualityFlags.eventProForma')=1 THEN json_remove(json_set(reading,'$.pb.value',NULL,'$.ps.value',NULL,'$.qualityFlags.eventProForma',0),'$.sourceComparison') WHEN json_extract(reading,'$.code')='XLB' AND json_extract(reading,'$.qualityFlags.eventReconstructedShares')=1 THEN json_remove(json_set(reading,'$.pb.value',NULL,'$.ps.value',NULL,'$.qualityFlags.eventReconstructedShares',0),'$.sourceComparison') ELSE reading END`;
     // Temporary reversible output hold while material corporate actions are reviewed.
     // Stored observations remain intact; both client formats suppress alternatives too.
-    const projection = `CASE WHEN json_extract(reading,'$.code') IN ('XLE','XLB','XLK','XLY') THEN json_remove(json_set(${compatible},'$.pb.value',NULL,'$.ps.value',NULL,'$.pb.percentile',NULL,'$.ps.percentile',NULL),'$.sourceComparison') ELSE ${compatible} END`;
+    const projection = `CASE WHEN json_extract(reading,'$.code') IN ('XLE','XLB','XLK','XLY','XLF') THEN json_remove(json_set(${compatible},'$.pb.value',NULL,'$.ps.value',NULL,'$.pb.percentile',NULL,'$.ps.percentile',NULL),'$.sourceComparison') ELSE ${compatible} END`;
     const result = await db.prepare(`SELECT key, observation_date, ${projection} AS reading FROM (
       SELECT s.key, h.key AS observation_date, h.value AS reading, ROW_NUMBER() OVER (PARTITION BY s.key ORDER BY h.key DESC) AS position
       FROM market_snapshot s, json_each(s.payload,'$.history') h

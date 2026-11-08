@@ -75,11 +75,11 @@ test('legacy format withholds DuPont split estimates without invalidating other 
  }finally{f.close();}
 });
 
-test('corporate-action safety hold suppresses all four funds in both formats, without changing stored inputs or the other seven',async()=>{
+test('corporate-action safety hold suppresses all five funds in both formats, without changing stored inputs or the other six',async()=>{
  const f=memoryDB();try{
   const expected=[];for(const code of Object.keys(SECTORS)){const x=etfInput();x.code=code;x.sourceComparison={date,source:'holdings',observedAt:cutoff,sourceConflict:true,alternateSourceValues:{pb:12,ps:4},alternateCoverage:{pb:1,ps:1}};const row=calculateETF(x).reading;expected.push(row);f.sqlite.prepare('INSERT INTO market_snapshot VALUES(?,?,?)').run('valuation/US/'+code,JSON.stringify({source:'self_us_etf',history:{[date]:row}}),date);}
   const before=f.sqlite.prepare('SELECT key,payload,updated_at FROM market_snapshot ORDER BY key').all();
-  for(const format of ['', '&format=event-equity-v2']){const response=await respond(new URL('https://test/api/valuations/US?date='+date+format),f.db);assert.equal(response.status,200);const rows=(await response.json()).data.rows;assert.equal(rows.length,11);for(const row of rows){if(['XLE','XLB','XLK','XLY'].includes(row.code)){assert.equal(row.pb.value,null);assert.equal(row.ps.value,null);assert.equal(row.pb.percentile,null);assert.equal(row.ps.percentile,null);assert.equal(row.sourceComparison,undefined);}else assert.deepEqual(row,expected.find(r=>r.code===row.code));}}
+  for(const format of ['', '&format=event-equity-v2']){const response=await respond(new URL('https://test/api/valuations/US?date='+date+format),f.db);assert.equal(response.status,200);const rows=(await response.json()).data.rows;assert.equal(rows.length,11);for(const row of rows){if(['XLE','XLB','XLK','XLY','XLF'].includes(row.code)){assert.equal(row.pb.value,null);assert.equal(row.ps.value,null);assert.equal(row.pb.percentile,null);assert.equal(row.ps.percentile,null);assert.equal(row.sourceComparison,undefined);}else assert.deepEqual(row,expected.find(r=>r.code===row.code));}}
   assert.equal(f.stats.writes,0);assert.deepEqual(f.sqlite.prepare('SELECT key,payload,updated_at FROM market_snapshot ORDER BY key').all(),before);
  }finally{f.close();}
 });
