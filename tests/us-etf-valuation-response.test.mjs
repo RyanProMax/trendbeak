@@ -44,3 +44,11 @@ test('current source audit annotation retains its actual review date and rejects
   }
  }finally{f.close();}
 });
+
+test('XLI permits two reviewed event flags without fabricating a PB for excluded equity',async()=>{
+ const f=memoryDB();try {
+  const x=etfInput();x.code='XLI';for(const [i,symbol]of ['HONA','FDXF'].entries()){const h=x.holdings[i];h.symbol=symbol;h.equity.basis='common_pro_forma_event_bridge';h.equity.value=-100;h.revenue.basis='ttm_carve_out_reported';}
+  const row=calculateETF(x).reading;f.sqlite.prepare('INSERT INTO market_snapshot VALUES(?,?,?)').run('valuation/US/XLI',JSON.stringify({source:'self_us_etf',history:{[date]:row}}),date);
+  const r=await respond(new URL('https://test/api/valuations/US?date='+date),f.db);assert.equal(r.status,200);assert.deepEqual((await r.json()).data.rows,[row]);
+ }finally{f.close();}
+});

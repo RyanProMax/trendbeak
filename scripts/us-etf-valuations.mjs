@@ -91,15 +91,15 @@ export function calculateETF(input, { researchOnly = false } = {}) {
     let equity = null, revenue = null;
     if (holding.equity != null) {
       fact(holding.equity);
-      const eventBridge = input.code === 'XLI' && holding.symbol === 'HONA' && holding.equity.basis === 'common_pro_forma_event_bridge';
+      const eventBridge = input.code === 'XLI' && ['HONA', 'FDXF'].includes(holding.symbol) && holding.equity.basis === 'common_pro_forma_event_bridge';
       if (eventBridge) warn('event_pro_forma_fundamentals');
       equity = commonEquity(eventBridge ? { ...holding.equity, basis: 'common' } : holding.equity);
     }
     if (holding.revenue != null) {
       fact(holding.revenue);
       const comparable = input.code === 'XLC' && holding.symbol === 'CMCSA' && holding.revenue.basis === 'ttm_pro_forma_comparable';
-      const carveOut = input.code === 'XLI' && holding.symbol === 'HONA' && holding.revenue.basis === 'ttm_carve_out_reported';
-      if (holding.revenue.basis !== 'ttm' && !comparable && !carveOut) throw Error('Revenue must be trailing twelve months or a reviewed Comcast comparable / HONA carve-out basis');
+      const carveOut = input.code === 'XLI' && ['HONA', 'FDXF'].includes(holding.symbol) && holding.revenue.basis === 'ttm_carve_out_reported';
+      if (holding.revenue.basis !== 'ttm' && !comparable && !carveOut) throw Error('Revenue must be trailing twelve months or a reviewed Comcast comparable / HONA or FDXF carve-out basis');
       if (carveOut) warn('event_pro_forma_fundamentals');
       if (comparable) warn('comparable_revenue_basis');
       revenue = holding.revenue.value;

@@ -98,3 +98,11 @@ test('HONA event pro forma and carve-out facts are explicitly sourced, flagged a
  h.equity.preferredEquity=10;assert.throws(()=>calculateETF(x),/twice/);delete h.equity.preferredEquity;
  h.symbol='OTHER';assert.throws(()=>calculateETF(x),/equity basis/);h.symbol='HONA';x.code='XLK';assert.throws(()=>calculateETF(x),/equity basis/);
 });
+
+test('FDXF is a second narrow sourced event bridge, while unresolved parents remain missing',()=>{
+ const x=etfInput();x.code='XLI';
+ for(const [i,symbol]of ['HONA','FDXF'].entries()) {const h=x.holdings[i];h.symbol=symbol;h.equity.basis='common_pro_forma_event_bridge';h.equity.value=-100;h.revenue.basis='ttm_carve_out_reported';}
+ const r=calculateETF(x);assert.equal(r.reading.qualityFlags.eventProForma,2);assert.equal(r.reading.pb.value,null);assert.equal(r.reading.pb.excludedWeight,1);assert.equal(r.reading.ps.value,5);
+ x.holdings[1].symbol='FDX';assert.throws(()=>calculateETF(x),/equity basis/);
+ x.holdings[1].equity=null;x.holdings[1].revenue=null;x.holdings[1].shares=null;const missing=calculateETF(x);assert.equal(missing.reading.pb.value,null);assert.equal(missing.reading.ps.value,null);assert.equal(missing.reading.ps.missingWeight,.4);
+});
