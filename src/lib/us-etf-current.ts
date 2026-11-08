@@ -1,0 +1,13 @@
+export type CurrentBasketMetric={value:number|null;estimated:true;unknownWeight:number;verifiedCoverage:number;excludedWeight:number;percentile:null;rank:null;sourceComparison:null;fieldExceptions:{symbol:string;definition:string;methodVersion:string;weight:number}[]};
+export type CurrentBasketReading={code:'XLI';methodVersion:string;priceAsOf:string;financialCutoff:string;observedAt:string;preparedAt:string;holdingsAsOf:string;holdingsAvailableAt:string;holdingsLagDays:number;scope:string;isCurrentFundNAV:false;isCurrentFundHoldings:false;historicalRankEligible:false;metrics:{pb:CurrentBasketMetric;ps:CurrentBasketMetric}};
+const instant=(x:unknown):x is string=>typeof x==='string'&&Number.isFinite(Date.parse(x))&&new Date(x).toISOString()===x;
+const weight=(x:unknown):x is number=>typeof x==='number'&&Number.isFinite(x)&&x>=0&&x<=1;
+/** A new price day requires new reviewed inputs. This first release is never
+ * silently relabelled to the user's selected historical or later date. */
+export function validCurrentBasket(r:any,selectedDate:string):r is CurrentBasketReading{
+ if(!r||selectedDate!=='2026-11-06'||r.priceAsOf!==selectedDate||r.code!=='XLI'||r.methodVersion!=='latest-public-holdings-marked-equity-basket-v1'||r.financialCutoff!=='2026-11-06T21:00:00.000Z'||r.holdingsAsOf!=='2026-06-30'||r.holdingsLagDays!==129||r.isCurrentFundNAV!==false||r.isCurrentFundHoldings!==false||r.historicalRankEligible!==false||r.scope!=='marked_disclosed_equity_basket_excludes_unknown_current_cash_and_liabilities'||!instant(r.observedAt)||!instant(r.preparedAt)||!instant(r.holdingsAvailableAt)||r.observedAt>r.preparedAt||r.holdingsAvailableAt>r.financialCutoff||r.observedAt<r.financialCutoff)return false;
+ for(const k of ['pb','ps']as const){const m=r.metrics?.[k];if(!m||m.estimated!==true||m.percentile!==null||m.rank!==null||m.sourceComparison!==null||!weight(m.unknownWeight)||!weight(m.verifiedCoverage)||!weight(m.excludedWeight)||Math.abs(m.verifiedCoverage+m.unknownWeight-1)>1e-12||m.excludedWeight>m.verifiedCoverage||m.value!==null&&(!Number.isFinite(m.value)||m.value<=0||m.unknownWeight>=.02-1e-12)||!Array.isArray(m.fieldExceptions)||m.fieldExceptions.length>2)return false;
+  const seen=new Set();for(const e of m.fieldExceptions){if(!e||seen.has(e.symbol)||!weight(e.weight))return false;seen.add(e.symbol);if(e.symbol==='AOS'){if(e.definition!=='one_for_one_conversion_value'||e.methodVersion!=='current-one-for-one-conversion-value-estimate-v1')return false;}else if(k==='ps'&&e.symbol==='DE'){if(e.definition!=='segment_external_revenue_excluding_corporate_other'||e.methodVersion!=='current-segment-external-revenue-estimate-v1')return false;}else return false;}
+ }
+ return true;
+}

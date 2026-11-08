@@ -3,9 +3,10 @@ import CollapsiblePanel, { usePanelVisible } from './CollapsiblePanel';
 import { autoUpdate, flip, FloatingPortal, offset, shift, useClick, useDismiss, useFloating, useFocus, useHover, useInteractions, useRole } from '@floating-ui/react';
 import { displayDate, number } from '../lib/market-format';
 import { US_SECTOR_ETFS, validETFValuation, type ETFValuation } from '../lib/us-etf-valuations';
+import { validCurrentBasket, type CurrentBasketReading } from '../lib/us-etf-current';
 import './market-overview.css';
 import './us-sector-valuations.css';
-type Result = { date: string; rows: ETFValuation[]; error: boolean; expires: number };
+type Result = { date: string; rows: ETFValuation[]; current: CurrentBasketReading | null; error: boolean; expires: number };
 function SourceComparison({ row }: { row: ETFValuation }) {
   const [open,setOpen]=useState(false),visible=usePanelVisible(),c=row.sourceComparison!;
   useEffect(()=>{setOpen(false);},[visible,row.date]);
@@ -27,6 +28,13 @@ function MetricEstimate({row,metric}: {row: ETFValuation; metric: 'pb'|'ps'}) {
   const {refs,floatingStyles,context}=useFloating({open,onOpenChange:setOpen,placement:'top',strategy:'fixed',whileElementsMounted:autoUpdate,middleware:[offset(8),flip(),shift({padding:12})]});
   const {getReferenceProps,getFloatingProps}=useInteractions([useHover(context,{mouseOnly:true}),useFocus(context),useClick(context),useDismiss(context),useRole(context,{role:'tooltip'})]);
   return <><button type="button" className="valuation-quarterly-rank" aria-label={`${row.code} ${metric.toUpperCase()} 估算说明`} aria-expanded={open} ref={refs.setReference} {...getReferenceProps()}>估算</button>{open&&<FloatingPortal><div className="valuation-tooltip" ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()}><strong>{row.code} {metric.toUpperCase()} · 估算</strong><span>估值日期：{displayDate(row.date,true)}</span><span>{metric==='pb'?'优先股资本采用估价扣减，并非披露的完整账面值。':'仅DVN采用2025全年合并模拟收入，非截至该日的滚动十二个月收入。'}</span><span>使用该季度持仓及公允价值，非实时行情。</span><span>无同口径历史分位。</span></div></FloatingPortal>}</>;
+}
+function CurrentBasketEstimate({row,metric}: {row:CurrentBasketReading;metric:'pb'|'ps'}) {
+  const [open,setOpen]=useState(false),visible=usePanelVisible();
+  useEffect(()=>setOpen(false),[visible,row.priceAsOf]);
+  const {refs,floatingStyles,context}=useFloating({open,onOpenChange:setOpen,placement:'top',strategy:'fixed',whileElementsMounted:autoUpdate,middleware:[offset(8),flip(),shift({padding:12})]});
+  const {getReferenceProps,getFloatingProps}=useInteractions([useHover(context,{mouseOnly:true}),useFocus(context),useClick(context),useDismiss(context),useRole(context,{role:'tooltip'})]);
+  return <><button type="button" className="valuation-quarterly-rank" aria-label={`XLI ${metric.toUpperCase()} 披露持仓重估说明`} aria-expanded={open} ref={refs.setReference} {...getReferenceProps()}>估算</button>{open&&<FloatingPortal><div className="valuation-tooltip" ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()}><strong>XLI {metric.toUpperCase()} · 持仓重估</strong><span>价格截至{displayDate(row.priceAsOf,true)}收盘，非实时行情。</span><span>按截至{displayDate(row.holdingsAsOf,true)}的已披露持仓重新计价，并非当前基金持仓或净值。</span><span>已核实覆盖{number(row.metrics[metric].verifiedCoverage*100,2)}%。{metric==='ps'?'少量收入采用分部口径估算。':''}少量股类按转换价值估算。</span><span>无同口径历史分位。</span></div></FloatingPortal>}</>;
 }
 function HistoricalRank({ row, metric }: { row: ETFValuation; metric: 'pb' | 'ps' }) {
   const value = row[metric], h = value.quarterlyHistory!;
@@ -56,9 +64,9 @@ export default function USSectorValuations({ date }: { date: string }) {
     const cached = cache.current.get(date);
     if (cached && cached.expires > Date.now()) { setLoaded(cached); return; }
     const controller = new AbortController(); let active = true;
-    const save = (rows: ETFValuation[], error: boolean) => {
+    const save = (rows: ETFValuation[], error: boolean, current: CurrentBasketReading | null = null) => {
       if (!active) return;
-      const result = { date, rows, error, expires: Date.now() + (error ? 30000 : 300000) };
+      const result = { date, rows, current, error, expires: Date.now() + (error ? 30000 : 300000) };
       cache.current.delete(date); cache.current.set(date, result);
       while (cache.current.size > 366) cache.current.delete(cache.current.keys().next().value!);
       setLoaded(result);
@@ -69,7 +77,9 @@ export default function USSectorValuations({ date }: { date: string }) {
         if (!response.ok) throw Error('ETF valuations unavailable');
         const { data } = await response.json() as { data: { date: string; rows: ETFValuation[] } };
         if (data?.date !== date || !Array.isArray(data.rows) || data.rows.length > 11 || new Set(data.rows.map(r => r.code)).size !== data.rows.length || data.rows.some(r => !validETFValuation(r, date))) throw Error('Invalid ETF valuations');
-        save(data.rows, false);
+        let current:CurrentBasketReading|null=null;
+        if(date==='2026-11-06')try{const c=await fetch('/api/valuations/US/current-estimate',{signal:controller.signal});if(c.ok){const body=await c.json() as {data:unknown};if(validCurrentBasket(body.data,date))current=body.data;}}catch{/* Independent current failure must not erase quarterly rows. */}
+        save(data.rows, false,current);
       } catch { save([], true); }
     })(); }, 150);
     return () => { active = false; clearTimeout(timer); controller.abort(); };
@@ -78,7 +88,7 @@ export default function USSectorValuations({ date }: { date: string }) {
   const status = !result ? '正在读取估值数据' : result.error ? '估值数据暂不可用' : !result.rows.some(r => r.pb.value !== null || r.ps.value !== null) ? '该日期暂无估值数据' : '持仓估算';
   const quarterDates = [...new Set(result?.rows.filter(r => r.pricingBasis === 'portfolio_fair_value_per_share').map(r => r.date))];
   const quarter = quarterDates.length === 1 && result?.rows.every(r => r.pricingBasis === 'portfolio_fair_value_per_share');
-  const stateLabel = status === '持仓估算' && quarter ? `季度持仓估算 · ${displayDate(quarterDates[0], true)}` : status;
+  const stateLabel = result?.current ? '披露持仓估算 · XLI按较新价格重估' : status === '持仓估算' && quarter ? `季度持仓估算 · ${displayDate(quarterDates[0], true)}` : status;
   const shareEstimateCodes = result?.rows.filter(r => (r.pb.value !== null || r.ps.value !== null) && r.qualityFlags.eventReconstructedShares > 0).map(r => r.code) ?? [];
   return <CollapsiblePanel panelKey="us-valuations" title="板块 ETF 估值" className="index-valuations us-sector-valuations">
     <p className="valuation-status" aria-live="polite">{stateLabel}</p>
@@ -91,9 +101,9 @@ export default function USSectorValuations({ date }: { date: string }) {
       <colgroup><col className="valuation-name-column" /><col /><col /></colgroup>
       <thead><tr><th scope="col">板块 / ETF</th><th scope="col">PB <small>倍</small></th><th scope="col">PS <small>倍</small></th></tr></thead>
       <tbody>{US_SECTOR_ETFS.map(([code, name]) => {
-        const row = result?.rows.find(r => r.code === code);
-        return <tr key={code}><th scope="row"><strong>{name}</strong><small>{code}</small>{row?.pricingBasis === 'portfolio_fair_value_per_share'&&!quarter&&<small>{displayDate(row.date, true)}</small>}{row?.sourceComparison?.sourceConflict&&<SourceComparison row={row}/>}</th>
-          {(['pb', 'ps'] as const).map(metric => <td key={metric}><div className="etf-valuation-reading"><b className={(row?.[metric].estimate?.value ?? row?.[metric].value) == null ? "is-missing" : undefined}>{(row?.[metric].estimate?.value ?? row?.[metric].value) != null ? number((row?.[metric].estimate?.value ?? row?.[metric].value)!) : '—'}</b>{row?.[metric].estimate && <MetricEstimate row={row} metric={metric}/>}{row?.[metric].percentile != null && row[metric].quarterlyHistory && <HistoricalRank row={row} metric={metric}/>}</div></td>)}
+        const row = result?.rows.find(r => r.code === code), current = code==='XLI' ? result?.current : null;
+        return <tr key={code}><th scope="row"><strong>{name}</strong><small>{code}</small>{row?.pricingBasis === 'portfolio_fair_value_per_share'&&!quarter&&<small>{displayDate(row.date, true)}</small>}{!current&&row?.sourceComparison?.sourceConflict&&<SourceComparison row={row}/>}</th>
+          {(['pb', 'ps'] as const).map(metric => current ? <td key={metric}><div className="etf-valuation-reading"><b className={current.metrics[metric].value===null?'is-missing':undefined}>{current.metrics[metric].value===null?'—':number(current.metrics[metric].value!)}</b><CurrentBasketEstimate row={current} metric={metric}/></div></td> : <td key={metric}><div className="etf-valuation-reading"><b className={(row?.[metric].estimate?.value ?? row?.[metric].value) == null ? "is-missing" : undefined}>{(row?.[metric].estimate?.value ?? row?.[metric].value) != null ? number((row?.[metric].estimate?.value ?? row?.[metric].value)!) : '—'}</b>{row?.[metric].estimate && <MetricEstimate row={row} metric={metric}/>}{row?.[metric].percentile != null && row[metric].quarterlyHistory && <HistoricalRank row={row} metric={metric}/>}</div></td>)}
         </tr>;
       })}</tbody>
     </table>
