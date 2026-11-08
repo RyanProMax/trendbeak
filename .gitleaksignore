@@ -1,0 +1,4 @@
+# Reviewed false positives: literal SQL snapshot names, not credentials.
+# These two historical test lines have since been parameterized.
+142f66ec377506a48a199ce629b7dc2e19673427:tests/us-etf-valuation-import.test.mjs:generic-api-key:13
+142f66ec377506a48a199ce629b7dc2e19673427:tests/us-etf-valuation-import.test.mjs:generic-api-key:26
