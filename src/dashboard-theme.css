@@ -26,7 +26,6 @@
   --calendar-missing: #ffffff;
   --calendar-missing-stroke: #888888;
   --calendar-selected: #555555;
-  --heat-closed: #eeeeee;
   --data-text-filter: brightness(.65);
   --mood-line-filter: brightness(.88);
   --popover-shadow: 0 10px 28px #0000001c;
@@ -59,7 +58,6 @@
     --calendar-missing: #000000;
     --calendar-missing-stroke: #777777;
     --calendar-selected: #cccccc;
-    --heat-closed: #222222;
     --data-text-filter: brightness(1.22);
     --mood-line-filter: brightness(1.05);
     --popover-shadow: 0 10px 28px #00000045;
@@ -74,10 +72,6 @@ body { background: var(--page); color: var(--ink); }
 #main-content .global-selected-date,
 #main-content .calendar-months, #main-content .calendar-weekdays,
 #main-content .heat-legend, #main-content .navigator-caption { color: var(--muted); }
-#main-content .legend-missing i { background: var(--heat-closed); }
-#main-content .legend-missing .missing-swatch {
-  background: var(--calendar-missing); border-color: var(--calendar-missing-stroke);
-}
 #main-content .calendar-grid-shell,
 #main-content .calendar-grid-shell * { -webkit-tap-highlight-color: transparent; }
 
@@ -274,7 +268,9 @@ body { background: var(--page); color: var(--ink); }
 input:not([type]), input:is([type="text"],[type="search"],[type="email"],[type="url"],[type="tel"],[type="password"],[type="number"],[type="date"]), textarea { caret-color: var(--ink) !important; }
 input[type="range"] { user-select: none; -webkit-user-select: none; }
 .topbar-inner { grid-template-columns: minmax(150px,1fr) auto minmax(180px,1fr) 36px; gap: 20px; }
-.theme-switch { display:grid; place-items:center; width:36px; height:36px; padding:0; border-radius:50%; color:var(--ink); justify-self:end; }
+.theme-switch { display:grid; place-items:center; width:36px; height:36px; padding:0; border-radius:50%; color:var(--ink); justify-self:end; position:relative; inset-inline-end:-8.5px; }
+/* Align the 19px icon with the content edge; keep a 44px target without moving the grid. */
+.theme-switch::before { content:""; position:absolute; inset:-4px; border-radius:50%; }
 .theme-switch:hover { background:var(--hover); }
 .brand-dark { display:none; }
 :root[data-theme="dark"] .brand-light { display:none; }

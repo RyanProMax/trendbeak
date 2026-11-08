@@ -1,10 +1,12 @@
 import CollapsiblePanel, {usePanelVisible} from "./CollapsiblePanel";
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { autoUpdate, safePolygon, flip, FloatingPortal, offset, shift, useClick, useDismiss, useFloating, useFocus, useHover, useInteractions, useRole } from '@floating-ui/react';
 import { displayDate, number } from '../lib/market-format';
 import { valuationCoverage } from '../lib/valuation-coverage';
+import { valuationPercentileColor } from '../lib/valuation-colors';
 import './market-overview.css';
 import './valuation-help.css';
+import './valuation-colors.css';
 import { validChinaOverview, valuationRowsForDate, type IndexValuation } from '../lib/china-overview';
 export type { IndexValuation } from '../lib/china-overview';
 
@@ -46,7 +48,10 @@ function ValuationReading({ row, metric }: { row: IndexValuation; metric: 'pb' |
   return <div className="valuation-reading">
     <button type="button" className="valuation-trigger" ref={refs.setReference} {...getReferenceProps()} aria-label={`${row.name} ${metric.toUpperCase()} 分位，查看数据覆盖时长`}>
       <b>{valid ? `${number(p, 1)}%` : '—'}</b>
-      <span className="valuation-track" aria-hidden="true">{valid && <i style={{ width: `${p}%` }} />}</span>
+      <span className="valuation-track" aria-hidden="true">{valid && <i style={{ width: `${p}%`,
+        '--valuation-fill-light': valuationPercentileColor(p, 'light'),
+        '--valuation-fill-dark': valuationPercentileColor(p, 'dark'),
+      } as CSSProperties} />}</span>
       <small>{reading.value === null ? '—' : `${number(reading.value)}倍`}</small>
     </button>
     {open && <FloatingPortal><div className="valuation-tooltip" ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()}>

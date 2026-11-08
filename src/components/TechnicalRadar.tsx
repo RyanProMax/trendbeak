@@ -5,6 +5,7 @@ import type { MarketSnapshot } from "../market-types";
 import { displayDate, number } from "../lib/market-format";
 import { isExchangeClosed } from "../lib/exchange-calendar";
 import { radarFactorColor, radarFactors, radarSegments, radarHitArea, type RadarId } from "../lib/radar-signals";
+import "./technical-radar.css";
 
 export default function TechnicalRadar({snapshot,date}:{snapshot:MarketSnapshot;date:string}) {
   const panelVisible=usePanelVisible();
@@ -66,9 +67,16 @@ export default function TechnicalRadar({snapshot,date}:{snapshot:MarketSnapshot;
     onKeyDown={event=>{if(event.key==="Tab")pinned.current=null;if(event.key==="Escape"&&active){event.preventDefault();event.stopPropagation();close(true);}}}>
     <div className="radar-stage" ref={stage}>
       <svg className="radar-graphic" viewBox={`0 0 ${width} 366`} role="img" aria-label="趋势、动量、波动和活跃度四个技术维度" aria-describedby={`${id}-desc`}>
-        <desc id={`${id}-desc`}>RSI使用原始0到100，EMA半径为绝对均线偏离的历史分位，波动和量能半径为此前最多252个完整观测的历史分位。波动和量能不表示多空，四维不保证统计独立，不合成总分或面积分数。样本不足不画点，原始值仍保留；可聚焦或点击数据点查看口径和观测日期。</desc>
-        <defs>{edges.map(([a,b])=>{const [x1,y1]=coordinates[a]!,[x2,y2]=coordinates[b]!;return <linearGradient key={`${a}-${b}`} id={`${id}-edge-${a}-${b}`} gradientUnits="userSpaceOnUse" x1={x1} y1={y1} x2={x2} y2={y2}><stop stopColor={colors[a]}/><stop offset="100%" stopColor={colors[b]}/></linearGradient>;})}</defs>
+        <desc id={`${id}-desc`}>RSI使用原始0到100，EMA半径为绝对均线偏离的历史分位，波动和量能半径为此前最多252个完整观测的历史分位。波动和量能不表示多空，四维不保证统计独立，不合成总分或面积分数。样本不足不画点，原始值仍保留；可聚焦或点击数据点查看口径和观测日期。背景渐变仅作装饰，不对应多空方向。</desc>
+        <defs>
+          {/* A fixed brand wash, independent of every factor's value and rank. */}
+          <linearGradient id={`${id}-background`} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop stopColor="#4f9d83"/><stop offset="50%" stopColor="#c8bd83"/><stop offset="100%" stopColor="#cb7774"/>
+          </linearGradient>
+          {edges.map(([a,b])=>{const [x1,y1]=coordinates[a]!,[x2,y2]=coordinates[b]!;return <linearGradient key={`${a}-${b}`} id={`${id}-edge-${a}-${b}`} gradientUnits="userSpaceOnUse" x1={x1} y1={y1} x2={x2} y2={y2}><stop stopColor={colors[a]}/><stop offset="100%" stopColor={colors[b]}/></linearGradient>;})}
+        </defs>
         <polygon className="radar-base" points={polygon(100)} fill="#fcfdfb"/>
+        <polygon className="radar-brand-background" points={polygon(100)} fill={`url(#${id}-background)`} aria-hidden="true"/>
         {[25,50,75,100].map(score=><polygon className="radar-grid" data-level={score} key={score} points={polygon(score)} fill="none" stroke={score===50?"#dce2d6":"#e9ede5"} strokeWidth={score===50?1.1:.8}/>)}
         {factors.map((item,i)=>{const [x,y]=point(i,100);return <line key={item.id} x1={cx} y1={cy} x2={x} y2={y} stroke="#e9ede5" strokeWidth=".8"/>;})}
         {complete&&<polygon className="radar-shape" points={factors.map((item,i)=>point(i,item.score!).join(",")).join(" ")} fill="#8ca58a" fillOpacity=".16"/>}

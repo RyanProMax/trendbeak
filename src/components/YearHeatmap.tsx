@@ -198,7 +198,7 @@ function YearHeatmap({
       </div>
       {showTooltip && hoverDay && (
         <FloatingPortal>
-          <div id={closedTooltipId} role="tooltip" className={`compact-tooltip${hoverDay.status === "closed" ? " closed-tooltip" : ""}`}
+          <div id={closedTooltipId} role="tooltip" className="compact-tooltip"
             ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()}><time dateTime={hoverDay.date}>{displayDate(hoverDay.date, true)}</time> · {dayValue(hoverDay)}{hoverDay.change !== null ? hoverDay.date === snapshot.asOf && snapshot.session === "trading" ? " · 盘中" : " · 收盘" : ""}</div>
         </FloatingPortal>
       )}
@@ -211,6 +211,5 @@ export default memo(YearHeatmap);
 export function HeatLegend({colorScheme="light"}:{colorScheme?:"light"|"dark"}={}) {
   return <div className="heat-legend" aria-label="绿跌红涨；颜色越深幅度越大">
     <span className="heat-change-key"><span className="down">−3%</span><span className="swatches">{(colorScheme==='dark'?DARK_COLORS:COLORS).map((color) => <i key={color} style={{ background: color }} />)}</span><span className="up">+3%</span></span>
-    <span className="legend-missing"><span><i />休市</span><span><i className="missing-swatch" />无交易数据</span></span>
   </div>;
 }

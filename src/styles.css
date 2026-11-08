@@ -88,13 +88,10 @@ main { max-width: 1248px; margin: 22px auto 64px; }
 .react-activity-calendar rect[role="button"]:focus { outline: none !important; }
 .react-activity-calendar rect[aria-pressed="true"] { filter: drop-shadow(0 0 1.5px #8caa92); }
 .react-activity-calendar rect[role="button"]:focus-visible { filter: drop-shadow(0 0 2px #84a58d); }
-.heat-legend { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 24px; margin: 22px 0 0; color: #7e877d; font-size: 12px; line-height: 20px; }
-.heat-change-key, .legend-missing > span { display: inline-flex; align-items: center; gap: 5px; }
+.heat-legend { display: flex; align-items: center; justify-content: center; margin: 22px 0 0; color: #7e877d; font-size: 12px; line-height: 20px; }
+.heat-change-key { display: inline-flex; align-items: center; gap: 5px; }
 .swatches { display: flex; gap: 2px; align-items: center; }
 .swatches i { width: 10px; height: 10px; border-radius: 1px; }
-.legend-missing { display: inline-flex; align-items: center; gap: 14px; }
-.legend-missing i { width: 10px; height: 10px; border-radius: 1px; background: #eef0ed; }
-.legend-missing .missing-swatch { background: transparent; border: 1px dashed #c3cbbb; }
 .calendar-unavailable { min-height: 134px; display: grid; place-items: center; color: #999ca4; font-size: 12px; }
 .market-signals { padding-top: 22px; }
 .signals-heading { display: flex; align-items: center; gap: 70px; margin-bottom: 30px; }
@@ -163,7 +160,7 @@ main { max-width: 1248px; margin: 22px auto 64px; }
   .calendar-groups { gap: 16px; }
   .calendar-row h3 { font-size: 12px; }
   .swatches i { width: 9px; height: 9px; }
-  .heat-legend { font-size: 11px; gap: 8px 18px; }
+  .heat-legend { font-size: 11px; }
   .signals-heading { flex-wrap: wrap; gap: 18px 23px; margin-bottom: 23px; }
   .chart-legend { gap: 16px; font-size: 12px; }
   .chart-legend span { gap: 6px; }

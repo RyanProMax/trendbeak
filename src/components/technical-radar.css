@@ -1,0 +1,11 @@
+/* The brand wash belongs to the fixed plot background, not the data shape.
+   Raw factor colors remain independent; area, activity and volatility have no
+   shared bullish/bearish meaning. */
+.radar-brand-background { opacity: .2; pointer-events: none; }
+.radar-signals .radar-shape { fill: var(--ink); fill-opacity: .055; }
+:root[data-theme="dark"] .radar-brand-background { opacity: .28; }
+:root[data-theme="dark"] .radar-signals .radar-shape { fill-opacity: .075; }
+@media (forced-colors: active) {
+  .radar-brand-background { display: none; }
+  .radar-signals .radar-shape { fill: CanvasText; }
+}
