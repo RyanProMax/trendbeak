@@ -29,3 +29,14 @@ for (const scheme of ['light', 'dark']) {
     dom.window.close();
   });
 }
+
+test('theme reveal paints snapshot gutters without an opaque native scrollbar track', () => {
+  const scrollbars = readFileSync('src/components/scrollbars.css', 'utf8');
+  assert.match(css, /::view-transition-old\(root\)\s*\{[^}]*background:#000000/);
+  assert.match(css, /::view-transition-new\(root\)\s*\{[^}]*background:var\(--page\)/);
+  assert.match(css, /:root\[data-theme="dark"\]::view-transition-old\(root\)\s*\{[^}]*background:#ffffff/);
+  assert.match(scrollbars, /--scrollbar-track:transparent/);
+  assert.doesNotMatch(scrollbars, /--scrollbar-track:var\(--page/);
+  assert.match(scrollbars, /scrollbar-gutter:stable both-edges/);
+  assert.match(scrollbars, /@media\(forced-colors:active\)/);
+});

@@ -5,11 +5,11 @@ html{
  scrollbar-gutter:stable both-edges;
  --scrollbar-thumb:#babec3;
  --scrollbar-thumb-hover:#8c929b;
- --scrollbar-track:var(--page,#fff);
+ --scrollbar-track:transparent;
  scrollbar-width:thin;
  scrollbar-color:var(--scrollbar-thumb) var(--scrollbar-track);
 }
-html[data-theme=dark]{--scrollbar-thumb:#484d55;--scrollbar-thumb-hover:#707782;--scrollbar-track:var(--page,#000)}
+html[data-theme=dark]{--scrollbar-thumb:#484d55;--scrollbar-thumb-hover:#707782}
 /* Standard properties cover Firefox and current Chromium; pseudo-elements
    retain a visible, draggable track on older WebKit implementations. */
 .search-popover{scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) transparent}

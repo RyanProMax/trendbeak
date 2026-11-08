@@ -276,9 +276,10 @@ input[type="range"] { user-select: none; -webkit-user-select: none; }
 :root[data-theme="dark"] .brand-light { display:none; }
 :root[data-theme="dark"] .brand-dark { display:block; }
 ::view-transition-old(root), ::view-transition-new(root) { animation:none; mix-blend-mode:normal; }
-::view-transition-old(root) { z-index:1; }
-::view-transition-new(root) { z-index:9999; }
-:root[data-theme="dark"]::view-transition-old(root) { z-index:9999; }
+/* Snapshots omit native scrollbar gutters; paint their full viewport backdrop. */
+::view-transition-old(root) { z-index:1; background:#000000; }
+::view-transition-new(root) { z-index:9999; background:var(--page); }
+:root[data-theme="dark"]::view-transition-old(root) { z-index:9999; background:#ffffff; }
 :root[data-theme="dark"]::view-transition-new(root) { z-index:1; }
 .valuation-trigger { display:block; width:100%; text-align:left; padding:4px 0; }
 .valuation-tooltip { max-width:min(320px,calc(100vw - 24px)); padding:12px 14px; border:1px solid var(--line); border-radius:8px; background:var(--surface-raised); color:var(--ink); box-shadow:var(--popover-shadow); font-size:12px; line-height:1.8; z-index:60; overflow-wrap:anywhere; }
