@@ -16,13 +16,13 @@ async function observeAnimations(context){await context.addInitScript(()=>{
 try{
  for(const reducedMotion of['no-preference','reduce']){
   const context=await browser.newContext({viewport:{width:1440,height:900},reducedMotion});await observeAnimations(context);const page=await context.newPage();
-  await page.goto(base,{waitUntil:'networkidle'});await page.locator('.six-factor-trigger').first().waitFor();const cn=await state(page);
-  await pointer(page,'US');const during=await state(page);assert.equal(during.market,'US');assert.match(during.url,/market=US/);
+  await page.goto(base,{waitUntil:'networkidle'});await page.locator('button.six-factor-trigger').first().waitFor();const cn=await state(page);
+  await pointer(page,'US');const during=await state(page);assert.equal(during.market,'US');assert.match(during.url,/market=US/);assert.equal(during.transform,'none','pointer switch never translates content');
   if(reducedMotion==='reduce'){assert.equal(during.opacity,'1');assert.equal(during.transform,'none');assert.equal(during.animations.length,0);}
   await pointer(page,'CN');await pointer(page,'US');await pointer(page,'CN');await page.waitForTimeout(300);
   const reversed=await state(page);assert.equal(reversed.market,'CN');assert.equal(reversed.selected,cn.selected);assert.equal(reversed.start,cn.start);assert.equal(reversed.end,cn.end);assert.equal(reversed.opacity,'1');
   const events=await page.evaluate(()=>window.__marketMotion);let interruptions=0;
-  for(let i=0;i<events.length;i++){const event=events[i];if(event.type==='animate')assert.ok(event.options.duration<200);if(event.type==='cancel'&&event.running&&events[i+1]?.type==='animate'){const start=events[i+1].frames[0];assert.ok(Math.abs(start.opacity-event.opacity)<.001,'interruption preserves current opacity');assert.equal(start.transform,event.transform,'interruption preserves current transform');interruptions++;}}
+  for(let i=0;i<events.length;i++){const event=events[i];if(event.type==='animate'){assert.ok(event.options.duration<200);assert.ok(event.frames.every(frame=>frame.transform===undefined||frame.transform==='none'),'dashboard only fades, never translates');}if(event.type==='cancel'&&event.running&&events[i+1]?.type==='animate'){const start=events[i+1].frames[0];assert.ok(Math.abs(start.opacity-event.opacity)<.001,'interruption preserves current opacity');assert.equal(event.transform,'none','interruption does not translate dashboard');assert.ok(start.transform===undefined||start.transform==='none','resumed fade does not introduce translation');interruptions++;}}
   if(reducedMotion==='no-preference')assert.ok(interruptions>0,'rapid reversals exercise an in-flight transition');
   await page.getByRole('slider',{name:'切换市场',exact:true}).press('End');const keyboard=await state(page);assert.equal(keyboard.market,'US');assert.equal(keyboard.opacity,'1');assert.ok(!keyboard.animations.some(a=>a.state==='running'));
   const thumb=await page.locator('.market-switch-thumb').evaluate(e=>({transition:getComputedStyle(e).transitionDuration,background:getComputedStyle(e.parentElement).backgroundImage}));assert.equal(thumb.transition,'0s','keyboard thumb is immediate');assert.match(thumb.background,/linear-gradient/);
@@ -30,6 +30,6 @@ try{
  }
  const context=await browser.newContext({viewport:{width:390,height:900}}),page=await context.newPage();let release,seen=false;const gate=new Promise(resolve=>release=resolve);
  await page.route('**/api/markets/US*',async route=>{seen=true;await gate;await route.continue();});
- await page.goto(base,{waitUntil:'networkidle'});await page.locator('.six-factor-trigger').first().waitFor();await pointer(page,'US');await pointer(page,'CN');release();await page.waitForTimeout(1200);assert.ok(seen);assert.equal((await state(page)).market,'CN');results.push({pendingOldFetchDoesNotReclaim:true});await context.close();
+ await page.goto(base,{waitUntil:'networkidle'});await page.locator('button.six-factor-trigger').first().waitFor();await pointer(page,'US');await pointer(page,'CN');release();await page.waitForTimeout(1200);assert.ok(seen);assert.equal((await state(page)).market,'CN');results.push({pendingOldFetchDoesNotReclaim:true});await context.close();
  await writeFile(out+'/results.json',JSON.stringify(results,null,2));console.log(JSON.stringify({motionCases:2,pendingFetchRace:true,interruptions:results[0].interruptions}));
 }finally{await browser.close();}

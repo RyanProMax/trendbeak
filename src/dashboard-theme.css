@@ -240,7 +240,7 @@ body { background: var(--page); color: var(--ink); }
 #main-content .quote { font-size:30px; letter-spacing:-.03em; color:var(--ink); }
 #main-content .quote-change { font-size:11px; }
 #main-content .quote-session { color:var(--muted); }
-#main-content .back-market,#main-content .quote-refresh { color:var(--accent); }
+#main-content .back-market { color:var(--accent); }
 .search-field { color:var(--secondary); border-color:var(--line); background:transparent; }
 .search-field input { color:var(--ink); caret-color:var(--ink); }
 .search-field input::placeholder { color:var(--muted); }

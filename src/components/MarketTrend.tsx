@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useId, useMemo, useRef, useState } from "react";
 import {createPortal} from "react-dom";
 import type { MarketSnapshot, TrendRange } from "../market-types";
 import { displayDate, number } from "../lib/market-format";
@@ -13,7 +13,7 @@ export default function MarketTrend({snapshot,benchmark,bounds,windowEnd,selecte
 }) {
  const id=useId(),container=useRef<HTMLDivElement>(null),svg=useRef<SVGSVGElement>(null),pointerFocusDate=useRef<string|null>(null);
  const [width,setWidth]=useState(584),[open,setOpen]=useState(false),gesture=useRef<{x:number;y:number;vertical:boolean}|null>(null),ignoreClick=useRef(false),clickedDuringVisit=useRef(false),newVisit=useRef(false),mouseBrowsed=useRef(false);
- useEffect(()=>{if(!container.current)return;const observer=new ResizeObserver(([entry])=>setWidth(Math.round(entry.contentRect.width)));observer.observe(container.current);return()=>observer.disconnect();},[]);
+ useLayoutEffect(()=>{if(!container.current)return;setWidth(Math.round(container.current.getBoundingClientRect().width));const observer=new ResizeObserver(([entry])=>setWidth(Math.round(entry.contentRect.width)));observer.observe(container.current);return()=>observer.disconnect();},[]);
  const series=useMemo(()=>trendSeries(snapshot,benchmark,windowEnd,range),[snapshot,benchmark,windowEnd,range]),{start,mood,prices}=series;
  const left=34,right=Math.max(left+90,width-68),top=24,bottom=184,values=prices.map(p=>p.value),low=values.length?Math.min(...values):0,high=values.length?Math.max(...values):100;
  const padding=Math.max((high-low)*.18,high*.003,1),min=Math.max(0,low-padding),max=high+padding;

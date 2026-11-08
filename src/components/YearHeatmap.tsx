@@ -1,4 +1,4 @@
-import { cloneElement, memo, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { cloneElement, memo, useLayoutEffect, useId, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import "./calendar-range.css";
 import { ActivityCalendar } from "react-activity-calendar";
 import { autoUpdate, flip, FloatingPortal, offset, shift, useDismiss, useFloating, useInteractions } from "@floating-ui/react";
@@ -82,8 +82,10 @@ function YearHeatmap({
   const dismiss = useDismiss(context);
   const { getFloatingProps } = useInteractions([dismiss]);
   const container = useRef<HTMLElement>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!container.current) return;
+    // Measure before the first paint after a market remount, not one frame later.
+    setWidth(container.current.getBoundingClientRect().width);
     const observer = new ResizeObserver(([entry]) =>
       setWidth(entry.contentRect.width),
     );

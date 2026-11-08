@@ -1,7 +1,8 @@
 import {useLayoutEffect,useRef} from 'react';
 
 /** State, URL and requests commit immediately. Only the newly rendered market
- * surface animates, so rapid reversals cannot publish a stale deferred update. */
+ * surface fades in place. Moving a full dashboard reads as a layout jump;
+ * rapid reversals continue from the current opacity without delaying state. */
 export function useMarketMotion(contentKey:string,enabled:{current:boolean}){
  const element=useRef<HTMLElement>(null),previous=useRef(contentKey),animation=useRef<Animation|null>(null);
  useLayoutEffect(()=>{
@@ -9,13 +10,13 @@ export function useMarketMotion(contentKey:string,enabled:{current:boolean}){
   previous.current=contentKey;
   const node=element.current,interrupted=animation.current?.playState==='running';
   const current=node&&interrupted?getComputedStyle(node):null;
-  const opacity=current?Number(current.opacity):.8,transform=current?.transform??'translateY(4px)';
+  const opacity=current?Number(current.opacity):.86;
   animation.current?.cancel();animation.current=null;
   if(!node||!enabled.current||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   animation.current=node.animate([
-   {opacity,transform},
-   {opacity:1,transform:'translateY(0)'},
-  ],{duration:180,easing:'cubic-bezier(.23,1,.32,1)'});
+   {opacity},
+   {opacity:1},
+  ],{duration:160,easing:'cubic-bezier(.23,1,.32,1)'});
  },[contentKey]);
  useLayoutEffect(()=>{
   const media=matchMedia('(prefers-reduced-motion: reduce)'),stop=()=>{if(media.matches)animation.current?.cancel();};

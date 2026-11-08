@@ -28,7 +28,7 @@ export default function MarketCard({ state, date, reset, retry }: {
           <div className={`quote-change ${tone(reading?.change ?? null)}`}>{number(reading?.change ?? null, 2, true)}{reading?.change != null ? "%" : ""}</div>
           {instrument.kind === "stock" && <button className="back-market" onClick={reset}><ArrowLeft size={13} />返回大盘</button>}
         </div>
-        <div className="quote-session"><time dateTime={quoteDate}>{displayDate(quoteDate!)}</time><span> · {session}</span><button className="quote-refresh" onClick={retry} aria-label={`刷新${marketName}行情`}><RotateCw size={13} /></button></div>
+        <div className="quote-session"><time dateTime={quoteDate}>{displayDate(quoteDate!)}</time><span> · {session}</span></div>
         {error && failedInstrument && failedInstrument.symbol !== instrument.symbol && <div className="market-refresh-error" role="status">{`${error==="该股票的历史数据尚未收录"?"尚未收录":"暂未载入"}${failedInstrument.name}，仍显示${instrument.name}`}</div>}
       </> : loading ? <QuoteSkeleton /> : <div className="market-empty" role="status"><span>—</span><button onClick={retry}><RotateCw size={14} />重试</button></div>}
     </div>

@@ -40,3 +40,40 @@
   background: var(--control-thumb);
   border-color: var(--control-line);
 }
+
+/* The overview, framed selection and handles share the capsule's glass edge.
+   Keep the plot unblurred and the selection boundary crisp during direct drag. */
+#main-content .trend-range-control .navigator-track::before {
+  border-color:var(--control-line);
+  box-shadow:inset 0 1px 0 #ffffffb3,inset 0 -1px 2px #365c4414,0 2px 5px #274b3410;
+}
+#main-content .trend-range-control .navigator-preview {
+  background:linear-gradient(180deg,#ffffff8c,transparent 70%),var(--control);
+}
+#main-content .trend-range-control .navigator-window {
+  background:linear-gradient(180deg,#ffffff80,#ffffff0a 48%,#ffffff30),var(--range-selection);
+  box-shadow:inset 0 1px 0 #ffffffd9,inset 0 -1px 0 #ffffff80,0 1px 3px #2d503320;
+}
+#main-content .trend-range-control .navigator-thumb::before {
+  background:linear-gradient(110deg,#fffffff2,#e4eee7e8 50%,#ffffffdf);
+  box-shadow:inset 1px 0 0 #fff,0 1px 3px #294a3933;
+}
+:root[data-theme="dark"] #main-content .trend-range-control .navigator-track::before {
+  box-shadow:inset 0 1px 0 #ffffff24,inset 0 -1px 2px #0005,0 2px 5px #0004;
+}
+:root[data-theme="dark"] #main-content .trend-range-control .navigator-preview {
+  background:linear-gradient(180deg,#ffffff0f,transparent 70%),var(--control);
+}
+:root[data-theme="dark"] #main-content .trend-range-control .navigator-window {
+  background:linear-gradient(180deg,#ffffff17,#ffffff02 48%,#ffffff0a),var(--range-selection);
+  box-shadow:inset 0 1px 0 #ffffff38,inset 0 -1px 0 #ffffff18,0 1px 3px #0005;
+}
+:root[data-theme="dark"] #main-content .trend-range-control .navigator-thumb::before {
+  background:linear-gradient(110deg,#627b69,#314b3c 50%,#4a6352);
+  box-shadow:inset 1px 0 0 #ffffff40,0 1px 3px #0006;
+}
+@media(prefers-reduced-transparency:reduce){
+  #main-content .trend-range-control .navigator-preview { background:var(--control)!important; }
+  #main-content .trend-range-control .navigator-window { background:transparent!important;box-shadow:inset 0 0 0 1px var(--control-line)!important; }
+  #main-content .trend-range-control .navigator-thumb::before { background:var(--control-thumb)!important; }
+}

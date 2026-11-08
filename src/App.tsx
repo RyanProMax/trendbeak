@@ -52,6 +52,7 @@ function Dashboard({ data }: { data: PageData }) {
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [trendReadoutTarget,setTrendReadoutTarget]=useState<HTMLDivElement|null>(null);
   const marketMotion=useRef(false),pointerInput=useRef(false);
+  const [loadingCalendar,setLoadingCalendar]=useState<{market:Market;height:number}|null>(null);
   const mainRef=useMarketMotion(`${activeMarket}:${markets[activeMarket].snapshot?.instrument.symbol??'loading'}`,marketMotion);
   useEffect(()=>{
     const pointer=()=>{pointerInput.current=true;},keyboard=()=>{pointerInput.current=false;};
@@ -88,7 +89,7 @@ function Dashboard({ data }: { data: PageData }) {
     try{persistTrendWindow(window.sessionStorage,normalized,bounds,activeMarket);}catch{/* Optional storage. */}
   },[rangeReady,userWindow,bounds?.start,bounds?.end]);
   const restoredMarkets=useRef(new Set<Market>());
-  useEffect(()=>{if(!rangeReady||!bounds||restoredMarkets.current.has(activeMarket))return;restoredMarkets.current.add(activeMarket);try{const saved=restoreTrendWindow(window.sessionStorage,bounds,activeMarket);if(saved)setUserWindows(old=>({...old,[activeMarket]:old[activeMarket]??saved}));}catch{/* Optional storage. */}},[rangeReady,activeMarket,bounds?.start,bounds?.end]);
+  useLayoutEffect(()=>{if(!rangeReady||!bounds||restoredMarkets.current.has(activeMarket))return;restoredMarkets.current.add(activeMarket);try{const saved=restoreTrendWindow(window.sessionStorage,bounds,activeMarket);if(saved)setUserWindows(old=>({...old,[activeMarket]:old[activeMarket]??saved}));}catch{/* Optional storage. */}},[rangeReady,activeMarket,bounds?.start,bounds?.end]);
   const windowEnd = trendWindow?.end??calendarEnd;
   const range = trendWindow?windowDays(trendWindow):defaultDays;
   const alignedDays = useMemo(()=>Object.fromEntries((["CN","US"] as Market[]).map(market=>[market,
@@ -213,6 +214,10 @@ function Dashboard({ data }: { data: PageData }) {
   const ensureBenchmark=async(market:Market)=>{if(benchmarkRequests.current[market])return benchmarkRequests.current[market];const task=load(BENCHMARKS[market]);benchmarkRequests.current[market]=task;try{return await task;}finally{if(benchmarkRequests.current[market]===task)delete benchmarkRequests.current[market];}};
   const changeMarket=(market:Market,record=true,animate=pointerInput.current)=>{
     marketMotion.current=market!==shownMarket.current&&animate;
+    if(market!==shownMarket.current){
+      const height=mainRef.current?.querySelector('.calendar-rows')?.getBoundingClientRect().height;
+      setLoadingCalendar(!current.current[market].snapshot&&height?{market,height}:null);
+    }
     shownMarket.current=market;setActiveMarket(market);setHoveredDate(null);setNavigating(false);
     if(record){const url=new URL(location.href);url.searchParams.set('market',market);const instrument=current.current[market].instrument;if(instrument.kind==='stock')url.searchParams.set('symbol',instrument.symbol);else url.searchParams.delete('symbol');history.pushState(null,'',url);}
   };
@@ -240,7 +245,7 @@ function Dashboard({ data }: { data: PageData }) {
   useEffect(()=>{const market=shownMarket.current;if(Date.now()-(lastReads.current[market]??0)>=300_000){const instrument=current.current[market].instrument;void(instrument.kind==='index'?ensureBenchmark(market):load(instrument));}},[activeMarket]);
   useEffect(() => {
     // Recover a transient empty SSR state once, without waiting a full minute.
-    // A manual request or a successful quote supersedes this timer.
+    // A navigation read or a successful quote supersedes this timer.
     const recoveryTimers = ([shownMarket.current] as Market[]).flatMap((market) =>
       !data.markets[market].snapshot && data.markets[market].error!==null && data.markets[market].retryable === true
         ? [window.setTimeout(() => {
@@ -248,40 +253,10 @@ function Dashboard({ data }: { data: PageData }) {
             if (!state.snapshot && !state.loading && !controllers.current[market]) void load(state.instrument);
           }, 1500)] : [],
     );
-    const refresh = () => {
-      if (document.visibilityState === "visible")
-        for (const market of [shownMarket.current]) {
-          if (!current.current[market].loading) {
-            void load(current.current[market].instrument);
-            if (current.current[market].instrument.kind === "stock" && !benchmarkRequests.current[market]) {
-              benchmarkRequests.current[market] = fetchQuote(`/api/markets/${market}`).then(async (response) => {
-                if (!response.ok) throw new Error("Benchmark unavailable");
-                const payload = await response.json() as { data: MarketSnapshot };
-                payload.data = expandSnapshot(payload.data);
-                const record = recordFromSnapshot(payload.data);
-                if (!(payload.data.freshness?.via==="database"?validSnapshot(payload.data,market,BENCHMARKS[market].symbol,Date.now()):validRecord(record,market,BENCHMARKS[market].symbol))) throw new Error("Invalid benchmark");
-                const snapshot = readSnapshot(record,Date.now(),payload.data.freshness?.via ?? "upstream",payload.data.freshness?.state === "stale");
-                rememberSnapshot(snapshot,browserStorage());
-                setBenchmarks((previous) => ({ ...previous, [market]: snapshot }));
-              }).catch(() => {
-                setBenchmarks((previous) => {
-                  const old = previous[market] ? recordFromSnapshot(previous[market]!) : null;
-                  const backup = validRecord(old,market,BENCHMARKS[market].symbol) ? readSnapshot(old,Date.now(),"memory",true) : restoreSnapshot(market,BENCHMARKS[market].symbol,browserStorage());
-                  return { ...previous,[market]:backup };
-                });
-              }).finally(()=>{ delete benchmarkRequests.current[market]; });
-            }
-          }
-        }
-    };
-    let lastRefresh=Date.now();
-    const boundedRefresh=()=>{if(Date.now()-lastRefresh<300_000)return;lastRefresh=Date.now();refresh();};
-    const timer = window.setInterval(boundedRefresh, 300_000);
-    document.addEventListener("visibilitychange", boundedRefresh);
+    // Quote updates belong to scheduled backend jobs. A page/navigation read
+    // still retrieves the prepared snapshot, but the browser never polls it.
     return () => {
-      clearInterval(timer);
       recoveryTimers.forEach(clearTimeout);
-      document.removeEventListener("visibilitychange", boundedRefresh);
       Object.values(controllers.current).forEach((controller) =>
         controller.abort(),
       );
@@ -306,7 +281,7 @@ function Dashboard({ data }: { data: PageData }) {
             <h2 id="calendar-title">每日涨跌</h2>
             {globalDate ? <time className="global-selected-date" dateTime={globalDate} aria-live="polite">{displayDate(globalDate, true)}</time> : <span className="global-selected-date">—</span>}
           </div>
-          <div className="calendar-rows">
+          <div className="calendar-rows" style={!markets[activeMarket].snapshot&&markets[activeMarket].loading&&loadingCalendar?.market===activeMarket?{minHeight:loadingCalendar.height}:undefined}>
             {[activeMarket].map((market) => {
               const snapshot = markets[market].snapshot;
               return <div className="calendar-row" data-calendar-market={market} key={market}>
@@ -316,7 +291,7 @@ function Dashboard({ data }: { data: PageData }) {
               </div>;
             })}
           </div>
-          {calendarEnd && <HeatLegend colorScheme={scheme} />}
+          {(calendarEnd||markets[activeMarket].loading) && <HeatLegend colorScheme={scheme} />}
         </section>
         <section className={`market-signals${navigating ? " is-navigating" : ""}`} aria-labelledby="signals-title">
           <div className="signals-heading"><h2 id="signals-title">市场信号</h2>

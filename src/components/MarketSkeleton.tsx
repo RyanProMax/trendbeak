@@ -23,12 +23,22 @@ export function SignalsSkeleton({market}: {market: Market}) {
     <div className="signals signals-skeleton" role="status" aria-label={`正在读取${name}市场信号`}>
       <div className="analysis-heading"><h3>{name}</h3><span className="sr-only">正在读取市场信号</span></div>
       <div className="trend-wrap skeleton-trend" aria-hidden="true">
-        <div className="skeleton-chart-labels"><i className="skeleton"/><i className="skeleton"/></div>
-        <div className="skeleton-chart"><div className="skeleton skeleton-chart-placeholder"/></div>
-        <div className="skeleton-chart-labels"><i className="skeleton"/><i className="skeleton"/></div>
+        <div className="chart-axis-head"><span>情绪 · 0–100</span><span>指数点位</span></div>
+        <div className="skeleton-chart interactive-trend"><div className="skeleton skeleton-chart-placeholder"/></div>
+        <div className="trend-status"/>
       </div>
-      <div className="technical-signals skeleton-technical" aria-hidden="true">
-        <div className="skeleton-radar"><div className="skeleton skeleton-diamond"/>{[0, 1, 2, 3].map(i => <div className={`skeleton-radar-label skeleton-radar-label-${i}`} key={i}><i className="skeleton"/><i className="skeleton"/></div>)}</div>
+      <div className="trend-range-control skeleton-range" aria-hidden="true">
+        <div className="navigator-track"><div className="navigator-preview skeleton"/></div>
+        <div className="navigator-caption"><i className="skeleton"/><i className="skeleton"/></div>
+      </div>
+      <div className="signal-radar" aria-hidden="true">
+        <section className="china-sentiment skeleton-overview">
+          <header className="overview-heading"><h3>{market==='CN'?'A股市场情绪':'美股市场情绪'}</h3><span className="skeleton"/></header>
+          <svg className="six-factor-graphic" viewBox="0 0 360 288">
+            {[.5,1].map(scale=><polygon key={scale} className="six-factor-grid" points={Array.from({length:6},(_,i)=>{const angle=-Math.PI/2+i*Math.PI/3;return `${180+Math.cos(angle)*103*scale},${144+Math.sin(angle)*103*scale}`;}).join(' ')}/>)}
+          </svg>
+          <div className="six-factor-readings">{Array.from({length:6},(_,i)=><div className="six-factor-skeleton" key={i}><span className="skeleton skeleton-factor-label"/><span className="skeleton skeleton-factor-value"/><span className="skeleton skeleton-factor-track"/></div>)}</div>
+        </section>
       </div>
     </div>
   </section>;

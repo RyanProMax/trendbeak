@@ -427,7 +427,6 @@ main { overflow-anchor: none; }
 }
 @media(prefers-reduced-motion:reduce) { .skeleton { animation: none; } }
 
-.quote-refresh { display: inline-flex; align-items: center; padding: 0 4px; color: #839175; background: transparent; }
 
 body { cursor: default; caret-color: transparent; }
 input,textarea,[contenteditable="true"] { caret-color: auto; cursor: text; user-select: text; -webkit-user-select: text; }
