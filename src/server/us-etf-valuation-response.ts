@@ -1,6 +1,18 @@
 import {xlpMethodForDate, type Proof} from './us-etf-xlp-method-response';
 import { VERIFIED_ETF_PUBLICATIONS, publicationProofsForDate, type ETFPublicationEntry } from './us-etf-publication';
 import { US_SECTOR_ETFS, validETFDate, validETFValuation, type ETFValuation } from '../lib/us-etf-valuations';
+/** Reversible output-only quarantine: SPG mixed investment/operating income
+ * has not been reconciled for XLRE PS. No stored data or PB is changed. */
+export function holdXLREMixedIncomePS(row: ETFValuation): ETFValuation {
+  if (row.code !== 'XLRE') return row;
+  const ps = { ...row.ps, value: null, percentile: null };
+  delete ps.estimate; delete ps.quarterlyHistory;
+  return { ...row, ps, ...(row.sourceComparison ? { sourceComparison: {
+    ...row.sourceComparison,
+    alternateSourceValues: { ...row.sourceComparison.alternateSourceValues, ps: null },
+    deltaPercent: { ...row.sourceComparison.deltaPercent, ps: null }
+  } } : {}) };
+}
 /** Fixed symbols, one exact date, <= 4 KB per prepared reading. Never a source fetch. */
 export async function usETFValuationResponse(url: URL, db?: D1Database, approved: readonly ETFPublicationEntry[] = VERIFIED_ETF_PUBLICATIONS, xlpProof?: Proof|null): Promise<Response> {
   const date = url.searchParams.get('date') ?? '';
@@ -48,7 +60,7 @@ export async function usETFValuationResponse(url: URL, db?: D1Database, approved
       if (!entry.reading) continue;
       const row = JSON.parse(entry.reading);
       if (entry.observation_date !== row.date || entry.key !== 'valuation/US/' + row.code || !validETFValuation(row, date) || rows.some(r => r.code === row.code)) throw Error('Invalid prepared ETF valuation');
-      rows.push(row);
+      rows.push(holdXLREMixedIncomePS(row));
     }
     if(format==='sector-methods-v7'){const i=rows.findIndex(r=>r.code==='XLP');if(i>=0)rows.splice(i,1);const xlp=await xlpMethodForDate(db,date,xlpProof);if(xlp)rows.push(xlp);}
     return Response.json({ data: { date, rows } }, { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=60' } });

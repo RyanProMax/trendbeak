@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'; import test, { before, after } from 'node:test'; import { createServer } from 'vite';
 import { memoryDB } from './market-fixture.mjs'; import { etfInput as baseETFInput, date, cutoff } from './us-etf-fixture.mjs'; import { calculateETF, METHOD, MIN_COVERAGE, SECTORS } from '../scripts/us-etf-valuations.mjs';
 const etfInput=()=>({...baseETFInput(),code:'XLV'});
-const pbHeld = row => { const r=structuredClone(row);r.pb.value=null;r.pb.percentile=null;if(r.sourceComparison){r.sourceComparison.alternateSourceValues.pb=null;r.sourceComparison.deltaPercent.pb=null;}return r; };
+const pbHeld = row => { const r=structuredClone(row);r.pb.value=null;r.pb.percentile=null;if(r.sourceComparison){r.sourceComparison.alternateSourceValues.pb=null;r.sourceComparison.deltaPercent.pb=null;}if(r.code==='XLRE'){r.ps.value=null;r.ps.percentile=null;delete r.ps.estimate;delete r.ps.quarterlyHistory;if(r.sourceComparison){r.sourceComparison.alternateSourceValues.ps=null;r.sourceComparison.deltaPercent.ps=null;}}return r; };
 let vite, respond, valid;
 before(async () => { vite = await createServer({ configFile: false, appType: 'custom', server: { middlewareMode: true, hmr: false, ws: false } }); respond = (await vite.ssrLoadModule('/src/server/us-etf-valuation-response.ts')).usETFValuationResponse; const contract=await vite.ssrLoadModule('/src/lib/us-etf-valuations.ts');valid=contract.validETFValuation; assert.equal(contract.ETF_METHOD_VERSION,METHOD);assert.equal(contract.ETF_MIN_COVERAGE,MIN_COVERAGE);assert.deepEqual(Object.fromEntries(contract.US_SECTOR_ETFS),SECTORS); });
 after(async () => vite?.close());
