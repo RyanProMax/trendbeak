@@ -9,7 +9,7 @@ try {
     const page = await context.newPage(), errors = [];
     page.on('pageerror', e => errors.push(e.message));
     await page.goto(base, { waitUntil: 'networkidle' });
-    await page.locator('.six-factor-trigger').first().waitFor();
+    await page.locator('button.six-factor-trigger').first().waitFor();
     await page.evaluate(() => document.fonts.ready);
     const logo = page.locator('.brand-wordmark:visible');
     await logo.evaluate(el => el.decode());
@@ -52,7 +52,7 @@ try {
     for (const [market, ids] of Object.entries({ CN: ['fearGreed', 'rsi', 'breadth', 'limitRatio', 'turnover', 'relativeTurnover'], US: ['fearGreed', 'priceStrength', 'breadth', 'putCall', 'vix', 'creditSpread'] })) {
       const slider = page.getByRole('slider', { name: '切换市场', exact: true });
       await slider.focus(); await slider.press(market === 'CN' ? 'Home' : 'End');
-      await page.locator(`main[data-market="${market}"] .six-factor-trigger`).first().waitFor();
+      await page.locator(`main[data-market="${market}"] button.six-factor-trigger`).first().waitFor();
       await capture(market);
       for (const id of ids) {
         await page.locator(`.six-factor-trigger[data-radar-axis="${id}"]`).click();
