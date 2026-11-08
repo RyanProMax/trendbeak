@@ -27,7 +27,7 @@ export async function usETFValuationResponse(url: URL, db?: D1Database, approved
     if (approved !== VERIFIED_ETF_PUBLICATIONS && new TextEncoder().encode(releaseJSON).byteLength > 250000) throw Error('Publication proof byte bound');
     // One JSON binding keeps all dated proofs below D1's 100-parameter limit.
     const releaseValues = `SELECT 'valuation/US/'||json_extract(value,'$.code'),json_extract(value,'$.version'),json_extract(value,'$.preparedReading') FROM json_each(?) LIMIT 55`;
-    const result = await db.prepare(`WITH releases(key,version,reading) AS (${releaseValues}) SELECT key, observation_date, ${projection} AS reading FROM (
+    const result = await db.prepare(`WITH releases(key,version,reading) AS MATERIALIZED (${releaseValues}) SELECT key, observation_date, ${projection} AS reading FROM (
       SELECT key, observation_date, released, ${corporateHold} AS reading FROM (
       SELECT s.key, h.key AS observation_date, h.value AS reading, EXISTS(SELECT 1 FROM releases r WHERE r.key=s.key AND r.version=s.updated_at AND r.reading=h.value) AS released, ROW_NUMBER() OVER (PARTITION BY s.key ORDER BY h.key DESC) AS position
       FROM market_snapshot s, json_each(s.payload,'$.history') h
