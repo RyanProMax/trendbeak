@@ -125,7 +125,9 @@ try {
       await page.evaluate(scroll => scrollTo(0, scroll), scroll);
       await page.waitForTimeout(100);
       await startFrames(page); await pointer(page, market, true);
-      await page.waitForTimeout(900);
+      await page.locator(`.market-analysis[data-analysis-market="${market}"] button.six-factor-trigger`).first().waitFor();
+      await page.locator('.trend-range-control[data-start][data-end]').waitFor();
+      await page.waitForTimeout(300);
       const frames = await stopFrames(page), label = `${width}/saved/${scroll}/${market}`;
       checkFrames(frames, {sameWindow: false, reducedMotion: 'reduce', label});
       if (scroll <= 280) assert.ok(frames.every(frame => Math.abs(frame.scroll - scroll) < .5), label + ': scroll preserved');
