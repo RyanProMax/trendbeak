@@ -48,3 +48,8 @@ The current client requests `format=event-equity-v2` from the same bounded valua
 The XLB/DD 2026-06-30 exception uses `estimated_split_adjusted_last_known_common_outstanding`: the officially disclosed approximate May 22 base of 405,058,202 divided by the June 24 effective 1-for-3 reverse split. It is explicitly an event-adjusted estimate, not a precise post-split register; fractional-share cash settlement and later share changes were not reconstructed. This date/security/basis admits only that reviewed base and event timing, retains the original share-observation date and sources, and adds one XLB share-estimate label. The old pre-split count cannot be silently restored even if a collector omits the event flag.
 
 For an atomic reviewed pair, `--batch` accepts an array of `{input, expectedOldHash, expectedNewHash}` objects. Every prior version and payload must still match in the same guarded SQL statement; a conflict on either key prevents both replacements. The exclusive pre-write backup includes all changed prior rows.
+
+
+## Temporary corporate-action safety hold
+
+Until the current material corporate-action review is completed, the API output withholds both PB and PS for XLE, XLB, XLK and XLY in both client formats. It also removes source-comparison values and deltas for those rows. The underlying checkpoints are preserved unchanged, and the other seven ETF rows retain their exact prepared readings. This is a reversible reader-layer safety measure, not a replacement valuation or a claim that historical estimates were corrected. Release of any held fund requires independently reviewed input and explicit correction publication.
