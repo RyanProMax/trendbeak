@@ -103,10 +103,10 @@ test("dashboard SSR renders the selected market shell and keeps both market read
   const response = await request("/");
   assert.equal(response.status, 200);
   const document = new JSDOM(await response.text()).window.document;
-  assert.equal(document.querySelectorAll(".market-card").length, 1);
+  assert.equal(document.querySelectorAll(".market-card").length, 0);
   assert.deepEqual(
-    [...document.querySelectorAll(".market-card")].map(
-      (el) => el.dataset.market,
+    [...document.querySelectorAll(".calendar-row")].map(
+      (el) => el.dataset.calendarMarket,
     ),
     ["CN"],
   );
@@ -116,7 +116,7 @@ test("dashboard SSR renders the selected market shell and keeps both market read
   );
   assert.equal(document.querySelectorAll(".radar-axis,.react-activity-calendar,.trend-chart").length,0);
   assert.equal(document.querySelectorAll(".calendar-loading,.signals-skeleton").length,2);
-  assert.equal(document.querySelectorAll(".quote-skeleton[role=status]").length,1);
+  assert.equal(document.querySelectorAll(".quote-skeleton[role=status]").length,0);
   const data = JSON.parse(
     document.querySelector("#trendbeak-data").textContent,
   );
@@ -187,12 +187,12 @@ test("market names and hydration data cannot escape HTML, including partial outa
   );
 });
 
-test("both unavailable markets retain compact quote retry controls inside the calendar", async () => {
+test("unavailable markets keep a compact calendar state without duplicate quote cards or refresh controls", async () => {
   const { default: Document } = await vite.ssrLoadModule("/src/App.tsx");
   const { BENCHMARKS } = await vite.ssrLoadModule("/src/market-types.ts");
   const data = { requestUrl: "https://example.test/", markets: Object.fromEntries(["CN","US"].map(market => [market, { instrument: BENCHMARKS[market], snapshot: null, error: "行情暂不可用", retryable: true }])) };
   const document = new JSDOM(renderToStaticMarkup(React.createElement(Document, { data }))).window.document;
-  assert.equal(document.querySelectorAll(".calendar-row > .market-card .market-empty button").length, 1);
+  assert.equal(document.querySelectorAll(".market-card,.market-empty button").length, 0);
   assert.equal(document.querySelectorAll(".market-grid").length, 0);
   assert.equal(document.querySelectorAll(".calendar-heading button").length, 0);
   assert.doesNotMatch(document.body.textContent, /Invalid Date|日期未知/);

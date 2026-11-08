@@ -14,3 +14,15 @@ test('neighboring point hit regions keep each real center available on narrow sc
 test('coincident point hit targets partition around the shared coordinate without NaN',()=>{const shapes=[0,1,2,3].map(i=>radar.radarHitArea(i,[[0,0],[0,0],[0,0],[0,0]]));assert.equal(new Set(shapes).size,4);assert.ok(shapes.every(s=>s.startsWith('polygon(')&&!s.includes('NaN')));});
 
 test('indicator state rules keep direction, magnitude and activity distinct at boundaries',()=>{for(const[p,s]of [[-1,'低于下轨'],[0,'位于下轨'],[20,'靠近下轨'],[20.01,'中轨下方'],[50,'位于中轨'],[79.99,'中轨上方'],[80,'靠近上轨'],[100,'位于上轨'],[101,'高于上轨'],[null,'—']])assert.equal(radar.bandPositionState(p),s);const f=radar.radarFactors(fixture(),'2026-10-30');assert.match(f[0].status,/下降/);assert.match(f[1].status,/</);assert.match(f[1].strengthLabel,/26/);assert.match(f[2].status,/下轨.*扩张/);assert.equal(f[2].position,15);assert.equal(f[3].status,'高于均量');assert.doesNotMatch(f[3].status,/多|买/);});
+
+function stockFixture(){const s=fixture();s.instrument={market:'US',kind:'stock',symbol:'AAPL',code:'AAPL',name:'Apple'};s.source={name:'Yahoo Finance',url:'https://finance.yahoo.com/quote/AAPL/history/'};s.technicalSource='trendbeak_technical_v1';return s;}
+test('stock radar requires its own prepared source and exact-date evidence',()=>{
+ const s=stockFixture();assert.equal(radar.hasStockRadar(s,s.asOf),true);assert.deepEqual(radar.radarFactors(s,s.asOf).map(f=>f.value),[24.7,-2.7,8.5,1.09]);
+ for(const patch of [{technicalSource:undefined},{source:{name:'Yahoo',url:'https://finance.yahoo.com/quote/%5EIXIC/history/'}},{history:{}}])assert.equal(radar.hasStockRadar({...s,...patch},s.asOf),false);
+ assert.equal(radar.hasStockRadar(s,'2026-10-29'),false);assert.equal(radar.hasStockRadar(s,'2026-10-31'),false);
+});
+test('stock radar never borrows stale activity or fabricates percentile strength with insufficient samples',()=>{
+ const s=stockFixture(),row=s.history[s.asOf];row.radar.activity.asOf='2026-10-29';row.radar.ema.samples=59;
+ const factors=radar.radarFactors(s,s.asOf);assert.equal(factors[3].value,null);assert.equal(factors[3].score,null);assert.equal(factors[1].value,-2.7);assert.equal(factors[1].score,null);
+ row.values.rsi=null;row.radar.ema.value=null;row.radar.volatility.value=null;assert.equal(radar.hasStockRadar(s,s.asOf),false);
+});

@@ -1,0 +1,27 @@
+#main-content .foldable-panel{width:100%;max-width:none;margin:0 0 40px;padding:0;border:0;position:relative}
+#main-content .panel-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 16px;min-height:32px}
+#main-content .panel-heading h2{margin:0;font-size:16px;font-weight:600;flex-shrink:0}
+.panel-heading h2 button{display:flex;align-items:center;gap:8px;border:0;background:none;color:inherit;font:inherit;padding:6px 0;cursor:pointer;text-align:left}
+.panel-heading h2 button:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:2px}
+.panel-heading svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.5;opacity:.55}
+.panel-heading button[aria-expanded=false] svg{transform:rotate(-90deg)}
+/* Keep the measured width and mounted charts without retaining layout height. */
+.panel-body[data-collapsed=true]{position:absolute;top:100%;left:0;width:100%;visibility:hidden;pointer-events:none;overflow:hidden;height:0}
+#main-content .signal-radar{max-width:none;margin:0}
+#main-content .china-sentiment{max-width:none;width:100%;margin:0}
+#main-content .six-factor-readings{max-width:680px;margin-left:auto;margin-right:auto}
+#main-content .index-valuations table{max-width:680px;margin-left:auto;margin-right:auto}
+#main-content .panel-heading>time,#main-content .panel-heading>span{font-size:11px;color:var(--muted);text-align:right}
+
+#main-content .calendar-row{display:block;grid-template-columns:minmax(0,1fr)}
+#main-content .market-signals>.panel-heading{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:0}
+#main-content .market-signals>.panel-heading h2{grid-column:1;grid-row:1}
+#main-content .stock-signals>.panel-heading{grid-template-columns:minmax(0,1fr);row-gap:5px}
+#main-content .stock-signals .trend-heading-readout{grid-column:1;grid-row:2;justify-self:center}
+#main-content .stock-technical-panel .technical-signals{max-width:680px;margin:0 auto}
+#main-content .foldable-panel{scroll-margin-top:100px}
+.selection-status{font-size:12px;color:var(--muted);margin:0 0 12px}
+@media(max-width:760px){
+ #main-content .market-signals>.panel-heading{grid-template-columns:minmax(0,1fr);row-gap:5px}
+ #main-content .foldable-panel{scroll-margin-top:150px}
+}

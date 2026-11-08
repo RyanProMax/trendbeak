@@ -1,3 +1,4 @@
+import CollapsiblePanel, {usePanelVisible} from "./CollapsiblePanel";
 import {useEffect,useId,useRef,useState} from 'react';
 import {autoUpdate,flip,FloatingFocusManager,FloatingPortal,hide,offset,shift,size,useDismiss,useFloating,useInteractions,useRole,useTransitionStyles} from '@floating-ui/react';
 import {displayDate,number} from '../lib/market-format';
@@ -9,9 +10,11 @@ export {CHINA_FACTOR_LABELS} from '../lib/china-overview';
 export type {ChinaFactor,ChinaFactorReading} from '../lib/china-overview';
 /** Render already prepared observations only. Never rank raw values or apply CN
  * market factors to US instruments; absent historical dates stay empty. */
-export function MarketSentimentRadar({date,readings,market='CN',labels=CHINA_FACTOR_LABELS}:{date:string;readings:Record<string,ChinaFactorReading>;market?:'CN'|'US';labels?:Record<string,string>}){
+function RadarContent({date,readings,market='CN',labels=CHINA_FACTOR_LABELS}:{date:string;readings:Record<string,ChinaFactorReading>;market?:'CN'|'US';labels?:Record<string,string>}){
  const id=useId(),[selection,setSelection]=useState<{key:string;date:string;market:string}|null>(null),keys=Object.keys(labels),closed=isExchangeClosed(date,market);
- const active=selection?.date===date&&selection.market===market?selection.key:null;
+ const visible=usePanelVisible();
+ useEffect(()=>{if(!visible)setSelection(null);},[visible]);
+ const active=visible&&selection?.date===date&&selection.market===market?selection.key:null;
  const keyboard=useRef(false),trigger=useRef<HTMLButtonElement|null>(null);
  const {refs,floatingStyles,context,middlewareData,x}=useFloating({open:!!active,onOpenChange:open=>{if(!open)setSelection(null);},placement:'top',strategy:'fixed',whileElementsMounted:autoUpdate,
   middleware:[offset(10),flip({padding:12}),shift({padding:12}),size({padding:12,apply({availableHeight,elements}){elements.floating.style.maxHeight=`${Math.max(0,availableHeight)}px`;}}),hide()]});
@@ -25,7 +28,7 @@ export function MarketSentimentRadar({date,readings,market='CN',labels=CHINA_FAC
  const scores=keys.map(score),grid=(level:number)=>keys.map((_,i)=>point(i,level).join(',')).join(' '),reading=active?readings[active]:null;
  const raw=reading&&reading.date===date&&reading.value!==null&&Number.isFinite(reading.value)?number(reading.value)+reading.unit:'—';
  return <section className="china-sentiment" aria-label={market==='CN'?'A股市场情绪':'美股市场情绪'} >
-  <header className="overview-heading"><h3>{market==='CN'?'A股市场情绪':'美股市场情绪'}</h3><time dateTime={date}>{displayDate(date,true)}</time></header>
+
   <svg className="six-factor-graphic" viewBox="0 0 360 288" role="img" aria-label={market==='US'?'六项风险偏好分位，刻度0至100，外侧风险偏好较高':'六项历史分位，刻度0至100'}>
    {[25,50,75,100].map(n=><polygon key={n} data-level={n} points={grid(n)} className="six-factor-grid"/>)}
    {keys.map((key,i)=><line key={key} x1="180" y1="144" x2={point(i,100)[0]} y2={point(i,100)[1]} className="six-factor-grid"/>)}
@@ -52,3 +55,5 @@ export function MarketSentimentRadar({date,readings,market='CN',labels=CHINA_FAC
 }
 
 export default function ChinaSentimentRadar(props:{date:string;readings:Record<ChinaFactor,ChinaFactorReading>}){return <MarketSentimentRadar {...props}/>;}
+
+export function MarketSentimentRadar(props:Parameters<typeof RadarContent>[0]){return <CollapsiblePanel panelKey="sentiment" title={props.market==='US'?'美股市场情绪':'A股市场情绪'} readout={<time dateTime={props.date}>{displayDate(props.date,true)}</time>}><RadarContent {...props}/></CollapsiblePanel>;}

@@ -1,3 +1,4 @@
+import {usePanelVisible} from "./CollapsiblePanel";
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from "react";
 import { autoUpdate, FloatingPortal, shift, useDismiss, useFloating, useInteractions, type Middleware } from "@floating-ui/react";
 import type { MarketSnapshot } from "../market-types";
@@ -6,6 +7,7 @@ import { isExchangeClosed } from "../lib/exchange-calendar";
 import { radarFactorColor, radarFactors, radarSegments, radarHitArea, type RadarId } from "../lib/radar-signals";
 
 export default function TechnicalRadar({snapshot,date}:{snapshot:MarketSnapshot;date:string}) {
+  const panelVisible=usePanelVisible();
   const factors=useMemo(()=>radarFactors(snapshot,date),[snapshot,date]),segments=useMemo(()=>radarSegments(factors),[factors]);
   const [active,setActive]=useState<RadarId|null>(null),[width,setWidth]=useState(584),root=useRef<HTMLElement>(null),stage=useRef<HTMLDivElement>(null);
   const trigger=useRef<HTMLButtonElement|null>(null),pinned=useRef<RadarId|null>(null),suppressFocus=useRef(false),timer=useRef<ReturnType<typeof setTimeout>|null>(null),id=useId();
@@ -20,6 +22,7 @@ export default function TechnicalRadar({snapshot,date}:{snapshot:MarketSnapshot;
   const closed=snapshot.days.some(day=>day.date===date&&day.status==="closed")||isExchangeClosed(date,snapshot.instrument.market);
   const complete=factors.every(item=>item.score!==null),formatted=(value:typeof factors[number])=>value.id==="volatility"&&!closed?value.position==null?"—":`位置${number(value.position,1)}%`:value.value===null?(closed?"休市":"—"):`${number(value.value,value.digits,value.id==="ema")}${value.unit}`;
   const close=(restore=false)=>{cancelClose();const target=trigger.current;pinned.current=null;setActive(null);if(restore&&target&&document.activeElement!==target){suppressFocus.current=true;target.focus({preventScroll:true});}};
+  useEffect(()=>{if(!panelVisible)close();},[panelVisible]);
   // Prefer a free corner near the inspected axis; narrow layouts flip outside the
   // diagram. Keep the entire diamond and every raw-value label unobscured.
   const avoid:Middleware={name:"radarAvoid",options:{active,width},fn:({rects,elements})=>{

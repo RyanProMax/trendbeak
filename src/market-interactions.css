@@ -41,11 +41,11 @@
 #main-content .signals-heading { display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:0;min-height:32px; }
 .signals-heading h2 { grid-column:1;grid-row:1;white-space:nowrap; }
 .trend-heading-readout { grid-column:2;grid-row:1;min-height:32px; }
-#main-content .trend-heading-readout .chart-readout { display:flex;align-items:center;justify-content:center;gap:22px;height:32px;font-size:13px;line-height:24px; }
-#main-content .trend-heading-readout .readout-item { display:flex;align-items:baseline;gap:6px;white-space:nowrap;flex:none; }
+#main-content .trend-heading-readout .chart-readout { display:flex;align-items:center;justify-content:center;gap:8px 22px;min-height:32px;height:auto;flex-wrap:wrap;font-size:13px;line-height:24px; }
+#main-content .trend-heading-readout .readout-item { display:flex;align-items:baseline;gap:6px;white-space:normal;flex:none;max-width:100%;min-width:0;flex-wrap:wrap;justify-content:center; }
 #main-content .trend-heading-readout .readout-value { font-size:20px;line-height:26px; }
 #main-content .trend-heading-readout .readout-emotion .readout-value { width:2.65em;flex:none; }
-#main-content .trend-heading-readout .readout-price .readout-value { width:4.9em;flex:none; }
+#main-content .trend-heading-readout .readout-price .readout-value { width:auto;flex:none;max-width:100%;white-space:normal; }
 #main-content .trend-heading-readout i { width:12px;flex:none;align-self:center; }
 @media(max-width:760px){
  #main-content .signals-heading { grid-template-columns:minmax(0,1fr);row-gap:5px; }
@@ -63,7 +63,7 @@
 @media(prefers-reduced-motion:reduce){.market-switch .market-switch-thumb { transition:none; }}
 /* Keep the three balanced columns within reading distance, aligned with the
    radar above rather than stretching tiny values across the full desktop. */
-#main-content .index-valuations { max-width:680px;margin-left:auto;margin-right:auto; }
+#main-content .index-valuations { max-width:none;margin-left:0;margin-right:0; }
 /* The right endpoint labels are gone; align the remaining axis title with its
    numeric ticks instead of reserving the old large label gutter. */
 #main-content .chart-axis-head { padding-right:24px; }
@@ -78,3 +78,18 @@
 .skeleton-factor-label { width:35%;height:12px; }
 .skeleton-factor-value { width:22%;height:15px; }
 .skeleton-factor-track { width:100%;height:4px; }
+
+#main-content .trend-heading-readout .readout-price .readout-label { white-space:normal;overflow-wrap:anywhere;text-align:center; }
+#main-content .readout-change { display:inline-block;font-size:.78em;white-space:nowrap;font-weight:600;color:var(--readout-light,var(--ink)); }
+#main-content .readout-emotion .readout-value { color:var(--readout-light,var(--ink));filter:none; }
+:root[data-theme="dark"] #main-content .readout-change,
+:root[data-theme="dark"] #main-content .readout-emotion .readout-value { color:var(--readout-dark,var(--ink)); }
+@media(max-width:760px){
+ #main-content .trend-heading-readout .chart-readout { column-gap:14px;row-gap:3px; }
+}
+/* Keep equal geometry for the shorter CN and longer US labels, including an
+   empty readout during a cold switch. Each datum has one stable mobile row. */
+@media(max-width:760px){
+ .trend-heading-readout{min-height:59px}
+ #main-content .trend-heading-readout .chart-readout{height:59px;flex-direction:column;flex-wrap:nowrap;justify-content:center;gap:1px}
+}

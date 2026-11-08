@@ -1,3 +1,4 @@
+import CollapsiblePanel, {PanelPreferences} from "./components/CollapsiblePanel";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   BENCHMARKS,
@@ -7,15 +8,17 @@ import {
   type PageData,
 } from "./market-types";
 import ThemeSwitch, { useColorScheme, THEME_BOOTSTRAP } from "./components/ThemeSwitch";
+import StickyHeader from "./components/StickyHeader";
+import TechnicalRadar from "./components/TechnicalRadar";
+import {hasStockRadar} from "./lib/radar-signals";
 import StockSearch from "./components/StockSearch";
 import MarketSwitch from "./components/MarketSwitch";
 import {useMarketMotion} from "./components/useMarketMotion";
-import MarketCard, { type ViewState } from "./components/MarketCard";
-import { CalendarSkeleton, SignalsSkeleton } from "./components/MarketSkeleton";
+import { type ViewState } from "./components/MarketCard";
+import { CalendarSkeleton, SignalsSkeleton, SentimentSkeleton } from "./components/MarketSkeleton";
 import YearHeatmap, { HeatLegend } from "./components/YearHeatmap";
 import {MarketSentimentRadar} from "./components/ChinaSentimentRadar";
 import{US_LABELS,usReadings}from"./lib/us-overview";
-import ChinaSentimentRadar from "./components/ChinaSentimentRadar";
 import IndexValuations from "./components/IndexValuations";
 import {chinaReadings} from "./lib/china-overview";
 import MarketTrend from "./components/MarketTrend";
@@ -45,13 +48,16 @@ function Dashboard({ data }: { data: PageData }) {
   const selectedDate=selectedDates[activeMarket];
   const setSelectedDate=(value:string|null)=>setSelectedDates(old=>({...old,[activeMarket]:value}));
   const [userWindows,setUserWindows]=useState<Record<Market,TrendWindow|null>>({CN:null,US:null});
-  const userWindow=userWindows[activeMarket];
-  const setUserWindow=(value:TrendWindow)=>setUserWindows(old=>({...old,[activeMarket]:value}));
+  const activeSnapshot=markets[activeMarket].snapshot;
+  const stockKey=activeSnapshot?.instrument.kind==='stock'?`${activeMarket}:${activeSnapshot.instrument.symbol}`:null;
+  const [stockWindows,setStockWindows]=useState<Record<string,TrendWindow>>({});
+  const userWindow=stockKey?stockWindows[stockKey]??null:userWindows[activeMarket];
+  const setUserWindow=(value:TrendWindow)=>stockKey?setStockWindows(old=>({...old,[stockKey]:value})):setUserWindows(old=>({...old,[activeMarket]:value}));
   const { scheme, setScheme } = useColorScheme();
   const [navigating,setNavigating] = useState(false);
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [trendReadoutTarget,setTrendReadoutTarget]=useState<HTMLDivElement|null>(null);
-  const marketMotion=useRef(false),pointerInput=useRef(false);
+  const marketMotion=useRef(false),pointerInput=useRef(false),navigationEpoch=useRef(0);
   const [loadingCalendar,setLoadingCalendar]=useState<{market:Market;height:number}|null>(null);
   const mainRef=useMarketMotion(`${activeMarket}:${markets[activeMarket].snapshot?.instrument.symbol??'loading'}`,marketMotion);
   useEffect(()=>{
@@ -62,8 +68,8 @@ function Dashboard({ data }: { data: PageData }) {
   const [defaultDays,setDefaultDays] = useState(365);
   const [rangeReady,setRangeReady] = useState(false);
   const boundsByMarket=useMemo(()=>({CN:historyBounds([benchmarks.CN]),US:historyBounds([benchmarks.US])}),[benchmarks]);
-  const bounds=boundsByMarket[activeMarket];
-  const visibleBenchmarks=useMemo(()=>({CN:activeMarket==='CN'?benchmarks.CN:null,US:activeMarket==='US'?benchmarks.US:null}),[activeMarket,benchmarks]);
+  const bounds=useMemo(()=>stockKey?historyBounds([activeSnapshot]):boundsByMarket[activeMarket],[stockKey,activeSnapshot,boundsByMarket,activeMarket]);
+  const visibleBenchmarks=useMemo(()=>({CN:activeMarket==='CN'?(stockKey?activeSnapshot:benchmarks.CN):null,US:activeMarket==='US'?(stockKey?activeSnapshot:benchmarks.US):null}),[activeMarket,benchmarks,stockKey,activeSnapshot]);
   const scrollAnchor=useRef<number|null>(null);
   useLayoutEffect(()=>{
     const expanded=Object.fromEntries((["CN","US"] as Market[]).map(m=>[m,{...data.markets[m],snapshot:data.markets[m].snapshot?expandSnapshot(data.markets[m].snapshot!):null,loading:!data.markets[m].snapshot&&!data.markets[m].error}])) as Record<Market,ViewState>;
@@ -78,18 +84,18 @@ function Dashboard({ data }: { data: PageData }) {
     if(!bounds)return;const normalized=clampWindow(next,bounds),track=document.querySelector(".navigator-track")?.getBoundingClientRect();
     scrollAnchor.current=track&&window.scrollY>0&&track.bottom>0&&track.top<window.innerHeight&&(normalized.start!==trendWindow?.start||normalized.end!==trendWindow?.end)?track.top:null;
     setUserWindow(normalized);
-    try { persistTrendWindow(window.sessionStorage,normalized,bounds,activeMarket); } catch { /* Optional storage. */ }
-  },[activeMarket,bounds?.start,bounds?.end,trendWindow?.start,trendWindow?.end]);
+    try { if(!stockKey)persistTrendWindow(window.sessionStorage,normalized,bounds,activeMarket); } catch { /* Optional storage. */ }
+  },[activeMarket,stockKey,bounds?.start,bounds?.end,trendWindow?.start,trendWindow?.end]);
   useLayoutEffect(()=>{
     if(scrollAnchor.current!==null){const top=document.querySelector(".navigator-track")?.getBoundingClientRect().top;if(top!==undefined)window.scrollBy(0,top-scrollAnchor.current);scrollAnchor.current=null;}
   },[trendWindow?.start,trendWindow?.end]);
   useEffect(()=>{
     if(!rangeReady||!userWindow||!bounds)return;const normalized=clampWindow(userWindow,bounds);
     if(normalized.start!==userWindow.start||normalized.end!==userWindow.end)setUserWindow(normalized);
-    try{persistTrendWindow(window.sessionStorage,normalized,bounds,activeMarket);}catch{/* Optional storage. */}
-  },[rangeReady,userWindow,bounds?.start,bounds?.end]);
+    try{if(!stockKey)persistTrendWindow(window.sessionStorage,normalized,bounds,activeMarket);}catch{/* Optional storage. */}
+  },[rangeReady,activeMarket,stockKey,userWindow,bounds?.start,bounds?.end]);
   const restoredMarkets=useRef(new Set<Market>());
-  useLayoutEffect(()=>{if(!rangeReady||!bounds||restoredMarkets.current.has(activeMarket))return;restoredMarkets.current.add(activeMarket);try{const saved=restoreTrendWindow(window.sessionStorage,bounds,activeMarket);if(saved)setUserWindows(old=>({...old,[activeMarket]:old[activeMarket]??saved}));}catch{/* Optional storage. */}},[rangeReady,activeMarket,bounds?.start,bounds?.end]);
+  useLayoutEffect(()=>{if(stockKey||!rangeReady||!bounds||restoredMarkets.current.has(activeMarket))return;restoredMarkets.current.add(activeMarket);try{const saved=restoreTrendWindow(window.sessionStorage,bounds,activeMarket);if(saved)setUserWindows(old=>({...old,[activeMarket]:old[activeMarket]??saved}));}catch{/* Optional storage. */}},[rangeReady,activeMarket,stockKey,bounds?.start,bounds?.end]);
   const windowEnd = trendWindow?.end??calendarEnd;
   const range = trendWindow?windowDays(trendWindow):defaultDays;
   const alignedDays = useMemo(()=>Object.fromEntries((["CN","US"] as Market[]).map(market=>[market,
@@ -163,7 +169,7 @@ function Dashboard({ data }: { data: PageData }) {
       setMarkets((previous) => ({
         ...previous,
         [market]: {
-          instrument,
+          instrument: payload.data.instrument,
           snapshot: payload.data,
           error: null,
           loading: false,
@@ -213,6 +219,14 @@ function Dashboard({ data }: { data: PageData }) {
   };
   const ensureBenchmark=async(market:Market)=>{if(benchmarkRequests.current[market])return benchmarkRequests.current[market];const task=load(BENCHMARKS[market]);benchmarkRequests.current[market]=task;try{return await task;}finally{if(benchmarkRequests.current[market]===task)delete benchmarkRequests.current[market];}};
   const changeMarket=(market:Market,record=true,animate=pointerInput.current)=>{
+    navigationEpoch.current++;
+    // Returning to a market/history entry is a new selection. A former stock
+    // request must not replace the instrument represented by that destination.
+    if(requestedSymbols.current[market]&&requestedSymbols.current[market]!==current.current[market].instrument.symbol){
+      controllers.current[market]?.abort();
+      delete controllers.current[market];delete requestedSymbols.current[market];
+      setMarkets(states=>({...states,[market]:{...states[market],loading:false,pendingInstrument:undefined}}));
+    }
     marketMotion.current=market!==shownMarket.current&&animate;
     if(market!==shownMarket.current){
       const height=mainRef.current?.querySelector('.calendar-rows')?.getBoundingClientRect().height;
@@ -222,8 +236,13 @@ function Dashboard({ data }: { data: PageData }) {
     if(record){const url=new URL(location.href);url.searchParams.set('market',market);const instrument=current.current[market].instrument;if(instrument.kind==='stock')url.searchParams.set('symbol',instrument.symbol);else url.searchParams.delete('symbol');history.pushState(null,'',url);}
   };
   const visit=async(instrument:Instrument,record=true)=>{
-    changeMarket(instrument.market,false);if(instrument.kind==='stock'&&(!benchmarkCurrent.current[instrument.market]||(instrument.market==='US'?!benchmarkCurrent.current.US?.usOverview:!benchmarkCurrent.current.CN?.chinaOverview)))await ensureBenchmark(instrument.market);const ok=await load(instrument,true);
-    if(record){const url=new URL(location.href);url.searchParams.set('market',instrument.market);if(ok&&instrument.kind==='stock')url.searchParams.set('symbol',instrument.symbol);else url.searchParams.delete('symbol');history.pushState(null,'',url);}return ok;
+    changeMarket(instrument.market,false);
+    const epoch=++navigationEpoch.current;
+    if(instrument.kind==='stock'&&(!benchmarkCurrent.current[instrument.market]||(instrument.market==='US'?!benchmarkCurrent.current.US?.usOverview:!benchmarkCurrent.current.CN?.chinaOverview))) await ensureBenchmark(instrument.market);
+    if(epoch!==navigationEpoch.current)return false;
+    const ok=await load(instrument,true);
+    if(epoch!==navigationEpoch.current)return false;
+    if(record){const actual=ok?instrument:current.current[instrument.market].instrument,url=new URL(location.href);url.searchParams.set('market',instrument.market);if(actual.kind==='stock')url.searchParams.set('symbol',actual.symbol);else url.searchParams.delete('symbol');history.pushState(null,'',url);}return ok;
   };
   const navigation=useRef({changeMarket,visit});navigation.current={changeMarket,visit};
   useEffect(()=>{const restore=(navigateSymbol=true)=>{const url=new URL(location.href),market=url.searchParams.get('market')==='US'?'US':'CN',symbol=url.searchParams.get('symbol');navigation.current.changeMarket(market,false);const old=current.current[market].instrument;if(!navigateSymbol)return;if(!symbol&&old.kind==='stock')void navigation.current.visit(BENCHMARKS[market],false);else if(symbol&&symbol!==old.symbol&&/^[A-Z^][A-Z0-9.^-]{0,23}$|^\d{6}\.(SS|SZ)$/.test(symbol))void navigation.current.visit({...BENCHMARKS[market],symbol,code:symbol,name:symbol,kind:'stock'},false);};restore(false);const pop=()=>restore();window.addEventListener('popstate',pop);return()=>window.removeEventListener('popstate',pop);},[]);
@@ -264,54 +283,53 @@ function Dashboard({ data }: { data: PageData }) {
   }, []);
   return (
     <>
-      <header className="topbar">
+      <StickyHeader className="topbar">
         <div className="topbar-inner">
           <a className="brand" href="/" aria-label="trendbeak 首页">
             <img className="brand-wordmark brand-light" src="/trendbeak-wordmark.svg?v=12" alt="trendbeak" width="480" height="120" /><img className="brand-wordmark brand-dark" src="/trendbeak-wordmark-dark.svg?v=12" alt="trendbeak" width="480" height="120" />
           </a>
           <MarketSwitch market={activeMarket} onChange={(market,animate)=>changeMarket(market,true,animate)}/>
-          <StockSearch onSelect={(instrument) => visit(instrument)} />
+          <StockSearch selectedInstrument={activeSnapshot?.instrument??markets[activeMarket].instrument} onClear={() => void visit(BENCHMARKS[activeMarket])} onSelect={(instrument) => visit(instrument)} />
           <ThemeSwitch scheme={scheme} setScheme={setScheme} />
         </div>
-      </header>
+      </StickyHeader>
       <main ref={mainRef} id="main-content" data-range-ready={rangeReady} data-market={activeMarket} data-selected-date={globalDate}>
         <h1 className="sr-only">每日市场信号</h1>
-        <section className="annual-calendar" aria-labelledby="calendar-title">
-          <div className="calendar-heading">
-            <h2 id="calendar-title">每日涨跌</h2>
-            {globalDate ? <time className="global-selected-date" dateTime={globalDate} aria-live="polite">{displayDate(globalDate, true)}</time> : <span className="global-selected-date">—</span>}
-          </div>
+        <PanelPreferences><CollapsiblePanel panelKey="calendar" title="每日涨跌" className="annual-calendar" readout={globalDate ? <time className="global-selected-date" dateTime={globalDate} aria-live="polite">{displayDate(globalDate, true)}</time> : <span className="global-selected-date">—</span>}>
           <div className="calendar-rows" style={!markets[activeMarket].snapshot&&markets[activeMarket].loading&&loadingCalendar?.market===activeMarket?{minHeight:loadingCalendar.height}:undefined}>
             {[activeMarket].map((market) => {
               const snapshot = markets[market].snapshot;
               return <div className="calendar-row" data-calendar-market={market} key={market}>
-                <MarketCard state={markets[market]} date={selectedDate ?? undefined} reset={() => void visit(BENCHMARKS[market])} retry={() => void load(markets[market].failedInstrument ?? markets[market].instrument)} />
+                <span className="sr-only">{markets[market].instrument.name}每日涨跌</span>
+                {markets[market].pendingInstrument&&<span className="sr-only" role="status">正在切换至{markets[market].pendingInstrument!.name}</span>}
+                {markets[market].error&&markets[market].failedInstrument&&<p className="selection-status" role="status">{markets[market].error==="该股票的历史数据尚未收录"?"尚未收录":"暂未载入"}{markets[market].failedInstrument!.name}{snapshot?`，仍显示${markets[market].instrument.name}`:""}</p>}
                 {snapshot && mounted ? <YearHeatmap key={market} colorScheme={scheme} snapshot={snapshot} days={alignedDays[market]} selectedDate={selectedDate ?? snapshot.asOf} onSelectDate={selectDate} onHoverDate={setHoveredDate} showMonths />
                   : snapshot || markets[market].loading ? <CalendarSkeleton /> : <p className="calendar-unavailable">—</p>}
               </div>;
             })}
           </div>
           {(calendarEnd||markets[activeMarket].loading) && <HeatLegend colorScheme={scheme} />}
-        </section>
-        <section className={`market-signals${navigating ? " is-navigating" : ""}`} aria-labelledby="signals-title">
-          <div className="signals-heading"><h2 id="signals-title">市场信号</h2>
-            <div className="trend-heading-readout" ref={setTrendReadoutTarget}/>
-          </div>
+        </CollapsiblePanel>
+        <CollapsiblePanel panelKey="signals" title={stockKey?`${activeSnapshot!.instrument.name} · ${activeSnapshot!.instrument.code}`:"市场信号"} className={`market-signals${stockKey ? " stock-signals" : ""}${navigating ? " is-navigating" : ""}`} readout={<div className="trend-heading-readout" ref={setTrendReadoutTarget}/>}>
           <div className="analysis-grid">{[activeMarket].map((market) => {
             const snapshot = markets[market].snapshot;
             if (!snapshot) return markets[market].loading ? <SignalsSkeleton market={market} key={market} /> : <section className="analysis-unavailable" data-analysis-market={market} key={market} aria-label={`${market === "CN" ? "A 股" : "美股"}指标`}>—</section>;
             const date = selectedDate ?? snapshot.asOf;
             return <section className="market-analysis" data-analysis-market={market} key={market}>
               <div className="signals" data-date={date} aria-label={`${displayDate(date, true)}指标`}>
-                <div className="analysis-heading"><h3>{market === "CN" ? "A 股" : "美股"}</h3></div>
-                {mounted ? <><MarketTrend key={market+snapshot.instrument.symbol} snapshot={snapshot} benchmark={benchmarks[market]} bounds={bounds ?? {start:shiftDate(windowEnd ?? snapshot.asOf,-364),end:windowEnd ?? snapshot.asOf}} windowEnd={windowEnd ?? snapshot.asOf} selectedDate={date} hoveredDate={hoveredDate} range={range} visible={{mood:true,index:true}} readoutTarget={trendReadoutTarget} onHoverDate={setHoveredDate} onSelectDate={selectDate} dateSelected onClearDate={()=>setSelectedDate(null)} canSelectDate={selectable} />
+                <div className="analysis-heading"><h3>{snapshot.instrument.kind==='stock'?snapshot.instrument.name:market === "CN" ? "A 股" : "美股"}</h3></div>
+                {mounted ? <><MarketTrend key={market+snapshot.instrument.symbol} snapshot={snapshot} benchmark={benchmarks[market]} bounds={bounds ?? {start:shiftDate(windowEnd ?? snapshot.asOf,-364),end:windowEnd ?? snapshot.asOf}} windowEnd={windowEnd ?? snapshot.asOf} selectedDate={date} hoveredDate={hoveredDate} range={range} visible={{mood:snapshot.instrument.kind!=="stock",index:true}} readoutTarget={trendReadoutTarget} onHoverDate={setHoveredDate} onSelectDate={selectDate} dateSelected onClearDate={()=>setSelectedDate(null)} canSelectDate={selectable} />
                 {bounds&&trendWindow&&<TrendRangeControl key={market+'-range'} bounds={bounds} value={trendWindow} benchmarks={visibleBenchmarks} onChange={chooseWindow} onDragging={setNavigating} />}
-                <div className="signal-radar">{market==='CN'?<ChinaSentimentRadar key={market+date} date={date} readings={chinaReadings(benchmarks.CN??snapshot,date)}/>:<MarketSentimentRadar key={market+date} date={date} market="US" labels={US_LABELS} readings={usReadings(benchmarks.US??snapshot,date)}/>}</div></> : <div className="signals-loading" aria-label="正在绘制市场信号"/>}
+</> : <div className="signals-loading" aria-label="正在绘制市场信号"/>}
               </div>
             </section>;
           })}</div>
-        </section>
+        </CollapsiblePanel>
+        {!activeSnapshot&&markets[activeMarket].loading&&markets[activeMarket].instrument.kind==='index'&&<SentimentSkeleton market={activeMarket}/>}
+        {mounted&&activeSnapshot?.instrument.kind==='stock'&&hasStockRadar(activeSnapshot,globalDate??activeSnapshot.asOf)&&<CollapsiblePanel panelKey="stock-radar" title="个股技术指标" className="stock-technical-panel" readout={<time dateTime={globalDate??activeSnapshot.asOf}>{displayDate(globalDate??activeSnapshot.asOf,true)}</time>}><TechnicalRadar key={activeSnapshot.instrument.symbol} snapshot={activeSnapshot} date={globalDate??activeSnapshot.asOf}/></CollapsiblePanel>}
+        {mounted&&markets[activeMarket].snapshot&&markets[activeMarket].snapshot!.instrument.kind!=='stock'&&<MarketSentimentRadar date={globalDate??markets[activeMarket].snapshot!.asOf} market={activeMarket} labels={activeMarket==='US'?US_LABELS:undefined} readings={activeMarket==='CN'?chinaReadings(benchmarks.CN??markets.CN.snapshot!,globalDate??markets.CN.snapshot!.asOf):usReadings(benchmarks.US??markets.US.snapshot!,globalDate??markets.US.snapshot!.asOf)}/>}
         {activeMarket==='CN'&&benchmarks.CN?.chinaOverview?.valuations&&<IndexValuations rows={benchmarks.CN.chinaOverview.valuations.rows} date={globalDate}/>}
+        </PanelPreferences>
       </main>
     </>
   );

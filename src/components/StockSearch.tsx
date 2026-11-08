@@ -4,11 +4,15 @@ import type { Instrument } from "../market-types";
 import { HISTORY_KEY, LEGACY_HISTORY_KEY, parseHistory, remember } from "../lib/search-history";
 
 export default function StockSearch({
-  onSelect,
+  onSelect, selectedInstrument, onClear,
 }: {
   onSelect: (instrument: Instrument) => Promise<boolean>;
+  selectedInstrument: Instrument;
+  onClear: () => void;
 }) {
-  const [query, setQuery] = useState("");
+  const [draft, setQuery] = useState<string | null>(null);
+  const query = draft ?? "";
+  const selectedLabel = selectedInstrument.kind === "stock" ? `${selectedInstrument.name} · ${selectedInstrument.code}` : "";
   const [open, setOpen] = useState(false);
   const [history, setHistory] = useState<Instrument[]>([]);
   const [results, setResults] = useState<Instrument[]>([]);
@@ -20,6 +24,7 @@ export default function StockSearch({
   const id = useId();
   const candidates = query.trim() ? results : history;
   const show = open && Boolean(query.trim() || history.length);
+  useEffect(() => { setQuery(null); setOpen(false); }, [selectedInstrument.market, selectedInstrument.symbol]);
   useEffect(() => {
     try {
       const current = localStorage.getItem(HISTORY_KEY);
@@ -38,10 +43,10 @@ export default function StockSearch({
         event.preventDefault();
         input.current?.focus();
       }
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") { setOpen(false); setQuery(null); }
     };
     const away = (event: PointerEvent) => {
-      if (!wrapper.current?.contains(event.target as Node)) setOpen(false);
+      if (!wrapper.current?.contains(event.target as Node)) { setOpen(false); setQuery(null); }
     };
     document.addEventListener("keydown", down);
     document.addEventListener("pointerdown", away);
@@ -82,7 +87,7 @@ export default function StockSearch({
   }, [query]);
   const choose = async (instrument: Instrument) => {
     setOpen(false);
-    setQuery("");
+    setQuery(null);
     input.current?.blur();
     if (await onSelect(instrument))
       setHistory((previous) => {
@@ -98,8 +103,9 @@ export default function StockSearch({
       className="search-wrap"
       ref={wrapper}
       onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null))
-          setOpen(false);
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setOpen(false); setQuery(null);
+        }
       }}
     >
       <div className={`search-field${show ? " is-open" : ""}`}>
@@ -117,8 +123,8 @@ export default function StockSearch({
           placeholder="搜索股票名称或代码"
           autoComplete="off"
           maxLength={60}
-          value={query}
-          onFocus={() => setOpen(true)}
+          value={draft ?? selectedLabel}
+          onFocus={(event) => { setOpen(true); event.currentTarget.select(); }}
           onChange={(event) => {
             setQuery(event.target.value);
             setOpen(true);
@@ -147,13 +153,16 @@ export default function StockSearch({
             }
           }}
         />
-        {query ? (
+        {query || selectedLabel ? (
           <button
             className="icon-button"
-            aria-label="清空搜索"
+            type="button"
+            aria-label={selectedLabel ? "清空股票，返回大盘" : "清空搜索"}
             onClick={() => {
-              setQuery("");
-              input.current?.focus();
+              setQuery(null);
+              setOpen(false);
+              if (selectedLabel) onClear();
+              else input.current?.focus();
             }}
           >
             <X size={16} />

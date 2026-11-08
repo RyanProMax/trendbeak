@@ -1,27 +1,57 @@
+import CollapsiblePanel, {usePanelVisible} from "./CollapsiblePanel";
 import { useEffect, useRef, useState } from 'react';
-import { autoUpdate, flip, FloatingPortal, offset, shift, useClick, useDismiss, useFloating, useFocus, useHover, useInteractions, useRole } from '@floating-ui/react';
+import { autoUpdate, safePolygon, flip, FloatingPortal, offset, shift, useClick, useDismiss, useFloating, useFocus, useHover, useInteractions, useRole } from '@floating-ui/react';
 import { displayDate, number } from '../lib/market-format';
+import { valuationCoverage } from '../lib/valuation-coverage';
 import './market-overview.css';
+import './valuation-help.css';
 import { validChinaOverview, valuationRowsForDate, type IndexValuation } from '../lib/china-overview';
 export type { IndexValuation } from '../lib/china-overview';
 
+
+function ValuationHelp({ metric }: { metric: 'pb' | 'ps' }) {
+  const [open, setOpen] = useState(false);
+  const panelVisible = usePanelVisible();
+  useEffect(() => { if (!panelVisible) setOpen(false); }, [panelVisible]);
+  const { refs, floatingStyles, context } = useFloating({
+    open, onOpenChange: setOpen, placement: 'top', strategy: 'fixed', whileElementsMounted: autoUpdate,
+    middleware: [offset(8), flip(), shift({ padding: 12 })],
+  });
+  const { getReferenceProps, getFloatingProps } = useInteractions([
+    useHover(context, { mouseOnly: true, handleClose: safePolygon() }), useFocus(context),
+    useClick(context), useDismiss(context), useRole(context, { role: 'tooltip' }),
+  ]);
+  return <span className="valuation-column-label">{metric.toUpperCase()} 分位
+    <button type="button" className="valuation-help" aria-label={`了解 ${metric.toUpperCase()} 与历史分位`}
+      aria-expanded={open} ref={refs.setReference} {...getReferenceProps()}><span aria-hidden="true">?</span></button>
+    {open && <FloatingPortal><div className="valuation-tooltip valuation-help-tooltip" ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()}>
+      <strong>{metric === 'pb' ? 'PB · 市净率' : 'PS · 市销率'}</strong>
+      <span>{metric === 'pb' ? '市值与净资产的比值。' : '市值与营业收入的比值。'}</span>
+      <span>分位表示当前估值在该指数自身历史中的相对位置，越高表示相对历史越高。</span>
+      <span>仅比较所选日期之前、最多十年内的有效观测，不含所选当日；分位为低于当前值的样本占比，加上相同值占比的一半。有效样本少于 60 个时不显示分位。</span>
+      <span>各指数和指标的历史长度可能不同；点按下方数值可查看数据覆盖时长。</span>
+    </div></FloatingPortal>}
+  </span>;
+}
+
 function ValuationReading({ row, metric }: { row: IndexValuation; metric: 'pb' | 'ps' }) {
-  const reading = row[metric], p = reading.percentile;
+  const reading = row[metric], p = reading.percentile, coverage = valuationCoverage(reading);
   const valid = p !== null && Number.isFinite(p) && p >= 0 && p <= 100;
   const [open, setOpen] = useState(false);
+  const panelVisible=usePanelVisible();
+  useEffect(()=>{if(!panelVisible)setOpen(false);},[panelVisible]);
   const { refs, floatingStyles, context } = useFloating({ open, onOpenChange: setOpen, placement: 'top', whileElementsMounted: autoUpdate,
     middleware: [offset(8), flip(), shift({ padding: 12 })] });
-  const { getReferenceProps, getFloatingProps } = useInteractions([useHover(context), useFocus(context), useClick(context), useDismiss(context), useRole(context, { role: 'tooltip' })]);
+  const { getReferenceProps, getFloatingProps } = useInteractions([useHover(context, { mouseOnly: true, handleClose: safePolygon() }), useFocus(context), useClick(context), useDismiss(context), useRole(context, { role: 'tooltip' })]);
   return <div className="valuation-reading">
-    <button type="button" className="valuation-trigger" ref={refs.setReference} {...getReferenceProps()} aria-label={`${row.name} ${metric.toUpperCase()} 分位，查看计算区间`}>
+    <button type="button" className="valuation-trigger" ref={refs.setReference} {...getReferenceProps()} aria-label={`${row.name} ${metric.toUpperCase()} 分位，查看数据覆盖时长`}>
       <b>{valid ? `${number(p, 1)}%` : '—'}</b>
       <span className="valuation-track" aria-hidden="true">{valid && <i style={{ width: `${p}%` }} />}</span>
       <small>{reading.value === null ? '—' : `${number(reading.value)}倍`}</small>
     </button>
     {open && <FloatingPortal><div className="valuation-tooltip" ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()}>
       <strong>{row.name} · {metric.toUpperCase()} 分位</strong>
-      {reading.from ? <><span>{displayDate(reading.from, true)} 至 {displayDate(reading.through ?? row.date, true)}{!reading.through && '前（不含当日）'}</span>
-        <span>{reading.samples === undefined ? '—' : `${reading.samples}天`}</span></> : <span>—</span>}
+      <span>{coverage === '—' ? '—' : `${coverage}数据`}</span>
     </div></FloatingPortal>}
   </div>;
 }
@@ -60,13 +90,12 @@ export default function IndexValuations({ rows: availableRows, date }: { rows: I
   const rows = date ? valuationRowsForDate(exactRows, date) : exactRows;
   const status=!needsHistory?'':!result?'正在读取估值数据':result.error?'估值数据暂不可用':!exactRows.some(row=>row.date===date)?'该日期暂无估值数据':'';
   const dates = rows.map(row => row.date).sort(), first = dates[0], last = dates.at(-1);
-  return <section className="index-valuations" aria-label="指数估值">
-    <header className="overview-heading"><h3>指数估值</h3><span>{first && <time dateTime={first}>{displayDate(first, true)}</time>}{last && last !== first && <> 至 <time dateTime={last}>{displayDate(last, true)}</time></>}</span></header>
+  return <CollapsiblePanel panelKey="valuations" title="指数估值" className="index-valuations" readout={<span>{first && <time dateTime={first}>{displayDate(first, true)}</time>}{last && last !== first && <> 至 <time dateTime={last}>{displayDate(last, true)}</time></>}</span>}>
     <p className="valuation-status" aria-live="polite">{status || '\u00a0'}</p>
     <table><colgroup><col className="valuation-name-column" /><col /><col /></colgroup>
-      <thead><tr><th scope="col">指数</th><th scope="col">PB 分位</th><th scope="col">PS 分位</th></tr></thead>
+      <thead><tr><th scope="col">指数</th><th scope="col"><ValuationHelp metric="pb" /></th><th scope="col"><ValuationHelp metric="ps" /></th></tr></thead>
       <tbody>{rows.map(row => <tr key={row.code}><th scope="row"><strong>{row.name}</strong><small>{row.code}</small></th>
         <td><ValuationReading row={row} metric="pb" /></td><td><ValuationReading row={row} metric="ps" /></td></tr>)}</tbody>
     </table>
-  </section>;
+  </CollapsiblePanel>;
 }

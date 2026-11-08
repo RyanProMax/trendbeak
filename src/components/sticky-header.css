@@ -1,0 +1,15 @@
+.sticky-header.topbar { position:sticky; top:0; z-index:50; isolation:isolate; overflow:visible; display:flow-root; }
+.sticky-header-backdrop { position:absolute; inset:0; z-index:-1; pointer-events:none; opacity:0; background:var(--page,#fdfdfc); border-bottom:1px solid var(--line); }
+.sticky-header .topbar-inner { position:relative; }
+.sticky-header .search-field .icon-button { min-width:32px; min-height:32px; flex-shrink:0; }
+.sticky-header .search-popover { scrollbar-gutter:stable both-edges; max-height:min(600px,calc(100dvh - 180px)); }
+@supports (backdrop-filter:blur(12px)) {
+ .sticky-header-backdrop { background:color-mix(in srgb,var(--page,#fdfdfc) 94%,transparent); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+}
+@media(prefers-reduced-transparency:reduce) {
+ .sticky-header-backdrop { background:var(--page,#fdfdfc); backdrop-filter:none; -webkit-backdrop-filter:none; }
+}
+@media(max-width:760px) {
+ .sticky-header .topbar-inner { margin-top:0; padding-top:20px; }
+ .sticky-header .search-field .icon-button { min-width:36px; min-height:40px; }
+}

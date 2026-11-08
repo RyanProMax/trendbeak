@@ -1,3 +1,4 @@
+import CollapsiblePanel from "./CollapsiblePanel";
 import type { Market } from "../market-types";
 
 export function QuoteSkeleton() {
@@ -31,15 +32,19 @@ export function SignalsSkeleton({market}: {market: Market}) {
         <div className="navigator-track"><div className="navigator-preview skeleton"/></div>
         <div className="navigator-caption"><i className="skeleton"/><i className="skeleton"/></div>
       </div>
-      <div className="signal-radar" aria-hidden="true">
-        <section className="china-sentiment skeleton-overview">
-          <header className="overview-heading"><h3>{market==='CN'?'A股市场情绪':'美股市场情绪'}</h3><span className="skeleton"/></header>
-          <svg className="six-factor-graphic" viewBox="0 0 360 288">
-            {[.5,1].map(scale=><polygon key={scale} className="six-factor-grid" points={Array.from({length:6},(_,i)=>{const angle=-Math.PI/2+i*Math.PI/3;return `${180+Math.cos(angle)*103*scale},${144+Math.sin(angle)*103*scale}`;}).join(' ')}/>)}
-          </svg>
-          <div className="six-factor-readings">{Array.from({length:6},(_,i)=><div className="six-factor-skeleton" key={i}><span className="skeleton skeleton-factor-label"/><span className="skeleton skeleton-factor-value"/><span className="skeleton skeleton-factor-track"/></div>)}</div>
-        </section>
-      </div>
+
     </div>
   </section>;
+}
+
+/** Matches the live sibling panel; no borrowed dates, scores or observations. */
+export function SentimentSkeleton({market}:{market:Market}) {
+  return <CollapsiblePanel panelKey="sentiment" title={market==='CN'?'A股市场情绪':'美股市场情绪'} readout={<span>—</span>}>
+    <section className="china-sentiment skeleton-overview" aria-busy="true" aria-label="正在读取市场情绪">
+      <svg className="six-factor-graphic" viewBox="0 0 360 288" aria-hidden="true">
+        {[.5,1].map(scale=><polygon key={scale} className="six-factor-grid" points={Array.from({length:6},(_,i)=>{const angle=-Math.PI/2+i*Math.PI/3;return `${180+Math.cos(angle)*103*scale},${144+Math.sin(angle)*103*scale}`;}).join(' ')}/>)}
+      </svg>
+      <div className="six-factor-readings" aria-hidden="true">{Array.from({length:6},(_,i)=><div className="six-factor-trigger six-factor-skeleton" key={i}><span className="six-factor-heading"><span className="skeleton skeleton-factor-label"/><span className="skeleton skeleton-factor-value"/></span><span className="six-factor-percentile"><span className="six-factor-percentile-label"><span>历史分位</span><span>—</span></span><span className="six-factor-track skeleton"/></span></div>)}</div>
+    </section>
+  </CollapsiblePanel>;
 }

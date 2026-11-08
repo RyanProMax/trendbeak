@@ -1,4 +1,4 @@
-import { ArrowLeft, RotateCw } from "lucide-react";
+import { RotateCw } from "lucide-react";
 import type { Instrument, MarketState } from "../market-types";
 import { number, tone, displayDate } from "../lib/market-format";
 import { QuoteSkeleton } from "./MarketSkeleton";
@@ -8,8 +8,8 @@ export type ViewState = MarketState & {
   pendingInstrument?: Instrument;
   failedInstrument?: Instrument;
 };
-export default function MarketCard({ state, date, reset, retry }: {
-  state: ViewState; date?: string; reset: () => void; retry: () => void;
+export default function MarketCard({ state, date, retry }: {
+  state: ViewState; date?: string; retry: () => void;
 }) {
   const { instrument, snapshot, loading, error, pendingInstrument, failedInstrument } = state;
   const marketName = instrument.market === "CN" ? "A 股" : "美股";
@@ -26,7 +26,6 @@ export default function MarketCard({ state, date, reset, retry }: {
       {snapshot ? <>
         <div className="quote-row"><div className="quote">{number(reading?.price ?? null)}</div>
           <div className={`quote-change ${tone(reading?.change ?? null)}`}>{number(reading?.change ?? null, 2, true)}{reading?.change != null ? "%" : ""}</div>
-          {instrument.kind === "stock" && <button className="back-market" onClick={reset}><ArrowLeft size={13} />返回大盘</button>}
         </div>
         <div className="quote-session"><time dateTime={quoteDate}>{displayDate(quoteDate!)}</time><span> · {session}</span></div>
         {error && failedInstrument && failedInstrument.symbol !== instrument.symbol && <div className="market-refresh-error" role="status">{`${error==="该股票的历史数据尚未收录"?"尚未收录":"暂未载入"}${failedInstrument.name}，仍显示${instrument.name}`}</div>}

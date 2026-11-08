@@ -1,3 +1,6 @@
+import {COLORS,DARK_COLORS,level} from "../lib/heatmap-colors";
+import {useEffect} from "react";
+import {usePanelVisible} from "./CollapsiblePanel";
 import { cloneElement, memo, useLayoutEffect, useId, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import "./calendar-range.css";
 import { ActivityCalendar } from "react-activity-calendar";
@@ -6,31 +9,6 @@ import type { CalendarDay, MarketSnapshot } from "../market-types";
 import { displayDate, number } from "../lib/market-format";
 import { calendarLayout, calendarIndexAt, calendarMonthLabels, CALENDAR_CELL, CALENDAR_GAP, weekdayIndex } from "../lib/calendar-layout";
 
-const COLORS = [
-  "#3e7e65",
-  "#6ba18a",
-  "#9bbca9",
-  "#d1e0d5",
-  "#eef0eb",
-  "#f0dbd2",
-  "#ddb1a1",
-  "#cc8e7f",
-  "#b96e63",
-];
-const DARK_COLORS = ["#79b699", "#548b70", "#3a6551", "#293f32", "#26302b", "#4a342c", "#74503f", "#a56d57", "#d3977e"];
-function level(change: number | null) {
-  if (change === null || change === 0) return 0;
-  return (
-    Math.sign(change) *
-    (Math.abs(change) >= 3
-      ? 4
-      : Math.abs(change) >= 1.5
-        ? 3
-        : Math.abs(change) >= 0.5
-          ? 2
-          : 1)
-  );
-}
 function dayValue(day: CalendarDay) {
   return day.change !== null
     ? `${number(day.change, 2, true)}%`
@@ -104,6 +82,8 @@ function YearHeatmap({
     if(day){const cell=grid.current?.querySelector<SVGRectElement>(`rect[data-date="${day.date}"]`);if(cell)refs.setReference(cell);}
     setHoverDate(day?.date??null);onHoverDate?.(day?.date??null);
   };
+  const panelVisible=usePanelVisible();
+  useEffect(()=>{if(!panelVisible)inspect(null);},[panelVisible]);
   const inspectPointer=(event:PointerEvent<HTMLDivElement>)=>inspect(nearest(event));
   return (
     <section

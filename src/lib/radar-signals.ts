@@ -20,19 +20,28 @@ export function bandPositionState(position:number|null|undefined) {
 }
 /** Four different technical dimensions; no weights, combined score or claim of statistical independence. */
 export function radarFactors(snapshot: MarketSnapshot, date: string): RadarFactor[] {
-  const rsi = signalsForDate(snapshot, date).find(item => item.id === "rsi"), reading = snapshot.history[date];
+  const stock = snapshot.instrument.kind === "stock";
+  const expectedSource = !stock ? "" : snapshot.instrument.market === "CN" ? `https://gu.qq.com/${snapshot.instrument.symbol.endsWith('.SS') ? 'sh' : 'sz'}${snapshot.instrument.symbol.slice(0, 6)}` : `https://finance.yahoo.com/quote/${encodeURIComponent(snapshot.instrument.symbol)}/history/`;
+  // A dated prepared row is the evidence. Never borrow a benchmark or calculate
+  // indicators in the reader; the controlled writer enforces warm-up periods.
+  const verified = !stock || (snapshot.technicalSource === "trendbeak_technical_v1" && snapshot.source.url === expectedSource && !isExchangeClosed(date, snapshot.instrument.market) && snapshot.days.find(day=>day.date===date)?.status !== "closed");
+  const reading = verified ? snapshot.history[date] : undefined;
+  const rsi = signalsForDate(snapshot, date).find(item => item.id === "rsi");
   const metrics = reading?.radar?.version === 1 ? reading.radar : null;
   const missing = isExchangeClosed(date, snapshot.instrument.market) ? "当天休市，无当日指标。" : "当天无交易数据。";
   const descriptors = [
     { id: "rsi", name: "RSI 动量", digits: 1, unit: "", explanation: "Wilder RSI14；30/70为常用观察线。" },
     { id: "ema", name: "EMA 趋势", digits: 2, unit: "%", explanation: "（EMA20/EMA60−1）×100%；零为分界。" },
     { id: "volatility", name: "布林状态", digits: 2, unit: "%", explanation: "%B＝（收盘价−下轨）/（上轨−下轨）×100%；带宽用总体标准差。20%/80%划分靠近轨道的位置。" },
-    { id: "activity", name: "量能活跃", digits: 2, unit: "×", explanation: "完整日量/前20日均量；盘中取最近完整日，仅表示活跃度。" },
+    { id: "activity", name: "量能活跃", digits: 2, unit: "×", explanation: stock ? "所选交易日完整日量/前20日均量；仅表示活跃度。" : "完整日量/前20日均量；盘中取最近完整日，仅表示活跃度。" },
   ] as const;
   return descriptors.map(descriptor => {
-    const metric = descriptor.id === "rsi" ? null : metrics?.[descriptor.id];
-    const value = descriptor.id === "rsi" ? rsi?.value ?? null : metric?.value ?? null;
-    const score = descriptor.id === "rsi" ? value === null ? null : clamp(value) : descriptor.id==="ema"?metrics?.ema.strength??null:metric?.score??null;
+    const stored = descriptor.id === "rsi" ? null : metrics?.[descriptor.id];
+    const metric = stored && (!stock || (stored.asOf === date && Number.isInteger(stored.samples) && stored.samples >= 0 && stored.samples <= 252)) ? stored : null;
+    const raw = descriptor.id === "rsi" ? stock ? reading?.values.rsi ?? null : rsi?.value ?? null : metric?.value ?? null;
+    const value = raw !== null && Number.isFinite(raw) && (descriptor.id !== "rsi" || raw >= 0 && raw <= 100) && (descriptor.id !== "volatility" && descriptor.id !== "activity" || raw >= 0) ? raw : null;
+    const rank = descriptor.id === "ema" ? metrics?.ema.strength ?? null : metric?.score ?? null;
+    const score = descriptor.id === "rsi" ? value : value !== null && metric && metric.samples >= 60 && rank !== null && Number.isFinite(rank) && rank >= 0 && rank <= 100 ? rank : null;
     const asOf = metric?.asOf ?? date;
     const unavailable = !reading ? missing : value === null ? descriptor.id === "rsi" ? rsi?.unavailable ?? "历史日线不足15日。" : descriptor.id === "ema" ? "EMA需要至少60个交易日的日线。" : descriptor.id === "volatility" ? "布林带宽需要至少20个交易日的日线。" : "缺少最近完整日及此前20日的有效同标的成交量。" : null;
     const scale = descriptor.id==="rsi"?"RSI原值0–100。":!metric||metric.samples<60?"历史分位需60个完整日。":descriptor.id==="ema"?`绝对偏离强度 · 此前${metric.samples}日`:descriptor.id==="volatility"?`20日2σ · 近轨20/80 · ${metric.samples}日分位`:`同标的历史分位 · ${metric.samples}日`;
@@ -42,8 +51,12 @@ export function radarFactors(snapshot: MarketSnapshot, date: string): RadarFacto
     const strengthLabel=closed||score===null||descriptor.id==="rsi"?null:`${descriptor.id==="activity"?"活跃度":descriptor.id==="volatility"?"波动强度":"分离强度"}${Math.round(score)}`;
     const explanation=descriptor.id==="volatility"?`带宽${value===null?"—":value.toFixed(2)+"%"} · ${direction(band?.middleChange,"中轨上行","中轨下行")}`:descriptor.explanation;
 
-    return { ...descriptor, value, score, asOf, unavailable, scale,status,strengthLabel,...(descriptor.id==="volatility"?{position:band?.position??null}:{}), explanation };
+    return { ...descriptor, value, score, asOf, unavailable, scale,status,strengthLabel,...(descriptor.id==="volatility"?{position:value===null?null:band?.position??null}:{}), explanation };
   });
+}
+/** Hide an empty stock section, including dates with only an older volume reading. */
+export function hasStockRadar(snapshot: MarketSnapshot, date: string): boolean {
+  return snapshot.instrument.kind === "stock" && radarFactors(snapshot, date).some(factor => factor.value !== null);
 }
 /** Volatility/activity are direction-neutral; EMA color follows its actual sign, never its percentile. */
 export function radarFactorColor(factor: Pick<RadarFactor, "id" | "value" | "score">): string {

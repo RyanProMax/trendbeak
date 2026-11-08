@@ -15,7 +15,7 @@ function TrendScene({ snapshot, benchmark, bounds, end, range, left, right, top,
   const geometry = useMemo(() => {
     const values = full.prices.map((point) => point.value);
     const low = values.length ? Math.min(...values) : 0, high = values.length ? Math.max(...values) : 100;
-    const padding = Math.max((high - low) * .18, high * .003, 1), baseMin = Math.max(0, low - padding), baseMax = high + padding;
+    const padding = Math.max((high - low) * .18, high * .003, snapshot.instrument.kind === "stock" ? .01 : 1), baseMin = Math.max(0, low - padding), baseMax = high + padding;
     const x = (date: string) => left + (Date.parse(date) - Date.parse(full.start)) / 86400000 / Math.max(1,dateDistance(full.start,full.end)) * (right - left);
     const yPrice = (value: number) => bottom - (value - baseMin) / (baseMax - baseMin) * (bottom - top);
     const yMood = (value: number) => bottom - value / 100 * (bottom - top);
@@ -23,7 +23,7 @@ function TrendScene({ snapshot, benchmark, bounds, end, range, left, right, top,
       prices: full.priceSegments.filter((segment) => segment.length > 1).map((segment) => chartPath(segment, x, yPrice)),
       moods: full.moodSegments.filter((segment) => segment.length > 1).map((segment) => chartPath(segment, x, yMood)),
     };
-  }, [full, left, right, top, bottom]);
+  }, [full, left, right, top, bottom, snapshot.instrument.kind]);
   const scaleX = Math.max(1,dateDistance(full.start,full.end)) / Math.max(1,range - 1);
   const translateX = left * (1-scaleX) - dateDistance(full.start,shiftDate(end,1-range)) / Math.max(1,range-1) * (right-left);
   const scaleY = (geometry.baseMax - geometry.baseMin) / (max - min);
@@ -42,7 +42,7 @@ function TrendScene({ snapshot, benchmark, bounds, end, range, left, right, top,
     </defs>
     <g className="trend-series" clipPath={`url(#${id}-plot)`}>
       {visible.index && <g className="trend-view index-view" style={{ transform: `matrix(${scaleX}, 0, 0, ${scaleY}, ${translateX}, ${translateY})` }}>
-        {geometry.prices.map((path, i) => <path key={i} className="index-line" d={path} data-series="index" vectorEffect="non-scaling-stroke" />)}
+        {geometry.prices.map((path, i) => <path key={i} className="index-line" d={path} data-series={snapshot.instrument.kind === "stock" ? "stock" : "index"} vectorEffect="non-scaling-stroke" />)}
       </g>}
       {visible.mood && <g className="trend-view emotion-view" style={{ transform: `matrix(${scaleX}, 0, 0, 1, ${translateX}, 0)` }}>
         {geometry.moods.map((path, i) => <path key={i} className="emotion-line" d={path} stroke={`url(#${id}-emotion)`} data-series="sentiment" vectorEffect="non-scaling-stroke" />)}

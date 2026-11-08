@@ -9,7 +9,7 @@ const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
   ? {executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}
   : {channel: 'chrome'});
 const results = [];
-const selectors = ['.annual-calendar', '.heat-legend', '.signals-heading', '.trend-wrap', '.trend-range-control', '.signal-radar'];
+const selectors = ['.annual-calendar', '.heat-legend', '.market-signals > .panel-heading', '.trend-wrap', '.trend-range-control', '[data-panel="sentiment"]'];
 
 async function startFrames(page) {
   await page.evaluate(selectors => {
@@ -125,7 +125,7 @@ try {
       await page.evaluate(scroll => scrollTo(0, scroll), scroll);
       await page.waitForTimeout(100);
       await startFrames(page); await pointer(page, market, true);
-      await page.locator(`.market-analysis[data-analysis-market="${market}"] button.six-factor-trigger`).first().waitFor();
+      await page.locator(`main[data-market="${market}"] button.six-factor-trigger`).first().waitFor();
       await page.locator('.trend-range-control[data-start][data-end]').waitFor();
       await page.waitForTimeout(300);
       const frames = await stopFrames(page), label = `${width}/saved/${scroll}/${market}`;

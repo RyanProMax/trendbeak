@@ -31,9 +31,9 @@ test("natural-day windows preserve the chosen extent up to one year", () => {
 
 test("calendar inspection does not move the chart window or replace exact-date readings", () => {
   const snapshot = fixture(), before = series.trendSeries(snapshot, snapshot, snapshot.asOf, 30);
-  assert.deepEqual(series.trendReading(snapshot, snapshot, "2026-10-28"), { date: "2026-10-28", mood: null, price: 101, closed: false });
-  assert.deepEqual(series.trendReading(snapshot, snapshot, "2026-10-24"), { date: "2026-10-24", mood: null, price: null, closed: true });
-  assert.deepEqual(series.trendReading(snapshot, snapshot, "2026-10-27"), { date: "2026-10-27", mood: null, price: null, closed: false });
+  assert.deepEqual(series.trendReading(snapshot, snapshot, "2026-10-28"), { date: "2026-10-28", mood: null, price: 101, change:1, closed: false });
+  assert.deepEqual(series.trendReading(snapshot, snapshot, "2026-10-24"), { date: "2026-10-24", mood: null, price: null, change:null, closed: true });
+  assert.deepEqual(series.trendReading(snapshot, snapshot, "2026-10-27"), { date: "2026-10-27", mood: null, price: null, change:null, closed: false });
   assert.equal(series.trendReading(snapshot, snapshot, "2026-01-02").price, null);
   assert.deepEqual(series.trendSeries(snapshot, snapshot, snapshot.asOf, 30), before);
 });
@@ -94,4 +94,22 @@ test("emotion colors encode score thresholds continuously rather than time posit
     const a=channels(palette.sentimentColor(threshold-.001)),b=channels(palette.sentimentColor(threshold+.001));
     assert.ok(a.every((value,i)=>Math.abs(value-b[i])<=1));
   }
+});
+
+test("stock trends and exact-date readouts use only the selected stock, never benchmark sentiment or prices", () => {
+  const benchmark=fixture(),stock={...fixture(),instrument:{market:'US',kind:'stock',symbol:'AAPL',code:'AAPL',name:'Apple'},history:{'2026-10-28':{price:10,change:1},'2026-10-29':{price:11,change:10}}};
+  const result=series.trendSeries(stock,benchmark,stock.asOf,7);
+  assert.deepEqual(result.prices,[{date:'2026-10-28',value:10},{date:'2026-10-29',value:11}]);
+  assert.deepEqual(result.mood,[]);assert.deepEqual(result.moodSegments,[]);
+  assert.deepEqual(series.trendReading(stock,benchmark,'2026-10-29'),{date:'2026-10-29',price:11,change:10,mood:null,closed:false});
+  assert.equal(series.trendReading(stock,benchmark,'2026-10-26').price,null);
+  assert.deepEqual(series.trendSeries(stock,null,stock.asOf,7).prices,result.prices);
+});
+
+test('price changes follow the same exact stock row, retain zero and never borrow benchmark returns',()=>{
+ const benchmark=fixture(),stock={...fixture(),instrument:{market:'US',kind:'stock'},history:{'2026-10-29':{price:14,change:0},'2026-10-28':{price:14,change:null}}};
+ assert.equal(series.trendReading(stock,benchmark,'2026-10-29').change,0);
+ assert.equal(series.trendReading(stock,benchmark,'2026-10-28').change,null);
+ assert.equal(series.trendReading(stock,benchmark,'2026-10-26').change,null);
+ stock.history['2026-10-29'].change=NaN;assert.equal(series.trendReading(stock,benchmark,'2026-10-29').change,null);
 });

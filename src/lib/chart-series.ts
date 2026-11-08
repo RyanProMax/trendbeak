@@ -45,23 +45,27 @@ export function chartSegments(days: CalendarDay[], observations: ChartPoint[]): 
 export function trendSeries(snapshot: MarketSnapshot, benchmark: MarketSnapshot | null, end: string, range: number) {
   const start = shiftDate(end, 1 - range);
   const days = calendarForRange(snapshot, end, range).filter((day) => day.date >= start);
-  const mood = (snapshot.sentiment?.observations ?? []).filter((point) => point.date >= start && point.date <= end).sort((a, b) => a.date.localeCompare(b.date));
-  const prices = Object.entries(benchmark?.history ?? {}).filter(([date]) => date >= start && date <= end).sort(([a], [b]) => a.localeCompare(b)).map(([date, row]) => ({ date, value: row.price }));
+  const priceSnapshot = snapshot.instrument.kind === "stock" ? snapshot : benchmark;
+  const mood = (snapshot.instrument.kind === "stock" ? [] : snapshot.sentiment?.observations ?? []).filter((point) => point.date >= start && point.date <= end).sort((a, b) => a.date.localeCompare(b.date));
+  const prices = Object.entries(priceSnapshot?.history ?? {}).filter(([date]) => date >= start && date <= end).sort(([a], [b]) => a.localeCompare(b)).map(([date, row]) => ({ date, value: row.price }));
   return { start, end, days, mood, prices,
     moodSegments: chartSegments(days, mood),
-    priceSegments: chartSegments(benchmark ? calendarForRange(benchmark, end, range).filter((day) => day.date >= start) : days, prices),
+    priceSegments: chartSegments(priceSnapshot ? calendarForRange(priceSnapshot, end, range).filter((day) => day.date >= start) : days, prices),
   };
 }
 
 /** Exact-date observations only: never substitute a neighbouring session. */
 export function trendReading(snapshot: MarketSnapshot, benchmark: MarketSnapshot | null, date: string) {
-  const observation = snapshot.sentiment?.observations.find(point => point.date === date);
-  const reported = !observation ? snapshot.sentiment?.reportedObservations?.find(point => point.date === date) : undefined;
+  const priceSnapshot = snapshot.instrument.kind === "stock" ? snapshot : benchmark;
+  const sentiment = snapshot.instrument.kind === "stock" ? undefined : snapshot.sentiment;
+  const observation = sentiment?.observations.find(point => point.date === date);
+  const reported = !observation ? sentiment?.reportedObservations?.find(point => point.date === date) : undefined;
   return {
     date,
     mood: observation?.value ?? reported?.value ?? null,
-    price: benchmark?.history[date]?.price ?? null,
-    closed: (benchmark ?? snapshot).days.find(day => day.date === date)?.status === "closed" || isExchangeClosed(date, snapshot.instrument.market),
+    price: priceSnapshot?.history[date]?.price ?? null,
+    change: Number.isFinite(priceSnapshot?.history[date]?.change) ? priceSnapshot!.history[date].change : null,
+    closed: (priceSnapshot ?? snapshot).days.find(day => day.date === date)?.status === "closed" || isExchangeClosed(date, snapshot.instrument.market),
     ...(reported ? { moodSource: reported.source } : {}),
   };
 }
