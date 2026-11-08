@@ -1,3 +1,4 @@
+import {usETFValuationResponse} from './server/us-etf-valuation-response';
 import {valuationResponse} from './server/valuation-response';
 import{marketResponse}from"./server/market-response";
 import { Hono } from "hono";
@@ -34,6 +35,7 @@ app.get("/api/sentiment/:market", async (c) => {
   }
 });
 
+app.get("/api/valuations/US",c=>usETFValuationResponse(new URL(c.req.url),c.env?.SENTIMENT_DB));
 app.get("/api/valuations/CN",c=>valuationResponse(new URL(c.req.url),c.env?.SENTIMENT_DB));
 
 app.get("/api/markets", (c) => { c.header("Cache-Control","no-store");return c.json({error:"请按市场读取行情",markets:["/api/markets/CN","/api/markets/US"]},410); });
