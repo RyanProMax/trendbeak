@@ -1,6 +1,11 @@
 // Pure, bounded calculation. No fetches, inferred filings, or backfilled memberships.
 export const METHOD = 'common-equity-harmonic-v1', MIN_COVERAGE = .98;
 export const SECTORS = { XLK: '信息技术', XLF: '金融', XLV: '医疗保健', XLY: '可选消费', XLP: '必需消费', XLC: '通信服务', XLI: '工业', XLE: '能源', XLB: '原材料', XLU: '公用事业', XLRE: '房地产' };
+const REVIEWED_SPLITS = {
+  'XLB/DD': { baseValue: 405058202, baseAsOf: '2026-05-22', effectiveDate: '2026-06-24', numerator: 1, denominator: 3, availableAt: '2026-06-24T20:39:22Z' },
+  'XLK/KLAC': { baseValue: 130627521, baseAsOf: '2026-04-27', effectiveDate: '2026-06-11', numerator: 10, denominator: 1, availableAt: '2026-06-12T20:05:07Z' },
+  'XLY/CVNA': { baseValue: 143257677, baseAsOf: '2026-04-27', effectiveDate: '2026-05-07', numerator: 5, denominator: 1, availableAt: '2026-05-08T20:09:50Z' },
+};
 const finite = n => typeof n === 'number' && Number.isFinite(n);
 const positive = n => finite(n) && n > 0;
 const date = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && Number.isFinite(Date.parse(s)) && new Date(s).toISOString().slice(0, 10) === s;
@@ -51,18 +56,37 @@ export function calculateETF(input, { researchOnly = false } = {}) {
     // standalone Devon capital or financials to this reviewed June snapshot.
     if (input.code === 'XLE' && input.date === '2026-06-30' && holding.symbol === 'DVN' && (holding.shares && (holding.shares.asOf < '2026-05-07' || holding.shares.basis !== 'actual_common_outstanding') || holding.equity && holding.equity.basis !== 'common_pro_forma_event_bridge' || holding.revenue != null)) throw Error('Reviewed post-merger Devon inputs required for 2026-06-30');
     if (input.code === 'XLB' && input.date === '2026-06-30' && holding.symbol === 'DD' && holding.shares && holding.shares.basis !== 'estimated_split_adjusted_last_known_common_outstanding') throw Error('Reviewed split-adjusted DuPont estimate required for 2026-06-30');
+    if (input.date === '2026-06-30' && (input.code === 'XLK' && holding.symbol === 'LITE' || input.code === 'XLF' && holding.symbol === 'USB') && (holding.shares != null || holding.equity != null || holding.revenue != null || holding.capitalizationComponents?.length)) throw Error('Unresolved June corporate event requires missing inputs');
+    if (input.date === '2026-06-30' && input.code === 'XLV' && holding.symbol === 'BMY' && holding.equity != null) throw Error('Unresolved Bristol Myers preferred carrying amount requires missing common equity');
+    if (input.date === '2026-06-30' && input.code === 'XLF' && holding.symbol === 'PNC' && holding.equity != null && commonEquity(holding.equity) !== 57749000000) throw Error('Reviewed PNC equity must exclude full preferred capital surplus');
     if (holding.corporateActionsStatus !== undefined && !['unreviewed', 'reviewed_no_unresolved_action', 'unresolved_split', 'unresolved_spinoff', 'unresolved_other'].includes(holding.corporateActionsStatus)) throw Error('Unknown corporate action status');
+    if (holding.corporateActionsStatus?.startsWith('unresolved_') && (holding.shares != null || holding.equity != null || holding.revenue != null || holding.capitalizationComponents?.length)) throw Error('Unresolved corporate action requires missing affected inputs');
+    if (input.date === '2026-06-30' && input.code === 'XLY' && holding.symbol === 'CVNA' && holding.capitalizationComponents && (holding.capitalizationComponents.length !== 1 || holding.capitalizationComponents[0]?.classId !== 'A' || holding.capitalizationComponents[0]?.priceClassId !== 'A' || holding.capitalizationComponents[0]?.economicUnitFactor !== 1)) throw Error('Reviewed Carvana capitalization includes economic Class A only');
+    if (input.date === '2026-06-30' && input.code === 'XLY' && holding.symbol === 'TSLA' && holding.capitalizationComponents !== undefined) throw Error('Reviewed Tesla total common shares cannot be repeated across classes');
     const warn = (reason, extra = {}) => { if (!warnings.some(w => w.symbol === holding.symbol && w.reason === reason)) warnings.push({ symbol: holding.symbol, reason, ...extra }); };
     if (holding.shareClassStatus !== 'verified_all_common') warn('share_class_review_incomplete');
     const mark = (metric, kind, reason) => totals[metric][kind].push({ symbol: holding.symbol, weight: holding.weight, reason });
     const capital = (p, s, sameClass = true, equivalenceSource) => {
       const reconstructed = input.code === 'XLF' && holding.symbol === 'V' && holding.capitalizationComponents && sources.has(equivalenceSource) && s?.basis === 'event_reconstructed_common_equivalent';
-      const splitAdjusted = input.code === 'XLB' && input.date === '2026-06-30' && holding.symbol === 'DD' && s?.basis === 'estimated_split_adjusted_last_known_common_outstanding';
+      const spec = input.date === '2026-06-30' ? REVIEWED_SPLITS[input.code + '/' + holding.symbol] : undefined;
+      if (spec && s && s.basis !== 'estimated_split_adjusted_last_known_common_outstanding') throw Error('Reviewed split-adjusted common share basis required');
+      const splitAdjusted = !!spec && s?.basis === 'estimated_split_adjusted_last_known_common_outstanding';
       if (splitAdjusted) {
-        // This release admits only the independently reviewed May 22 base and
-        // June 24 1-for-3 event, with the complete evidence kept at s.source.
-        if (s.asOf !== '2026-05-22' || Math.abs(s.value - 405058202 / 3) > .000001 || !sources.has(s.source) || Date.parse(s.availableAt) < Date.parse('2026-06-24T20:39:22Z')) throw Error('Exact reviewed DuPont split event bridge required');
+        const a=s.splitAdjustment;
+        if (!a || Object.entries(spec).some(([k,v]) => k !== 'availableAt' && a[k] !== v) || s.asOf !== spec.baseAsOf || Math.abs(s.value - spec.baseValue * spec.numerator / spec.denominator) > .000001 || !sources.has(s.source) || !sources.has(a.source) || Date.parse(s.availableAt) < Date.parse(spec.availableAt)) throw Error('Exact reviewed split event bridge required');
         warn('split_adjusted_common_share_estimate');
+      }
+      const tesla = input.code === 'XLY' && input.date === '2026-06-30' && holding.symbol === 'TSLA';
+      if (tesla && s && s.basis !== 'estimated_event_adjusted_last_known_common_outstanding') throw Error('Reviewed Tesla share event bridge required');
+      const eventAdjusted = tesla && s?.basis === 'estimated_event_adjusted_last_known_common_outstanding';
+      if (eventAdjusted) {
+        const a=s.eventAdjustment;
+        if (!a || a.baseValue !== 3755723871 || a.baseAsOf !== '2026-04-16' || s.asOf !== a.baseAsOf || !Array.isArray(a.additions) || a.additions.length !== 1 || !Array.isArray(a.subtractions) || a.subtractions.length !== 1) throw Error('Exact reviewed Tesla event components required');
+        for (const [event,value,day] of [[a.additions[0],286428773,'2026-06-16'],[a.subtractions[0],96000000,'2026-04-21']]) {
+          if (!event || event.value !== value || event.date !== day || !instant(event.availableAt) || Date.parse(event.availableAt) < Date.parse('2026-06-17T20:55:05Z') || Date.parse(event.availableAt) > Date.parse(input.cutoff) || Date.parse(event.availableAt) > Date.parse(s.availableAt) || !sources.has(event.source)) throw Error('Invalid or unavailable Tesla event evidence');
+        }
+        if (s.value !== a.baseValue + a.additions[0].value - a.subtractions[0].value) throw Error('Tesla event shares must reconcile exactly once');
+        warn('event_adjusted_common_share_estimate');
       }
       if (p != null) fact(p, false, pricingBasis !== 'unadjusted_close');
       if (s != null) {
@@ -75,7 +99,7 @@ export function calculateETF(input, { researchOnly = false } = {}) {
         if (holding.corporateActionsCheckedThrough !== input.date) warn('corporate_action_review_incomplete');
       }
       if (p == null || s == null) return null;
-      if (!positive(p.value) || p.asOf !== input.date || p.basis !== pricingBasis || !positive(s.value) || (s.basis !== 'actual_common_outstanding' && !reconstructed && !splitAdjusted) || !s.shareBasis || !p.shareBasis || sameClass && p.shareBasis !== s.shareBasis) throw Error('Price and actual common shares must have matching split/share basis');
+      if (!positive(p.value) || p.asOf !== input.date || p.basis !== pricingBasis || !positive(s.value) || (s.basis !== 'actual_common_outstanding' && !reconstructed && !splitAdjusted && !eventAdjusted) || !s.shareBasis || !p.shareBasis || sameClass && p.shareBasis !== s.shareBasis) throw Error('Price and actual common shares must have matching split/share basis');
       const cap = p.value * s.value;
       if (!positive(cap)) throw Error('Invalid market capitalization');
       return cap;
@@ -151,7 +175,7 @@ export function calculateETF(input, { researchOnly = false } = {}) {
     sourceComparison = { sourceConflict: c.sourceConflict ?? true, observedAt: c.observedAt, alternateSourceValues, deltaPercent };
   }
   return {
-    reading: { code: input.code, name: SECTORS[input.code], date: input.date, asOf: input.cutoff, availableAt, availableDate, pricingBasis, qualityFlags: { sharesOver90Days: warnings.filter(w => w.reason === 'shares_older_than_90_days').length, corporateActionsUnreviewed: warnings.filter(w => w.reason === 'corporate_action_review_incomplete').length, shareClassesUnreviewed: warnings.filter(w => w.reason === 'share_class_review_incomplete').length, comparableRevenue: warnings.filter(w => w.reason === 'comparable_revenue_basis').length, eventReconstructedShares: warnings.filter(w => ['event_reconstructed_common_equivalent', 'split_adjusted_common_share_estimate'].includes(w.reason)).length, eventProForma: warnings.filter(w => w.reason === 'event_pro_forma_fundamentals').length }, methodVersion: METHOD, scope: 'covered_holdings', ...metrics, ...(sourceComparison ? { sourceComparison } : {}) },
+    reading: { code: input.code, name: SECTORS[input.code], date: input.date, asOf: input.cutoff, availableAt, availableDate, pricingBasis, qualityFlags: { sharesOver90Days: warnings.filter(w => w.reason === 'shares_older_than_90_days').length, corporateActionsUnreviewed: warnings.filter(w => w.reason === 'corporate_action_review_incomplete').length, shareClassesUnreviewed: warnings.filter(w => w.reason === 'share_class_review_incomplete').length, comparableRevenue: warnings.filter(w => w.reason === 'comparable_revenue_basis').length, eventReconstructedShares: warnings.filter(w => ['event_reconstructed_common_equivalent', 'split_adjusted_common_share_estimate', 'event_adjusted_common_share_estimate'].includes(w.reason)).length, eventProForma: warnings.filter(w => w.reason === 'event_pro_forma_fundamentals').length }, methodVersion: METHOD, scope: 'covered_holdings', ...metrics, ...(sourceComparison ? { sourceComparison } : {}) },
     quality: { warnings, stockWeight, shareAgeDays: Object.fromEntries(input.holdings.filter(h => h.shares).map(h => [h.symbol, (Date.parse(input.date) - Date.parse(h.shares.asOf)) / 86400000])), holdingsWeight: totalWeight, minimumCoverage: MIN_COVERAGE, missing: { pb: totals.pb.missing, ps: totals.ps.missing }, excluded: { pb: totals.pb.excluded, ps: totals.ps.excluded } },
     sources: input.sources,
   };

@@ -47,7 +47,7 @@ export function validETFValuation(row: any, selectedDate: string): row is ETFVal
   if (row.availableDate !== availableDate || availableDate > selectedDate || row.pricingBasis === 'unadjusted_close' && row.date !== selectedDate || row.pricingBasis === 'portfolio_fair_value_per_share' && !['03-31', '06-30', '09-30', '12-31'].includes(row.date.slice(5))) return false;
   if (!row.qualityFlags || Object.keys(row.qualityFlags).some(k => !['sharesOver90Days', 'corporateActionsUnreviewed', 'shareClassesUnreviewed', 'comparableRevenue', 'eventReconstructedShares', 'eventProForma'].includes(k)) || ![row.qualityFlags.sharesOver90Days, row.qualityFlags.corporateActionsUnreviewed, row.qualityFlags.shareClassesUnreviewed, row.qualityFlags.comparableRevenue, row.qualityFlags.eventReconstructedShares, row.qualityFlags.eventProForma].every(v => Number.isInteger(v) && v >= 0 && v <= 600)) return false;
   if (row.qualityFlags.comparableRevenue > 1 || row.qualityFlags.comparableRevenue > 0 && row.code !== 'XLC') return false;
-  if (row.qualityFlags.eventReconstructedShares > 1 || row.qualityFlags.eventReconstructedShares > 0 && !['XLF', 'XLB'].includes(row.code)) return false;
+  if (row.qualityFlags.eventReconstructedShares > (row.code === 'XLY' ? 2 : ['XLF', 'XLB', 'XLK'].includes(row.code) ? 1 : 0)) return false;
   if (row.qualityFlags.eventProForma > (row.code === 'XLI' ? 2 : row.code === 'XLE' ? 1 : 0)) return false;
   if (row.sourceComparison) {
     const c=row.sourceComparison;

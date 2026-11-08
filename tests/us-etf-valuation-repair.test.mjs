@@ -1,5 +1,5 @@
 import test from'node:test';import assert from'node:assert/strict';import{mkdtemp,readFile,rm,stat}from'node:fs/promises';import{join}from'node:path';import{tmpdir}from'node:os';
-import{memoryDB}from'./market-fixture.mjs';import{etfInput,cutoff}from'./us-etf-fixture.mjs';import{importETFValuations}from'../scripts/us-etf-valuation-import.mjs';import{repairETFValuation,repairETFValuations}from'../scripts/us-etf-valuation-repair.mjs';import{calculateETF}from'../scripts/us-etf-valuations.mjs';
+import{memoryDB}from'./market-fixture.mjs';import{etfInput,cutoff}from'./us-etf-fixture.mjs';import{importETFValuations}from'../scripts/us-etf-valuation-import.mjs';import{repairETFValuation,repairETFValuations,restoreETFRepairs}from'../scripts/us-etf-valuation-repair.mjs';import{calculateETF}from'../scripts/us-etf-valuations.mjs';
 const now=Date.parse(cutoff)+1000;
 // Actual DVN weight in the audited 2026-06-30 NPORT input. The other holding is
 // synthetic: this tests the 98% admission gate, not a full XLE recomputation.
@@ -68,7 +68,20 @@ test('June 2026 DuPont admits only the reviewed approximate May 22 base divided 
  const x=etfInput();Object.assign(x,{code:'XLB',date:'2026-06-30',holdingsAsOf:'2026-06-30',cutoff:'2026-06-30T20:00:00Z',availableAt:'2026-08-28T16:23:11Z',pricingBasis:'portfolio_fair_value_per_share'});
  for(const h of x.holdings){h.corporateActionsCheckedThrough=x.date;Object.assign(h.price,{asOf:x.date,availableAt:x.availableAt,basis:x.pricingBasis});for(const f of ['shares','equity','revenue'])Object.assign(h[f],{asOf:'2026-03-31',availableAt:'2026-05-01T16:00:00Z'});}
  x.holdings[0].symbol='DD';assert.throws(()=>calculateETF(x),/split-adjusted DuPont/);
- Object.assign(x.holdings[0].shares,{basis:'estimated_split_adjusted_last_known_common_outstanding',asOf:'2026-05-22',availableAt:'2026-06-24T20:39:22Z',value:405058202/3});
+ Object.assign(x.holdings[0].shares,{basis:'estimated_split_adjusted_last_known_common_outstanding',asOf:'2026-05-22',availableAt:'2026-06-24T20:39:22Z',value:405058202/3,splitAdjustment:{baseValue:405058202,baseAsOf:'2026-05-22',effectiveDate:'2026-06-24',numerator:1,denominator:3,source:'filing'}});
  const row=calculateETF(x).reading;assert.ok(row.ps.value>0);assert.equal(row.qualityFlags.eventReconstructedShares,1);
  for(const mutate of [y=>y.holdings[0].shares.value=409921306/3,y=>y.holdings[0].shares.value=405058202,y=>y.holdings[0].shares.asOf='2026-05-01',y=>y.holdings[0].shares.availableAt='2026-05-26T20:00:00Z',y=>y.holdings[0].symbol='OTHER',y=>y.code='XLK']){const bad=structuredClone(x);mutate(bad);assert.throws(()=>calculateETF(bad));}
+});
+test('reviewed repair rollback checks both payload hashes and version, restores every original byte atomically and advances the version',async()=>{
+ for(const conflict of[false,true]){const f=memoryDB(),dir=await mkdtemp(join(tmpdir(),'etf-repair-restore-'));try{
+  const a=xle(),b=etfInput();await importETFValuations({db:f.db,inputs:[a,b],now,dryRun:false,backup:dir+'/seed.json'});const old=f.sqlite.prepare('SELECT key,payload FROM market_snapshot ORDER BY key').all();b.holdings[0].price.value++;
+  const inputs=[unresolved(),b],plan=await repairETFValuations({db:f.db,repairs:inputs.map(input=>({input})),now}),repairs=inputs.map((input,i)=>({input,expectedOldHash:plan.corrections[i].oldHash,expectedNewHash:plan.corrections[i].newHash}));
+  const published=await repairETFValuations({db:f.db,repairs,now:now+1000,dryRun:false,backup:dir+'/before.json'}),prior=JSON.parse(await readFile(dir+'/before.json','utf8')),current=f.sqlite.prepare('SELECT key,payload FROM market_snapshot ORDER BY key').all();
+  assert.equal((await restoreETFRepairs({db:f.db,prior,expectedVersion:published.publicationVersion,now:now+2000})).writes,0);
+  const bad=structuredClone(prior);bad[0].payload+=' ';await assert.rejects(restoreETFRepairs({db:f.db,prior:bad,expectedVersion:published.publicationVersion,now:now+2000}),/backup/);
+  const db=conflict?{prepare(sql){const stmt=f.db.prepare(sql);return{bind(...args){const bound=stmt.bind(...args);return{...bound,async run(){f.sqlite.prepare('UPDATE market_snapshot SET payload=? WHERE key=?').run('{}','valuation/US/XLK');return bound.run();}};}};}}:f.db;
+  const operation=restoreETFRepairs({db,prior,expectedVersion:published.publicationVersion,now:now+2000,dryRun:false,backup:dir+'/before-rollback.json'});
+  if(conflict){await assert.rejects(operation,/not confirmed/);assert.equal(f.sqlite.prepare('SELECT payload FROM market_snapshot WHERE key=?').get('valuation/US/XLE').payload,current.find(r=>r.key==='valuation/US/XLE').payload);}
+  else{const restored=await operation;assert.equal(restored.writes,2);assert.notEqual(restored.publicationVersion,published.publicationVersion);assert.deepEqual(f.sqlite.prepare('SELECT key,payload FROM market_snapshot ORDER BY key').all(),old);await assert.rejects(restoreETFRepairs({db:f.db,prior,expectedVersion:published.publicationVersion,now:now+3000}),/changed/);}
+ }finally{f.close();await rm(dir,{recursive:true});}}
 });

@@ -80,7 +80,27 @@ test('corporate-action safety hold suppresses all five funds in both formats, wh
  const f=memoryDB();try{
   const expected=[];for(const code of Object.keys(SECTORS)){const x=etfInput();x.code=code;x.sourceComparison={date,source:'holdings',observedAt:cutoff,sourceConflict:true,alternateSourceValues:{pb:12,ps:4},alternateCoverage:{pb:1,ps:1}};const row=calculateETF(x).reading;expected.push(row);f.sqlite.prepare('INSERT INTO market_snapshot VALUES(?,?,?)').run('valuation/US/'+code,JSON.stringify({source:'self_us_etf',history:{[date]:row}}),date);}
   const before=f.sqlite.prepare('SELECT key,payload,updated_at FROM market_snapshot ORDER BY key').all();
-  for(const format of ['', '&format=event-equity-v2']){const response=await respond(new URL('https://test/api/valuations/US?date='+date+format),f.db);assert.equal(response.status,200);const rows=(await response.json()).data.rows;assert.equal(rows.length,11);for(const row of rows){if(['XLE','XLB','XLK','XLY','XLF'].includes(row.code)){assert.equal(row.pb.value,null);assert.equal(row.ps.value,null);assert.equal(row.pb.percentile,null);assert.equal(row.ps.percentile,null);assert.equal(row.sourceComparison,undefined);}else assert.deepEqual(row,pbHeld(expected.find(r=>r.code===row.code)));}}
+  for(const format of ['', '&format=event-equity-v2', '&format=audited-events-v3']){const response=await respond(new URL('https://test/api/valuations/US?date='+date+format),f.db);assert.equal(response.status,200);const rows=(await response.json()).data.rows;assert.equal(rows.length,11);for(const row of rows){if(['XLE','XLB','XLK','XLY','XLF'].includes(row.code)){assert.equal(row.pb.value,null);assert.equal(row.ps.value,null);assert.equal(row.pb.percentile,null);assert.equal(row.ps.percentile,null);assert.equal(row.sourceComparison,undefined);}else assert.deepEqual(row,pbHeld(expected.find(r=>r.code===row.code)));}}
   assert.equal(f.stats.writes,0);assert.deepEqual(f.sqlite.prepare('SELECT key,payload,updated_at FROM market_snapshot ORDER BY key').all(),before);
+ }finally{f.close();}
+});
+
+test('only exact verified version and prepared quarter reading release holds; same-date changes and old records stay hidden in all formats',async()=>{
+ const f=memoryDB();try{
+  const row={...calculateETF({...etfInput(),code:'XLK'}).reading,date:'2026-06-30',asOf:'2026-06-30T20:00:00Z',availableAt:'2026-08-28T15:00:00Z',availableDate:'2026-08-28',pricingBasis:'portfolio_fair_value_per_share'};row.qualityFlags.eventReconstructedShares=1;row.sourceComparison={sourceConflict:true,observedAt:'2026-11-08T10:00:00Z',alternateSourceValues:{pb:row.pb.value,ps:row.ps.value},deltaPercent:{pb:0,ps:0}};
+  const version='2026-11-08T12:00:00.000Z',save=(r,v=version)=>f.sqlite.prepare('INSERT OR REPLACE INTO market_snapshot VALUES(?,?,?)').run('valuation/US/XLK',JSON.stringify({source:'self_us_etf',history:{[r.date]:r}}),v);
+  const {publicationEntries}=await vite.ssrLoadModule('/src/server/us-etf-publication.ts'),proof={schema:'verified-etf-publication-v1',auditSha256:'a'.repeat(64),bundleSha256:'b'.repeat(64),verifiedAt:'2026-11-08T12:01:00.000Z',entries:[{code:'XLK',date:row.date,version,payloadSha256:'c'.repeat(64),preparedReading:JSON.stringify(row)}]},entries=publicationEntries(proof);assert.equal(entries.length,1);
+  save(row);for(const format of['','&format=event-equity-v2','&format=audited-events-v3']){
+   const get=async d=>{const r=await respond(new URL('https://test/api/valuations/US?date='+d+format),f.db,entries);assert.equal(r.status,200);return(await r.json()).data.rows;};
+   assert.deepEqual(await get('2026-08-27'),[]);const publicRow=(await get('2026-11-05'))[0];
+   if(format.includes('audited-events-v3'))assert.deepEqual(publicRow,row);else{assert.equal(publicRow.pb.value,null);assert.equal(publicRow.ps.value,null);assert.equal(publicRow.sourceComparison,undefined);assert.equal(publicRow.qualityFlags.eventReconstructedShares,0);}
+  }
+  for(const mutate of [r=>r.pb.value++,r=>r.ps.value++,r=>r.sourceComparison.observedAt='2026-11-08T11:00:00Z',r=>r.qualityFlags.sharesOver90Days++]){
+   const changed=structuredClone(row);mutate(changed);save(changed);
+   for(const format of['','&format=event-equity-v2','&format=audited-events-v3']){const result=await respond(new URL('https://test/api/valuations/US?date=2026-11-05'+format),f.db,entries);assert.equal(result.status,200);const r=(await result.json()).data.rows[0];assert.equal(r.pb.value,null);assert.equal(r.ps.value,null);assert.equal(r.sourceComparison,undefined);}
+  }
+  save(row,'2026-11-08T12:00:00.001Z');const body=await(await respond(new URL('https://test/api/valuations/US?date=2026-11-05&format=audited-events-v3'),f.db,entries)).json();assert.equal(body.data.rows[0].pb.value,null);assert.equal(body.data.rows[0].ps.value,null);
+  for(const malformed of[{},null,{...proof,entries:[null]},{...proof,auditSha256:'wrong'},{...proof,entries:[...proof.entries,...proof.entries]},{...proof,entries:[{...proof.entries[0],preparedReading:'invalid'}]}])assert.deepEqual(publicationEntries(malformed),[]);
+  assert.equal(f.stats.writes,0);
  }finally{f.close();}
 });
