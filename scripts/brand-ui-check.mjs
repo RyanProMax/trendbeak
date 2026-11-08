@@ -53,6 +53,9 @@ try {
       const slider = page.getByRole('slider', { name: '切换市场', exact: true });
       await slider.focus(); await slider.press(market === 'CN' ? 'Home' : 'End');
       await page.locator(`main[data-market="${market}"] button.six-factor-trigger`).first().waitFor();
+      if (market === 'US') await page.waitForFunction(() => {
+        return document.querySelector('.us-theme-valuations table')?.getAttribute('aria-busy') === 'false';
+      });
       await capture(market);
       for (const id of ids) {
         await page.locator(`.six-factor-trigger[data-radar-axis="${id}"]`).click();

@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import {spawnSync} from 'node:child_process';
 
-const workflow=readFileSync('.github/workflows/daily-sync.yml','utf8');
+const workflow=readFileSync('.github/workflows/daily-sync.yml','utf8').replace(/\r\n/g,'\n');
 // This audit intentionally supports only this workflow's flat, explicit steps.
 // Reject indirection rather than silently treating aliases as isolated env maps.
 const marker='\n    steps:\n',start=workflow.indexOf(marker);
@@ -11,7 +11,7 @@ const steps=workflow.slice(start+marker.length).trimEnd().split(/\n(?= {6}- )/);
 const secret='${{ secrets.CLOUDFLARE_API_TOKEN }}';
 const credentialSteps=new Set(['Require an existing authorized database credential','Update bounded source windows and prepared responses','Update bounded market factors and index valuations','Check new quarterly ETF filings and append only audited releases']);
 
-test('disabled or unconfigured schedules fail visibly before any database writer can run',()=>{
+test('disabled or unconfigured schedules fail visibly before any database writer can run',{skip:process.platform==='win32'?'Requires POSIX shell; exercised by Linux CI':false},()=>{
  assert.match(workflow,/cron: '37 3 \* \* 2-6'/);
  assert.match(workflow,/    if: github.ref == 'refs\/heads\/main'\n/);
  const guard=steps[0].split('        run: |\n')[1].split('\n').map(line=>line.replace(/^          /,'')).join('\n');

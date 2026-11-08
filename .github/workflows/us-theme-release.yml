@@ -1,0 +1,57 @@
+name: Publish reviewed US index source
+
+on:
+  workflow_dispatch:
+    inputs:
+      code:
+        type: choice
+        options: [SOX, SPX]
+        required: true
+      observed_at:
+        description: Actual source retrieval time in UTC
+        required: true
+      source_gzip:
+        description: Gzip base64 of one saved reviewed public page
+        required: true
+      source_sha256:
+        description: SHA256 of the original saved page bytes
+        required: true
+
+permissions:
+  contents: read
+concurrency:
+  group: trendbeak-daily-writer
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+      - name: Validate the reviewed source without a database credential
+        env:
+          THEME_CODE: ${{ inputs.code }}
+          THEME_OBSERVED_AT: ${{ inputs.observed_at }}
+          THEME_SOURCE_GZIP: ${{ inputs.source_gzip }}
+          THEME_SOURCE_SHA256: ${{ inputs.source_sha256 }}
+        run: node scripts/us-theme-release-input.mjs "$RUNNER_TEMP/theme-source.json"
+      - name: Back up and publish the validated source
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo 'Existing database credential missing'; exit 1; }
+          node scripts/us-theme-valuation-import.mjs --remote --file "$RUNNER_TEMP/theme-source.json" --write --backup "$RUNNER_TEMP/theme-before.json"
+      - name: Retain the pre-publication backup
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: us-theme-before-${{ inputs.code }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/theme-before.json
+          retention-days: 7
+          if-no-files-found: ignore

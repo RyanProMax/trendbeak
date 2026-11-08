@@ -1,6 +1,8 @@
 # US sector ETF valuations
 
-The US panel maps the eleven equity sectors to XLK, XLF, XLV, XLY, XLP, XLC, XLI, XLE, XLB, XLU and XLRE. It shows PB and PS estimates in multiples. Daily-close estimates use the selected date exactly. Portfolio-mark estimates retain their actual quarter-end date and can appear only on or after their real publication time. Missing observations stay blank. This release does not manufacture historical values or percentiles, and never applies today's holdings to an earlier date.
+This documents the legacy eleven-sector calculation and compatibility endpoint. The current theme panel is described in [us-theme-valuations.md](us-theme-valuations.md). Source-comparison metadata remains in the legacy API and storage but is no longer a reader-facing annotation.
+
+The legacy US panel mapped the eleven equity sectors to XLK, XLF, XLV, XLY, XLP, XLC, XLI, XLE, XLB, XLU and XLRE. It shows PB and PS estimates in multiples. Daily-close estimates use the selected date exactly. Portfolio-mark estimates retain their actual quarter-end date and can appear only on or after their real publication time. Missing observations stay blank. This release does not manufacture historical values or percentiles, and never applies today's holdings to an earlier date.
 
 ## Calculation and admission
 

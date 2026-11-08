@@ -1,80 +1,78 @@
-// Browser-only synthetic valuation cases. Never pass these fixtures to a writer.
-import { chromium } from '@playwright/test';
-import { mkdir, writeFile } from 'node:fs/promises';
+// Browser-only synthetic rank edge cases; never imported into a database.
 import assert from 'node:assert/strict';
-import { etfInput } from '../tests/us-etf-fixture.mjs';
-import { calculateETF } from './us-etf-valuations.mjs';
-const base = process.env.SIGNAL_PREVIEW_URL ?? 'http://127.0.0.1:8788', out = process.env.SIGNAL_ARTIFACT_DIR ?? 'artifacts/screenshots/us-etf';
-await mkdir(out, { recursive: true });
-const browser = await chromium.launch({ channel: 'chrome' }), results = [], row = calculateETF(etfInput()).reading;
-const sourceComparison={sourceConflict:true,observedAt:'2026-11-08T10:00:00Z',alternateSourceValues:{pb:10,ps:4},deltaPercent:{pb:-20,ps:-20}};
-const quarterly={...row,sourceComparison,date:'2026-06-30',asOf:'2026-06-30T20:00:00Z',availableAt:'2026-08-28T15:00:00Z',availableDate:'2026-08-28',pricingBasis:'portfolio_fair_value_per_share'}, comparable={...quarterly,code:'XLC',name:'通信服务',qualityFlags:{...row.qualityFlags,comparableRevenue:1}}, reconstructed={...quarterly,code:'XLF',name:'金融',sourceComparison:undefined,qualityFlags:{...row.qualityFlags,eventReconstructedShares:1}}, proForma={...quarterly,code:'XLI',name:'工业',sourceComparison:undefined,qualityFlags:{...row.qualityFlags,eventProForma:1}};
+import { writeFile } from 'node:fs/promises';
+import { launch, base, out } from './signal-check-utils.mjs';
+const browser = await launch(), results = [];
 try {
   for (const width of [1440, 390]) for (const scheme of ['light', 'dark']) {
-    const context = await browser.newContext({ viewport: { width, height: 900 }, isMobile: width === 390, hasTouch: width === 390, colorScheme: scheme, reducedMotion: 'reduce' });
+    const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: scheme, reducedMotion: 'reduce', isMobile: width === 390, hasTouch: width === 390 });
     const page = await context.newPage(), errors = [];
     page.on('pageerror', e => errors.push(e.message));
-    await page.route('**/api/valuations/US?*', route => {
+    await page.route('**/api/valuations/US/themes?*', route => {
       const date = new URL(route.request().url()).searchParams.get('date');
-      return date === '2026-11-03' ? route.fulfill({ status: 503, json: { error: 'fixture' } }) : route.fulfill({ json: { data: { date, rows: date === row.date ? [row] : date === '2026-10-29' ? [quarterly,comparable,reconstructed,proForma] : [] } } });
+      const metric = (value, percentile) => ({ value, percentile, samples: 100, from: '2026-01-02', through: '2026-11-04' });
+      const rows = date === '2026-11-05' ? [
+        { name: '半导体', code: 'SOX', date, availableDate: date, pb: metric(8, 0), ps: metric(5, 100) },
+        { name: '存储', code: 'STXWSML', date, pb: { value: 3, percentile: null, samples: 0 }, ps: { value: null, percentile: null, samples: 0 } },
+      ] : [];
+      return date === '2026-11-03' ? route.fulfill({ status: 503, json: { error: 'test only' } }) : route.fulfill({ json: { data: { date, rows } } });
     });
-    await page.goto(base, { waitUntil: 'networkidle' });
-    const slider = page.getByRole('slider', { name: '切换市场', exact: true });
-    await slider.focus(); await slider.press('End');
-    await page.locator('main[data-market="US"]').waitFor();
+    await page.goto(base + '?market=US', { waitUntil: 'networkidle' });
+    const panel = page.locator('.us-theme-valuations'); await panel.waitFor();
+    await page.evaluate(() => document.fonts.ready);
     const select = async date => { const cell = page.locator(`rect[role="button"][data-date="${date}"]`); await cell.focus(); await cell.press('Enter'); };
-    const panel = page.locator('.us-sector-valuations');
-    await select(row.date); await page.getByText('持仓估算', { exact: true }).waitFor(); await page.evaluate(() => document.fonts.ready);
-    assert.equal(await panel.locator('tbody tr').count(), 11);
-    assert.deepEqual(await panel.locator('tbody tr').first().locator('td b').allTextContents(), ['12.50', '5.00']);
-    assert.ok(!(await panel.innerText()).includes('分位'));
-    assert.equal(await page.locator('.site-disclaimer').innerText(), '仅供学习用途，不作商业行为。');
-    const check = async label => {
-      const layout = await panel.evaluate(e => ({ page: document.documentElement.scrollWidth > innerWidth, panel: e.scrollWidth > e.clientWidth, outside: [...e.querySelectorAll('th,td,b,strong,small')].filter(x => { const r = x.getBoundingClientRect(); return r.left < 0 || r.right > innerWidth || x.scrollWidth > x.clientWidth + 1 && getComputedStyle(x).display !== 'inline'; }).map(x => x.outerHTML) }));
-      assert.deepEqual(layout, { page: false, panel: false, outside: [] }, label);
+    const capture = async label => {
+      // Tall category panels scroll during capture; park the pointer outside
+      // the table so it cannot hover a second reading as the page moves.
+      await page.mouse.move(0, 0);
+      await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+      const checks = await page.evaluate(() => {
+        const selectors = '.us-theme-valuations,.us-theme-valuations th,.us-theme-valuations td,.valuation-trigger,.valuation-tooltip';
+        return { overflow: document.documentElement.scrollWidth > innerWidth, clipped: [...document.querySelectorAll(selectors)].filter(e => e.checkVisibility()).flatMap(e => {
+          const r = e.getBoundingClientRect();
+          return r.left < -1 || r.right > innerWidth + 1 || e.scrollWidth > e.clientWidth + 1 ? [e.className] : [];
+        }) };
+      });
+      assert.deepEqual(checks, { overflow: false, clipped: [] }, label);
+      await page.screenshot({ path: `${out}/${width}-${scheme}-${label}-full.png`, fullPage: true });
+      await panel.screenshot({ path: `${out}/${width}-${scheme}-${label}-panel.png` });
+      const tooltip = page.locator('.valuation-tooltip'); if (await tooltip.count()) await tooltip.screenshot({ path: `${out}/${width}-${scheme}-${label}-tooltip.png` });
     };
-    await check('populated'); await page.screenshot({ path: `${out}/${width}-${scheme}-full.png`, fullPage: true }); await panel.screenshot({ path: `${out}/${width}-${scheme}-panel.png` });
-    const toggle = panel.locator('.panel-heading button').first();
-    await toggle.focus(); await toggle.press('Enter'); assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
-    await toggle.press('Space'); assert.equal(await toggle.getAttribute('aria-expanded'), 'true'); await check('reopened');
-    await select('2026-10-29'); await page.getByText('季度持仓估算 · 2026年6月30日', { exact: true }).waitFor(); await check('quarterly');
-    for(const label of ['XLC 可比口径：已调整拆分前收入','XLF 含股本事件估算','XLI 含分拆财务估算']) assert.equal(await page.getByText(label,{exact:true}).count(),1);
-    await page.screenshot({path:`${out}/${width}-${scheme}-quarterly-full.png`,fullPage:true}); await panel.screenshot({path:`${out}/${width}-${scheme}-quarterly.png`});
-    const conflict=panel.getByRole('button',{name:'XLK 持仓来源有差异',exact:true});await conflict.scrollIntoViewIfNeeded();await conflict.click();
-    const tooltip=page.getByRole('tooltip');await tooltip.waitFor({state:'visible'});
-    assert.ok((await tooltip.innerText()).includes('核验日期：2026年11月8日'));assert.ok((await tooltip.innerText()).includes('PB 12.50倍 / 10.00倍'));assert.ok((await tooltip.innerText()).includes('PS 5.00倍 / 4.00倍'));assert.ok((await tooltip.innerText()).includes('PB −20.00%'));
-    const conflictLayout=await tooltip.evaluate(e=>{const r=e.getBoundingClientRect();return{fits:e.scrollWidth<=e.clientWidth+1,left:r.left,right:r.right,width:innerWidth};});assert.ok(conflictLayout.fits&&conflictLayout.left>=0&&conflictLayout.right<=conflictLayout.width);
-    await page.screenshot({path:`${out}/${width}-${scheme}-source-conflict.png`,clip:await tooltip.boundingBox()});
-    await page.keyboard.press('Escape');await tooltip.waitFor({state:'hidden'});
-    await conflict.click();await tooltip.waitFor({state:'visible'});await toggle.focus();await toggle.press('Enter');await tooltip.waitFor({state:'hidden'});await toggle.press('Enter');await check('conflict collapsed');
-    await select('2026-11-04'); await page.getByText('该日期暂无估值数据', { exact: true }).waitFor();
-    assert.ok((await panel.locator('td b').allTextContents()).every(v => v === '—')); await check('absent');
-    await panel.screenshot({ path: `${out}/${width}-${scheme}-absent.png` });
-    await select('2026-11-03'); await page.getByText('估值数据暂不可用', { exact: true }).waitFor();
-    assert.ok((await panel.locator('td b').allTextContents()).every(v => v === '—'));
-    await select(row.date); await page.getByText('持仓估算', { exact: true }).waitFor();
-    await slider.focus(); await slider.press('Home'); assert.equal(await panel.count(), 0);
-    await slider.press('End'); await page.getByText('持仓估算', { exact: true }).waitFor(); await check('market return');
-    // Full-page and every expanded core signal, for both markets and viewports.
-    for (const market of ['CN','US']) {
-      await slider.focus(); await slider.press(market==='CN'?'Home':'End');
-      await page.locator(`main[data-market="${market}"]`).waitFor();
-      const triggers=page.locator('.six-factor-trigger');await triggers.first().waitFor();
-      await page.keyboard.press('Escape');await page.mouse.move(0,0);
-      await page.screenshot({path:`${out}/${width}-${scheme}-${market}-full.png`,fullPage:true});
-      for(let i=0;i<6;i++) {
-        const trigger=triggers.nth(i);await trigger.focus();await trigger.press('Enter');
-        const detail=page.locator('.overview-detail');await detail.waitFor({state:'visible'});
-        const layout=await detail.evaluate(e=>{const r=e.getBoundingClientRect();return{fits:e.scrollWidth<=e.clientWidth+1,left:r.left,right:r.right,width:innerWidth,page:document.documentElement.scrollWidth<=innerWidth};});
-        assert.ok(layout.fits&&layout.left>=0&&layout.right<=layout.width&&layout.page,JSON.stringify(layout));
-        const id=await trigger.getAttribute('data-radar-axis');
-        // Capture the visible detail before a full-page capture can move the viewport.
-        const box=await detail.boundingBox();await page.screenshot({path:`${out}/${width}-${scheme}-${market}-${id}-detail.png`,clip:box});
-        await page.screenshot({path:`${out}/${width}-${scheme}-${market}-${id}-full.png`,fullPage:true});
-        await page.keyboard.press('Escape');
-      }
+    await select('2026-11-05'); await panel.getByText('0.0%', { exact: true }).waitFor();
+    assert.deepEqual(await panel.locator('tbody th strong').allTextContents(), ['半导体', '存储', '光连接', '数据中心', 'AI 电力基建', '云计算', '云软件', '网络安全', '机器人']);
+    assert.deepEqual(await panel.locator('tbody tr').first().locator('td b').allTextContents(), ['0.0%', '100.0%']);
+    assert.deepEqual(await panel.locator('.valuation-track i').evaluateAll(es => es.map(e => e.style.width)), ['0%', '100%']);
+    assert.deepEqual(await panel.locator('tbody tr').nth(1).locator('td b').allTextContents(), ['—', '—']);
+    assert.deepEqual(await panel.locator('tbody tr').nth(1).locator('td small').allTextContents(), ['3.00倍', '—']);
+    assert.ok(!(await panel.innerText()).includes('持仓来源有差异'));
+    await capture('fixture-ranks');
+    for (const metric of ['PB', 'PS']) {
+      await panel.getByRole('button', { name: `了解 ${metric} 指标` }).click();
+      const tooltip = page.locator('.valuation-tooltip'); await tooltip.waitFor();
+      assert.ok(!(await tooltip.innerText()).includes('分位表示'));
+      await capture('fixture-' + metric + '-help'); await page.keyboard.press('Escape'); await page.mouse.move(0, 0);
     }
-    assert.deepEqual(errors, []); results.push({ width, scheme, populated: true, quarterly: true, sourceConflict: true, eventEstimates: true, absent: true, failure: true, collapse: true, marketReturn: true, expandedCoreSignals:12, noOverflow: true }); await context.close();
+    await panel.getByRole('button', { name: '半导体 PB 分位，查看数据覆盖时长', exact: true }).click();
+    await page.locator('.valuation-tooltip').waitFor(); await capture('fixture-coverage');
+    await panel.getByRole('button', { name: '传统行业', exact: true }).click();
+    await page.locator('.valuation-tooltip').waitFor({ state: 'hidden' });
+    assert.equal(await panel.locator('tbody tr').count(), 11);
+    assert.equal(await panel.locator('.valuation-track i').count(), 0);
+    await capture('fixture-traditional');
+    await panel.getByRole('button', { name: '宽基', exact: true }).focus(); await page.keyboard.press('Enter');
+    assert.deepEqual(await panel.locator('tbody th strong').allTextContents(), ['标普500', '纳斯达克100']);
+    await capture('fixture-broad');
+    await panel.getByRole('button', { name: 'AI 产业链', exact: true }).click();
+    const toggle = panel.locator('.panel-heading button').first();
+    await toggle.focus(); await toggle.press('Enter'); await page.locator('.valuation-tooltip').waitFor({ state: 'hidden' });
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'false'); await toggle.press('Enter'); await capture('fixture-reopened');
+    await select('2026-11-04'); await page.waitForFunction(() => {const t=document.querySelector('.us-theme-valuations table');return t?.getAttribute('data-valuation-date')==='2026-11-04'&&t.getAttribute('aria-busy')==='false';});
+    assert.equal(await panel.locator('.valuation-track i').count(), 0); await capture('fixture-absent');
+    await select('2026-11-03'); await page.waitForFunction(() => {const t=document.querySelector('.us-theme-valuations table');return t?.getAttribute('data-valuation-date')==='2026-11-03'&&t.getAttribute('aria-busy')==='false';});
+    assert.ok(!/暂无估值|暂不可用|正在读取/.test(await panel.innerText())); await capture('fixture-failure');
+    assert.deepEqual(errors, []); results.push({ width, scheme, rankBoundaries: true, unrankedMultiple: true, absent: true, failure: true, noOverflow: true });
+    await context.close();
+    console.log(`${width}px ${scheme}: theme valuation states passed (fixtures only)`);
   }
-  await writeFile(out + '/results.json', JSON.stringify({ fixtureOnly: true, results }, null, 2)); console.log(JSON.stringify(results));
+  await writeFile(out + '/results.json', JSON.stringify({ fixtureOnly: true, results }, null, 2));
 } finally { await browser.close(); }

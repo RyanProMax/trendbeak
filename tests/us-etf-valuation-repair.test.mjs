@@ -17,7 +17,7 @@ test('reviewed same-date repair requires exact old/new hashes and a private back
   await assert.rejects(repairETFValuation({db:f.db,input,now,dryRun:false,backup:dir+'/missing-hashes.json'}),/hashes required/);
   for(const which of ['expectedOldHash','expectedNewHash'])await assert.rejects(repairETFValuation({db:f.db,input,now,expectedOldHash:plan.oldHash,expectedNewHash:plan.newHash,[which]:'0'.repeat(64)}),/hash/);
   const result=await repairETFValuation({db:f.db,input,now:now+1000,expectedOldHash:plan.oldHash,expectedNewHash:plan.newHash,dryRun:false,backup:dir+'/before-repair.json'});assert.equal(result.writes,1);
-  const saved=JSON.parse(await readFile(dir+'/before-repair.json','utf8'));assert.equal(saved[0].repair.oldHash,plan.oldHash);assert.equal((await stat(dir+'/before-repair.json')).mode&0o777,0o600);
+  const saved=JSON.parse(await readFile(dir+'/before-repair.json','utf8'));assert.equal(saved[0].repair.oldHash,plan.oldHash);if(process.platform!=='win32')assert.equal((await stat(dir+'/before-repair.json')).mode&0o777,0o600);
   assert.equal(f.sqlite.prepare('SELECT payload FROM market_snapshot WHERE key=?').get('valuation/US/XLK').payload,other);
   assert.equal((await repairETFValuation({db:f.db,input,now:now+1000})).oldHash,plan.newHash);
   await assert.rejects(repairETFValuation({db:f.db,input,now:now+1000,expectedOldHash:plan.oldHash,expectedNewHash:plan.newHash}),/changed/);

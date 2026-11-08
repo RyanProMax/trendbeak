@@ -2,6 +2,8 @@
 
 需求是美股主要指数及行业板块的 PB、PS 历史分位，保留真实观测日期和实际计算窗口。当前未接入符合这一完整范围的数据源；不以个股样本、ETF 当前倍率或社区自编行业序列冒充已发布的指数历史。
 
+2026 年 11 月 8 日补充：在股查查公开 SOX/SPX 页面取得了直接用于静态图表的历史 PB 观测，已完成本地有界准备和 CN 同口径分位计算。该来源不提供 PS，也未覆盖存储和光连接的所选指数。实际数据范围、公开指数映射和未完成项见 [美股主题估值说明](us-theme-valuations.md)；下表保留 11 月 6 日核查结果。
+
 | 候选 | 已核实能力 | 当前缺口 |
 | --- | --- | --- |
 | [易方达 NDX 官方详情](https://www.etf.com.cn/api/etf-api-service/index/detail?indexCode=NDX)及其指定的[估值文件](https://cdn.efunds.com.cn/etf-net/index_valuation_percentile_NDX.json) | 实测取得 2026 年 1 月 22 日至 11 月 5 日的 200 条 NDX 观测 | PB、PS 原值均为空；部分 PS 分位字段为 0，不能把这个 0 当真实分位 |

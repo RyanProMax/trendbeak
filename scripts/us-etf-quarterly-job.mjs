@@ -30,7 +30,7 @@ export function nportIndexRows(raw,now){
 }
 export function parseNPORTIdentity(raw){
  if(Buffer.byteLength(raw)>2_000_000)throw Error('NPORT XML byte limit');
- const run=spawnSync('python3',[fileURLToPath(new URL('./us-etf-nport-identity.py',import.meta.url))],{input:raw,encoding:'utf8',timeout:10000,maxBuffer:16384});
+ const run=spawnSync(process.platform==='win32'?'python':'python3',[fileURLToPath(new URL('./us-etf-nport-identity.py',import.meta.url))],{input:raw,encoding:'utf8',timeout:10000,maxBuffer:16384});
  if(run.error||run.status!==0)throw Error('Original NPORT XML identity invalid');
  const identity=JSON.parse(run.stdout);if(!/^S\d{9}$/.test(identity.seriesId)||!date(identity.reportDate))throw Error('Original NPORT XML identity invalid');return identity;
 }

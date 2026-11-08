@@ -11,7 +11,7 @@ import { validChinaOverview, valuationRowsForDate, type IndexValuation } from '.
 export type { IndexValuation } from '../lib/china-overview';
 
 
-function ValuationHelp({ metric }: { metric: 'pb' | 'ps' }) {
+export function ValuationHelp({ metric }: { metric: 'pb' | 'ps' }) {
   const [open, setOpen] = useState(false);
   const panelVisible = usePanelVisible();
   useEffect(() => { if (!panelVisible) setOpen(false); }, [panelVisible]);
@@ -33,7 +33,7 @@ function ValuationHelp({ metric }: { metric: 'pb' | 'ps' }) {
   </span>;
 }
 
-function ValuationReading({ row, metric }: { row: IndexValuation; metric: 'pb' | 'ps' }) {
+export function ValuationReading({ row, metric }: { row: IndexValuation; metric: 'pb' | 'ps' }) {
   const reading = row[metric], p = reading.percentile, coverage = valuationCoverage(reading);
   const valid = p !== null && Number.isFinite(p) && p >= 0 && p <= 100;
   const [open, setOpen] = useState(false);
