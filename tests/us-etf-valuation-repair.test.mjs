@@ -81,7 +81,7 @@ test('reviewed repair rollback checks both payload hashes and version, restores 
   const bad=structuredClone(prior);bad[0].payload+=' ';await assert.rejects(restoreETFRepairs({db:f.db,prior:bad,expectedVersion:published.publicationVersion,now:now+2000}),/backup/);
   const db=conflict?{prepare(sql){const stmt=f.db.prepare(sql);return{bind(...args){const bound=stmt.bind(...args);return{...bound,async run(){f.sqlite.prepare('UPDATE market_snapshot SET payload=? WHERE key=?').run('{}','valuation/US/XLK');return bound.run();}};}};}}:f.db;
   const operation=restoreETFRepairs({db,prior,expectedVersion:published.publicationVersion,now:now+2000,dryRun:false,backup:dir+'/before-rollback.json'});
-  if(conflict){await assert.rejects(operation,/not confirmed/);assert.equal(f.sqlite.prepare('SELECT payload FROM market_snapshot WHERE key=?').get('valuation/US/XLE').payload,current.find(r=>r.key==='valuation/US/XLE').payload);}
+  if(conflict){await assert.rejects(operation,/not confirmed/);assert.equal(f.sqlite.prepare('SELECT payload FROM market_snapshot WHERE key=?').get('valuation/US/XLE').payload,current.find(r=>r.key.endsWith('/XLE')).payload);}
   else{const restored=await operation;assert.equal(restored.writes,2);assert.notEqual(restored.publicationVersion,published.publicationVersion);assert.deepEqual(f.sqlite.prepare('SELECT key,payload FROM market_snapshot ORDER BY key').all(),old);await assert.rejects(restoreETFRepairs({db:f.db,prior,expectedVersion:published.publicationVersion,now:now+3000}),/changed/);}
  }finally{f.close();await rm(dir,{recursive:true});}}
 });

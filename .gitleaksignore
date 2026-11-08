@@ -2,3 +2,6 @@
 # These two historical test lines have since been parameterized.
 142f66ec377506a48a199ce629b7dc2e19673427:tests/us-etf-valuation-import.test.mjs:generic-api-key:13
 142f66ec377506a48a199ce629b7dc2e19673427:tests/us-etf-valuation-import.test.mjs:generic-api-key:26
+
+# Reviewed literal snapshot-key comparison, not an authentication secret.
+87bd5d771f7b97ca3c3ad39c19c21db8138005ce:tests/us-etf-valuation-repair.test.mjs:generic-api-key:84
