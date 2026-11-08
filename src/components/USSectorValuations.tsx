@@ -3,10 +3,10 @@ import CollapsiblePanel, { usePanelVisible } from './CollapsiblePanel';
 import { autoUpdate, flip, FloatingPortal, offset, shift, useClick, useDismiss, useFloating, useFocus, useHover, useInteractions, useRole } from '@floating-ui/react';
 import { displayDate, number } from '../lib/market-format';
 import { US_SECTOR_ETFS, validETFValuation, type ETFValuation } from '../lib/us-etf-valuations';
-import { validCurrentBasket, type CurrentBasketReading } from '../lib/us-etf-current';
+import { currentBasketForView, type CurrentBasketReading } from '../lib/us-etf-current';
 import './market-overview.css';
 import './us-sector-valuations.css';
-type Result = { date: string; rows: ETFValuation[]; current: CurrentBasketReading | null; error: boolean; expires: number };
+type Result = { date: string; viewMode: string; rows: ETFValuation[]; current: CurrentBasketReading | null; error: boolean; expires: number };
 function SourceComparison({ row }: { row: ETFValuation }) {
   const [open,setOpen]=useState(false),visible=usePanelVisible(),c=row.sourceComparison!;
   useEffect(()=>{setOpen(false);},[visible,row.date]);
@@ -54,20 +54,25 @@ function HistoricalRank({ row, metric }: { row: ETFValuation; metric: 'pb' | 'ps
     </div></FloatingPortal>}
   </>;
 }
-export default function USSectorValuations({ date }: { date: string }) {
+export default function USSectorValuations({ date, viewMode = 'historical' }: { date: string; viewMode?: 'latest'|'historical' }) {
+  // Expiry is a display-clock condition, not a successful-network condition.
+  const [viewClock,setViewClock]=useState(()=>Date.now());
+  useEffect(()=>{let timer:ReturnType<typeof setTimeout>;const tick=()=>{const now=Date.now();setViewClock(now);clearTimeout(timer);timer=setTimeout(tick,86400000-now%86400000+5);};const visible=()=>{if(document.visibilityState==='visible')tick();};tick();document.addEventListener('visibilitychange',visible);return()=>{clearTimeout(timer);document.removeEventListener('visibilitychange',visible);};},[]);
+  const cacheKey = `${viewMode}:${date}`;
   const cache = useRef(new Map<string, Result>()), [loaded, setLoaded] = useState<Result | null>(null), [refresh, setRefresh] = useState(0);
   useEffect(() => {
     const timer = setInterval(() => { if (document.visibilityState === 'visible') setRefresh(n => n + 1); }, 300000);
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
-    const cached = cache.current.get(date);
+    const cached = cache.current.get(cacheKey);
     if (cached && cached.expires > Date.now()) { setLoaded(cached); return; }
     const controller = new AbortController(); let active = true;
     const save = (rows: ETFValuation[], error: boolean, current: CurrentBasketReading | null = null) => {
       if (!active) return;
-      const result = { date, rows, current, error, expires: Date.now() + (error ? 30000 : 300000) };
-      cache.current.delete(date); cache.current.set(date, result);
+      setViewClock(Date.now());
+      const result = { date, viewMode, rows, current, error, expires: Date.now() + (error ? 30000 : 300000) };
+      cache.current.delete(cacheKey); cache.current.set(cacheKey, result);
       while (cache.current.size > 366) cache.current.delete(cache.current.keys().next().value!);
       setLoaded(result);
     };
@@ -78,17 +83,18 @@ export default function USSectorValuations({ date }: { date: string }) {
         const { data } = await response.json() as { data: { date: string; rows: ETFValuation[] } };
         if (data?.date !== date || !Array.isArray(data.rows) || data.rows.length > 11 || new Set(data.rows.map(r => r.code)).size !== data.rows.length || data.rows.some(r => !validETFValuation(r, date))) throw Error('Invalid ETF valuations');
         let current:CurrentBasketReading|null=null;
-        if(date==='2026-11-06')try{const c=await fetch('/api/valuations/US/current-estimate',{signal:controller.signal});if(c.ok){const body=await c.json() as {data:unknown};if(validCurrentBasket(body.data,date))current=body.data;}}catch{/* Independent current failure must not erase quarterly rows. */}
+        if(viewMode==='latest'||date==='2026-11-06')try{const c=await fetch('/api/valuations/US/current-estimate',{signal:controller.signal});if(c.ok){const body=await c.json() as {data:unknown};current=currentBasketForView(body.data,{mode:viewMode,date});}}catch{/* Independent current failure must not erase quarterly rows. */}
         save(data.rows, false,current);
       } catch { save([], true); }
     })(); }, 150);
     return () => { active = false; clearTimeout(timer); controller.abort(); };
-  }, [date, refresh]);
-  const result = cache.current.get(date) ?? (loaded?.date === date ? loaded : null);
+  }, [date, viewMode, cacheKey, refresh]);
+  const cachedResult = cache.current.get(cacheKey) ?? (loaded?.date === date && loaded.viewMode === viewMode ? loaded : null);
+  const result = cachedResult ? {...cachedResult,current:currentBasketForView(cachedResult.current,{mode:viewMode,date},viewClock)} : null;
   const status = !result ? '正在读取估值数据' : result.error ? '估值数据暂不可用' : !result.rows.some(r => r.pb.value !== null || r.ps.value !== null) ? '该日期暂无估值数据' : '持仓估算';
   const quarterDates = [...new Set(result?.rows.filter(r => r.pricingBasis === 'portfolio_fair_value_per_share').map(r => r.date))];
   const quarter = quarterDates.length === 1 && result?.rows.every(r => r.pricingBasis === 'portfolio_fair_value_per_share');
-  const stateLabel = result?.current ? '披露持仓估算 · XLI按较新价格重估' : status === '持仓估算' && quarter ? `季度持仓估算 · ${displayDate(quarterDates[0], true)}` : status;
+  const stateLabel = result?.current ? `披露持仓估算 · XLI价格截至${displayDate(result.current.priceAsOf, true)}` : status === '持仓估算' && quarter ? `季度持仓估算 · ${displayDate(quarterDates[0], true)}` : status;
   const shareEstimateCodes = result?.rows.filter(r => (r.pb.value !== null || r.ps.value !== null) && r.qualityFlags.eventReconstructedShares > 0).map(r => r.code) ?? [];
   return <CollapsiblePanel panelKey="us-valuations" title="板块 ETF 估值" className="index-valuations us-sector-valuations">
     <p className="valuation-status" aria-live="polite">{stateLabel}</p>

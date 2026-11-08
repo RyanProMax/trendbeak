@@ -335,7 +335,7 @@ function Dashboard({ data }: { data: PageData }) {
         {mounted&&activeSnapshot?.instrument.kind==='stock'&&hasStockRadar(activeSnapshot,globalDate??activeSnapshot.asOf)&&<CollapsiblePanel panelKey="stock-radar" title="个股技术指标" className="stock-technical-panel"><TechnicalRadar key={activeSnapshot.instrument.symbol} snapshot={activeSnapshot} date={globalDate??activeSnapshot.asOf}/></CollapsiblePanel>}
         {mounted&&markets[activeMarket].snapshot&&markets[activeMarket].snapshot!.instrument.kind!=='stock'&&<MarketSentimentRadar date={globalDate??markets[activeMarket].snapshot!.asOf} market={activeMarket} labels={activeMarket==='US'?US_LABELS:undefined} readings={activeMarket==='CN'?chinaReadings(benchmarks.CN??markets.CN.snapshot!,globalDate??markets.CN.snapshot!.asOf):usReadings(benchmarks.US??markets.US.snapshot!,globalDate??markets.US.snapshot!.asOf)}/>}
         {activeMarket==='CN'&&benchmarks.CN?.chinaOverview?.valuations&&<IndexValuations rows={benchmarks.CN.chinaOverview.valuations.rows} date={globalDate}/>}
-        {mounted&&activeMarket==='US'&&activeSnapshot?.instrument.kind!=='stock'&&globalDate&&<USSectorValuations date={globalDate}/>}
+        {mounted&&activeMarket==='US'&&activeSnapshot?.instrument.kind!=='stock'&&globalDate&&<USSectorValuations date={globalDate} viewMode={selectedDate == null ? "latest" : "historical"}/>}
         </PanelPreferences>
       </main>
       <footer className="site-disclaimer">仅供学习用途，不作商业行为。</footer>

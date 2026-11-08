@@ -11,3 +11,20 @@ export function validCurrentBasket(r:any,selectedDate:string):r is CurrentBasket
  }
  return true;
 }
+
+export type CurrentBasketView = {mode:'latest'|'historical';date:string};
+const day=(v:string)=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v+'T00:00:00.000Z'))&&new Date(v+'T00:00:00.000Z').toISOString().slice(0,10)===v;
+/** Display-only carry. This never approves a new price date, source or method.
+ * Historical selection stays exact; latest view can retain a reviewed as-of for
+ * at most seven calendar days, bounded by both market date and the real clock. */
+export function currentBasketForView(r:unknown,view:CurrentBasketView,now=Date.now()):CurrentBasketReading|null{
+ if(!view||!['latest','historical'].includes(view.mode)||!day(view.date)||!Number.isFinite(now))return null;
+ const row=r as CurrentBasketReading;
+ if(!row||!validCurrentBasket(row,row.priceAsOf)||Date.parse(row.preparedAt)>now)return null;
+ if(view.mode==='historical')return row.priceAsOf===view.date?row:null;
+ const today=new Date(now).toISOString().slice(0,10);
+ if(view.date>today||row.priceAsOf>view.date)return null;
+ const age=(Date.parse(today+'T00:00:00Z')-Date.parse(row.priceAsOf+'T00:00:00Z'))/86400000;
+ const marketAge=(Date.parse(view.date+'T00:00:00Z')-Date.parse(row.priceAsOf+'T00:00:00Z'))/86400000;
+ return age>=0&&age<=7&&marketAge<=7?row:null;
+}
