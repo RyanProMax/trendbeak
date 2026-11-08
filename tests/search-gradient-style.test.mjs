@@ -8,7 +8,7 @@ test('selected search uses a rounded static brand wash with theme and forced-col
  assert.match(css,/\.search-field\.has-selection\{[^}]*background:[^;]+;background-image:linear-gradient/);
  assert.match(css,/:root\[data-theme="dark"\] \.topbar \.search-field\.has-selection\{[^}]*linear-gradient/);
  assert.match(css,/\.has-selection input\{color:var\(--ink\)\}/);
- assert.match(css,/\.has-selection:focus-within\{outline:2px solid var\(--focus\)/);
+ assert.match(css,/\.has-selection:has\(input:focus-visible\)\{outline:2px solid var\(--focus\)/);
  assert.match(css,/@media\(forced-colors:active\)[\s\S]*background:Canvas/);
  assert.doesNotMatch(css,/(?:animation|transition):/,'static decoration does not animate focus or selection');
 });

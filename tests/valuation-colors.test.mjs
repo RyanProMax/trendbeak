@@ -5,59 +5,65 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { JSDOM } from 'jsdom';
 
-let vite, color, Valuations, COLORS, DARK_COLORS;
+let vite, color, stage, Valuations, palette;
 before(async () => {
   vite = await createServer({configFile:false,appType:'custom',logLevel:'silent',server:{middlewareMode:true,hmr:false,ws:false}});
-  ({valuationPercentileColor:color} = await vite.ssrLoadModule('/src/lib/valuation-colors.ts'));
-  ({COLORS,DARK_COLORS} = await vite.ssrLoadModule('/src/lib/heatmap-colors.ts'));
+  ({percentileColor:color,percentileStage:stage,PERCENTILE_COLORS:palette} = await vite.ssrLoadModule('/src/lib/percentile-colors.ts'));
   Valuations = (await vite.ssrLoadModule('/src/components/IndexValuations.tsx')).default;
 });
 after(async () => await vite?.close());
-const channels = hex => [1,3,5].map(i => parseInt(hex.slice(i,i+2),16));
-const luminance = hex => channels(hex).map(v => v/255).map(v => v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((sum,v,i) => sum+v*[.2126,.7152,.0722][i],0);
+const luminance = hex => [1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
+const contrast=(a,b)=>(Math.max(luminance(a),luminance(b))+.05)/(Math.min(luminance(a),luminance(b))+.05);
 
-test('valuation colors follow green, warm midpoint and red with a continuous transition', () => {
+test('five shared heat stages use exact boundaries, not continuous interpolation or raw-value direction', () => {
   for (const scheme of ['light','dark']) {
-    const stops = scheme==='light' ? [COLORS[0],'#9a885b',COLORS[8]] : [DARK_COLORS[0],'#c8bd83',DARK_COLORS[8]];
-    assert.deepEqual([0,50,100].map(p=>color(p,scheme)),stops);
-    for (const [p,a,b] of [[25,stops[0],stops[1]],[75,stops[1],stops[2]]]) {
-      assert.deepEqual(channels(color(p,scheme)),channels(a).map((v,i)=>Math.round((v+channels(b)[i])/2)));
+    for (const [p,s] of [[0,0],[19.999,0],[20,1],[39.999,1],[40,2],[50,2],[59.999,2],[60,3],[79.999,3],[80,4],[100,4]]) {
+      assert.equal(stage(p),s);
+      assert.equal(color(p,scheme),palette[scheme][s]);
     }
-    for (const p of [.001,49.999,50.001,99.999]) {
-      const endpoint=p<1?0:p>99?100:50;
-      assert.ok(channels(color(p,scheme)).every((v,i)=>Math.abs(v-channels(color(endpoint,scheme))[i])<=1));
-    }
-    // A thin filled bar stays visible on the actual theme track at every rank.
-    const track=luminance(scheme==='light'?'#f5f5f5':'#141414');
-    for(let p=0;p<=100;p+=.5){const fill=luminance(color(p,scheme));assert.ok((Math.max(fill,track)+.05)/(Math.min(fill,track)+.05)>=3,`${scheme} ${p}`);}
+    assert.equal(new Set(palette[scheme]).size,5);
+  }
+});
+
+test('shared text/fill colors exceed text and graphic contrast on both themes including hover',()=>{
+  for(const scheme of ['light','dark']) for(const c of palette[scheme]){
+    for(const surface of scheme==='light'?['#ffffff','#f5f5f5','#eeeeee']:['#000000','#141414','#191919','#262626']) assert.ok(contrast(c,surface)>=4.5,`${c} on ${surface}`);
+    for(const track of scheme==='light'?['#f5f5f5','#dedede']:['#141414','#303030']) assert.ok(contrast(c,track)>=3,`${c} on ${track}`);
   }
 });
 
 test('missing or invalid percentiles have no color, while both boundaries remain valid', () => {
   for (const scheme of ['light','dark']) {
-    for (const p of [null,undefined,NaN,Infinity,-Infinity,-.001,100.001]) assert.equal(color(p,scheme),undefined);
+    for (const p of [null,undefined,NaN,Infinity,-Infinity,-.001,100.001]) {assert.equal(color(p,scheme),undefined);assert.equal(stage(p),undefined);}
     assert.ok(color(0,scheme));assert.ok(color(100,scheme));
   }
 });
 
-test('decoration preserves current and selected-date ranks, raw readings, widths and missing states', () => {
+test('numbers and fills share stage variables, preserving current and selected-date ranks, raw readings and widths', () => {
   const date='2026-11-06';
-  for (const p of [0,12.34,50,87.65,100,null]) {
+  for (const p of [0,12.34,20,40,50,60,80,87.65,100,null]) {
     const reading={value:1.23,percentile:p,from:'2016-11-07',through:'2026-11-05',samples:2400};
     const row={code:'000300',name:'沪深300',date,pb:{...reading},ps:{...reading,value:2.34}};
     const original=structuredClone(row);
     for (const selectedDate of [undefined,date,'2026-11-05']) {
-      const doc=new JSDOM(renderToStaticMarkup(React.createElement(Valuations,{rows:[row],date:selectedDate}))).window.document;
-      const shown=selectedDate===undefined||selectedDate===date;
-      const valid=shown&&p!==null;
+      const dom=new JSDOM(renderToStaticMarkup(React.createElement(Valuations,{rows:[row],date:selectedDate}))),doc=dom.window.document;
+      const shown=selectedDate===undefined||selectedDate===date,valid=shown&&p!==null;
       const fills=[...doc.querySelectorAll('.valuation-track i')];
       assert.equal(fills.length,valid?2:0);
-      for(const fill of fills){assert.equal(fill.style.width,`${p}%`);assert.equal(fill.style.getPropertyValue('--valuation-fill-light'),color(p,'light'));assert.equal(fill.style.getPropertyValue('--valuation-fill-dark'),color(p,'dark'));}
+      for(const fill of fills) assert.equal(fill.style.width,`${p}%`);
+      for(const trigger of doc.querySelectorAll('.valuation-trigger')){
+        assert.equal(trigger.dataset.percentileStage,valid?String(stage(p)):'missing');
+        assert.equal(trigger.style.getPropertyValue('--percentile-light'),valid?color(p,'light'):'');
+        assert.equal(trigger.style.getPropertyValue('--percentile-dark'),valid?color(p,'dark'):'');
+        assert.ok(trigger.querySelector('b'));
+      }
       assert.deepEqual([...doc.querySelectorAll('.valuation-reading b')].map(el=>el.textContent),[valid?`${p.toFixed(1)}%`:'—',valid?`${p.toFixed(1)}%`:'—']);
       assert.deepEqual([...doc.querySelectorAll('.valuation-reading small')].map(el=>el.textContent),shown?['1.23倍','2.34倍']:['—','—']);
-      assert.ok([...doc.querySelectorAll('.valuation-reading b')].every(el=>!el.hasAttribute('style')));
-      assert.equal(doc.querySelectorAll('button.valuation-trigger').length,2);
       assert.equal(doc.querySelectorAll('button.valuation-help').length,2);
+      assert.equal(doc.querySelectorAll('.panel-heading time').length,0);
+      assert.equal(doc.querySelector('table').dataset.valuationDate,selectedDate??date);
+      assert.match(doc.querySelector('table').getAttribute('aria-label'),/2026年11月/);
+      dom.window.close();
     }
     assert.deepEqual(row,original);
   }

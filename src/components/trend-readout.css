@@ -1,7 +1,10 @@
-/* Independent numeric slots keep price, return and mood steady while scrubbing. */
+/* Reserve one outer price/return slot, not a padded slot before each number.
+   Natural inner widths keep the quote beside its label and its return beside
+   the quote. The outer em width scales with the mobile type sizes. */
 #main-content .trend-heading-readout .chart-readout .readout-value { font-weight:450; font-variant-numeric:tabular-nums; }
 #main-content .trend-heading-readout .chart-readout .readout-emotion .readout-value { width:5ch; }
-#main-content .trend-heading-readout .chart-readout .readout-price .readout-price-group { display:inline-flex; align-items:baseline; flex-wrap:nowrap; white-space:nowrap; }
-#main-content .trend-heading-readout .chart-readout .readout-price-number { display:inline-block; width:10ch; flex:none; text-align:right; }
+#main-content .trend-heading-readout .chart-readout .readout-price .readout-price-group { display:inline-flex; align-items:baseline; justify-content:flex-start; flex-wrap:nowrap; width:10em; white-space:nowrap; }
+#main-content .trend-heading-readout .chart-readout .readout-stock .readout-price-group { width:12em; }
+#main-content .trend-heading-readout .chart-readout .readout-price-number { display:inline-block; width:auto; flex:none; text-align:left; }
 #main-content .trend-heading-readout .chart-readout .readout-unit { display:inline-block; width:3.8ch; flex:none; font-size:.72em; padding-left:.35ch; }
-#main-content .trend-heading-readout .chart-readout .readout-change { display:inline-block; width:10ch; flex:none; white-space:pre; font-weight:450; text-align:left; }
+#main-content .trend-heading-readout .chart-readout .readout-change { display:inline-block; width:auto; flex:none; white-space:pre; font-weight:450; text-align:left; }

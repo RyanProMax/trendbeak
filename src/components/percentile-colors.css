@@ -1,0 +1,57 @@
+/* Colors are selected by prepared rank, never by a decorative fixed gradient. */
+[data-percentile-stage] {
+  --percentile-color: var(--percentile-light, var(--muted));
+}
+:root[data-theme="dark"] [data-percentile-stage] {
+  --percentile-color: var(--percentile-dark, var(--muted));
+}
+#main-content .index-valuations .valuation-trigger b,
+#main-content .china-sentiment .six-factor-trigger b,
+#main-content .china-sentiment .six-factor-percentile-label > span:last-child {
+  color: var(--percentile-color);
+  filter: none;
+}
+#main-content .index-valuations .valuation-track i,
+#main-content .china-sentiment .six-factor-track > span {
+  background: var(--percentile-color);
+}
+#main-content .china-sentiment .six-factor-point {
+  fill: var(--percentile-color);
+}
+#main-content .china-sentiment .six-factor-edge path {
+  fill: none;
+  stroke: var(--percentile-color);
+  stroke-width: 1.5;
+}
+/* A neutral wash only exists for a complete observation. Color belongs to
+   individual readings and their adjoining edge halves, not a combined score. */
+#main-content .china-sentiment .six-factor-area {
+  fill: var(--ink);
+  fill-opacity: .055;
+  stroke: none;
+}
+@media (forced-colors: active) {
+  [data-percentile-stage], :root[data-theme] [data-percentile-stage] {
+    --percentile-color: CanvasText;
+  }
+  #main-content .index-valuations .valuation-track,
+  #main-content .china-sentiment .six-factor-track {
+    background: Canvas;
+    outline: 1px solid CanvasText;
+  }
+  #main-content .index-valuations .valuation-track i,
+  #main-content .china-sentiment .six-factor-track > span {
+    background: CanvasText;
+    forced-color-adjust: none;
+  }
+  #main-content .china-sentiment .six-factor-point {
+    fill: CanvasText;
+    stroke: Canvas;
+    forced-color-adjust: none;
+  }
+  #main-content .china-sentiment .six-factor-edge path {
+    stroke: CanvasText;
+    forced-color-adjust: none;
+  }
+  #main-content .china-sentiment .six-factor-area { fill: none; }
+}

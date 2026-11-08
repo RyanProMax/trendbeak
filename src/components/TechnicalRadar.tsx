@@ -62,7 +62,7 @@ export default function TechnicalRadar({snapshot,date}:{snapshot:MarketSnapshot;
     onClick:(event:React.MouseEvent<HTMLButtonElement>)=>{if(pinned.current===item)close();else{pinned.current=item;activate(item,event.currentTarget);}},
     "aria-expanded":active===item,"aria-controls":`${id}-explanation`
   });
-  return <section className="technical-signals radar-signals" ref={root} aria-label={`${snapshot.instrument.name}技术指标`} data-radar-date={date}
+  return <section className="technical-signals radar-signals" ref={root} aria-label={`${snapshot.instrument.name}，${displayDate(date,true)}技术指标`} data-radar-date={date}
     onBlur={event=>{if(!root.current?.contains(event.relatedTarget)&&!refs.floating.current?.contains(event.relatedTarget)&&!pinned.current)leave();}}
     onKeyDown={event=>{if(event.key==="Tab")pinned.current=null;if(event.key==="Escape"&&active){event.preventDefault();event.stopPropagation();close(true);}}}>
     <div className="radar-stage" ref={stage}>

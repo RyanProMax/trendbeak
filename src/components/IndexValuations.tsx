@@ -3,10 +3,10 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { autoUpdate, safePolygon, flip, FloatingPortal, offset, shift, useClick, useDismiss, useFloating, useFocus, useHover, useInteractions, useRole } from '@floating-ui/react';
 import { displayDate, number } from '../lib/market-format';
 import { valuationCoverage } from '../lib/valuation-coverage';
-import { valuationPercentileColor } from '../lib/valuation-colors';
+import { percentileColorStyle, percentileStage } from '../lib/percentile-colors';
 import './market-overview.css';
 import './valuation-help.css';
-import './valuation-colors.css';
+import './percentile-colors.css';
 import { validChinaOverview, valuationRowsForDate, type IndexValuation } from '../lib/china-overview';
 export type { IndexValuation } from '../lib/china-overview';
 
@@ -46,12 +46,9 @@ function ValuationReading({ row, metric }: { row: IndexValuation; metric: 'pb' |
     middleware: [offset(8), flip(), shift({ padding: 12 })] });
   const { getReferenceProps, getFloatingProps } = useInteractions([useHover(context, { mouseOnly: true, handleClose: safePolygon() }), useFocus(context), useClick(context), useDismiss(context), useRole(context, { role: 'tooltip' })]);
   return <div className="valuation-reading">
-    <button type="button" className="valuation-trigger" ref={refs.setReference} {...getReferenceProps()} aria-label={`${row.name} ${metric.toUpperCase()} 分位，查看数据覆盖时长`}>
+    <button type="button" className="valuation-trigger" data-percentile-stage={percentileStage(p) ?? 'missing'} style={percentileColorStyle(p) as CSSProperties} ref={refs.setReference} {...getReferenceProps()} aria-label={`${row.name} ${metric.toUpperCase()} 分位，查看数据覆盖时长`}>
       <b>{valid ? `${number(p, 1)}%` : '—'}</b>
-      <span className="valuation-track" aria-hidden="true">{valid && <i style={{ width: `${p}%`,
-        '--valuation-fill-light': valuationPercentileColor(p, 'light'),
-        '--valuation-fill-dark': valuationPercentileColor(p, 'dark'),
-      } as CSSProperties} />}</span>
+      <span className="valuation-track" aria-hidden="true">{valid && <i style={{ width: `${p}%` }} />}</span>
       <small>{reading.value === null ? '—' : `${number(reading.value)}倍`}</small>
     </button>
     {open && <FloatingPortal><div className="valuation-tooltip" ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()}>
@@ -95,9 +92,10 @@ export default function IndexValuations({ rows: availableRows, date }: { rows: I
   const rows = date ? valuationRowsForDate(exactRows, date) : exactRows;
   const status=!needsHistory?'':!result?'正在读取估值数据':result.error?'估值数据暂不可用':!exactRows.some(row=>row.date===date)?'该日期暂无估值数据':'';
   const dates = rows.map(row => row.date).sort(), first = dates[0], last = dates.at(-1);
-  return <CollapsiblePanel panelKey="valuations" title="指数估值" className="index-valuations" readout={<span>{first && <time dateTime={first}>{displayDate(first, true)}</time>}{last && last !== first && <> 至 <time dateTime={last}>{displayDate(last, true)}</time></>}</span>}>
+  const dateLabel = first ? `${displayDate(first, true)}${last && last !== first ? ` 至 ${displayDate(last, true)}` : ''}` : '';
+  return <CollapsiblePanel panelKey="valuations" title="指数估值" className="index-valuations">
     <p className="valuation-status" aria-live="polite">{status || '\u00a0'}</p>
-    <table><colgroup><col className="valuation-name-column" /><col /><col /></colgroup>
+    <table data-valuation-date={date ?? (first === last ? first : undefined)} aria-label={`指数估值${dateLabel ? `，${dateLabel}` : ''}`}><colgroup><col className="valuation-name-column" /><col /><col /></colgroup>
       <thead><tr><th scope="col">指数</th><th scope="col"><ValuationHelp metric="pb" /></th><th scope="col"><ValuationHelp metric="ps" /></th></tr></thead>
       <tbody>{rows.map(row => <tr key={row.code}><th scope="row"><strong>{row.name}</strong><small>{row.code}</small></th>
         <td><ValuationReading row={row} metric="pb" /></td><td><ValuationReading row={row} metric="ps" /></td></tr>)}</tbody>

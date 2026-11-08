@@ -39,7 +39,7 @@ export function SignalsSkeleton({market}: {market: Market}) {
 
 /** Matches the live sibling panel; no borrowed dates, scores or observations. */
 export function SentimentSkeleton({market}:{market:Market}) {
-  return <CollapsiblePanel panelKey="sentiment" title={market==='CN'?'A股市场情绪':'美股市场情绪'} readout={<span>—</span>}>
+  return <CollapsiblePanel panelKey="sentiment" title={market==='CN'?'A股市场情绪':'美股市场情绪'}>
     <section className="china-sentiment skeleton-overview" aria-busy="true" aria-label="正在读取市场情绪">
       <svg className="six-factor-graphic" viewBox="0 0 360 288" aria-hidden="true">
         {[.5,1].map(scale=><polygon key={scale} className="six-factor-grid" points={Array.from({length:6},(_,i)=>{const angle=-Math.PI/2+i*Math.PI/3;return `${180+Math.cos(angle)*103*scale},${144+Math.sin(angle)*103*scale}`;}).join(' ')}/>)}
