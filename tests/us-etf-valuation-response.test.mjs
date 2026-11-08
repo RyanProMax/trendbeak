@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'; import test, { before, after } from 'node:test'; import { createServer } from 'vite';
-import { memoryDB } from './market-fixture.mjs'; import { etfInput, date } from './us-etf-fixture.mjs'; import { calculateETF, METHOD, MIN_COVERAGE, SECTORS } from '../scripts/us-etf-valuations.mjs';
+import { memoryDB } from './market-fixture.mjs'; import { etfInput, date, cutoff } from './us-etf-fixture.mjs'; import { calculateETF, METHOD, MIN_COVERAGE, SECTORS } from '../scripts/us-etf-valuations.mjs';
 let vite, respond;
 before(async () => { vite = await createServer({ configFile: false, appType: 'custom', server: { middlewareMode: true, hmr: false, ws: false } }); respond = (await vite.ssrLoadModule('/src/server/us-etf-valuation-response.ts')).usETFValuationResponse; const contract=await vite.ssrLoadModule('/src/lib/us-etf-valuations.ts'); assert.equal(contract.ETF_METHOD_VERSION,METHOD);assert.equal(contract.ETF_MIN_COVERAGE,MIN_COVERAGE);assert.deepEqual(Object.fromEntries(contract.US_SECTOR_ETFS),SECTORS); });
 after(async () => vite?.close());
@@ -50,5 +50,26 @@ test('XLI permits two reviewed event flags without fabricating a PB for excluded
   const x=etfInput();x.code='XLI';for(const [i,symbol]of ['HONA','FDXF'].entries()){const h=x.holdings[i];h.symbol=symbol;h.equity.basis='common_pro_forma_event_bridge';h.equity.value=-100;h.revenue.basis='ttm_carve_out_reported';}
   const row=calculateETF(x).reading;f.sqlite.prepare('INSERT INTO market_snapshot VALUES(?,?,?)').run('valuation/US/XLI',JSON.stringify({source:'self_us_etf',history:{[date]:row}}),date);
   const r=await respond(new URL('https://test/api/valuations/US?date='+date),f.db);assert.equal(r.status,200);assert.deepEqual((await r.json()).data.rows,[row]);
+ }finally{f.close();}
+});
+
+test('XLE exposes one narrowly reviewed merger equity flag, while two or unrelated fund flags fail closed',async()=>{
+ const f=memoryDB();try{
+  const x=etfInput();x.code='XLE';x.holdings[0].symbol='DVN';x.holdings[0].equity.basis='common_pro_forma_event_bridge';x.holdings[0].revenue=null;
+  const row=calculateETF(x).reading,save=r=>f.sqlite.prepare('INSERT OR REPLACE INTO market_snapshot VALUES(?,?,?)').run('valuation/US/XLE',JSON.stringify({source:'self_us_etf',history:{[date]:r}}),date);
+  save(row);const r=await respond(new URL('https://test/api/valuations/US?date='+date+'&format=event-equity-v2'),f.db);assert.equal(r.status,200);assert.deepEqual((await r.json()).data.rows,[row]);
+  const legacy=await(await respond(new URL('https://test/api/valuations/US?date='+date),f.db)).json();assert.equal(legacy.data.rows[0].pb.value,null);assert.equal(legacy.data.rows[0].ps.value,null);assert.equal(legacy.data.rows[0].qualityFlags.eventProForma,0);assert.equal(legacy.data.rows[0].sourceComparison,undefined);
+  row.qualityFlags.eventProForma=2;save(row);assert.equal((await respond(new URL('https://test/api/valuations/US?date='+date+'&format=event-equity-v2'),f.db)).status,503);
+ }finally{f.close();}
+});
+
+test('legacy format withholds DuPont split estimates without invalidating other funds or exposing alternates',async()=>{
+ const f=memoryDB();try{
+  const x=etfInput();x.code='XLB';x.sourceComparison={date,source:'holdings',observedAt:cutoff,sourceConflict:false,alternateSourceValues:{pb:12,ps:4},alternateCoverage:{pb:1,ps:1}};
+  const row=calculateETF(x).reading;row.qualityFlags.eventReconstructedShares=1;
+  f.sqlite.prepare('INSERT INTO market_snapshot VALUES(?,?,?)').run('valuation/US/XLB',JSON.stringify({source:'self_us_etf',history:{[date]:row}}),date);
+  const canonical=await(await respond(new URL('https://test/api/valuations/US?date='+date+'&format=event-equity-v2'),f.db)).json();assert.deepEqual(canonical.data.rows,[row]);
+  const legacy=await(await respond(new URL('https://test/api/valuations/US?date='+date),f.db)).json();assert.equal(legacy.data.rows[0].pb.value,null);assert.equal(legacy.data.rows[0].ps.value,null);assert.equal(legacy.data.rows[0].qualityFlags.eventReconstructedShares,0);assert.equal(legacy.data.rows[0].sourceComparison,undefined);
+  const reads=f.stats.reads;assert.equal((await respond(new URL('https://test/api/valuations/US?date='+date+'&format=unknown'),f.db)).status,400);assert.equal(f.stats.reads,reads);
  }finally{f.close();}
 });

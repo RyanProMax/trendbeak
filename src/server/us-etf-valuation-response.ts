@@ -2,12 +2,17 @@ import { US_SECTOR_ETFS, validETFDate, validETFValuation, type ETFValuation } fr
 /** Fixed symbols, one exact date, <= 4 KB per prepared reading. Never a source fetch. */
 export async function usETFValuationResponse(url: URL, db?: D1Database): Promise<Response> {
   const date = url.searchParams.get('date') ?? '';
+  const format = url.searchParams.get('format');
+  if (format !== null && format !== 'event-equity-v2') return Response.json({ error: '估值格式无效' }, { status: 400 });
   if (!validETFDate(date)) return Response.json({ error: '日期无效' }, { status: 400 });
   if (!db) return Response.json({ error: '估值数据暂不可用' }, { status: 503 });
   try {
     // JSON iteration is capped at 366 actual observations for each of eleven keys.
     // Daily readings are exact-date; quarterly marks are visible only after release.
-    const result = await db.prepare(`SELECT key, observation_date, reading FROM (
+    // Legacy clients reject the new XLE/XLB event flags. Preserve their other rows and
+    // withhold only the event-based values they cannot label accurately.
+    const projection = format === 'event-equity-v2' ? 'reading' : `CASE WHEN json_extract(reading,'$.code')='XLE' AND json_extract(reading,'$.qualityFlags.eventProForma')=1 THEN json_remove(json_set(reading,'$.pb.value',NULL,'$.ps.value',NULL,'$.qualityFlags.eventProForma',0),'$.sourceComparison') WHEN json_extract(reading,'$.code')='XLB' AND json_extract(reading,'$.qualityFlags.eventReconstructedShares')=1 THEN json_remove(json_set(reading,'$.pb.value',NULL,'$.ps.value',NULL,'$.qualityFlags.eventReconstructedShares',0),'$.sourceComparison') ELSE reading END`;
+    const result = await db.prepare(`SELECT key, observation_date, ${projection} AS reading FROM (
       SELECT s.key, h.key AS observation_date, h.value AS reading, ROW_NUMBER() OVER (PARTITION BY s.key ORDER BY h.key DESC) AS position
       FROM market_snapshot s, json_each(s.payload,'$.history') h
       WHERE s.key IN (${US_SECTOR_ETFS.map(() => '?').join(',')}) AND json_extract(s.payload,'$.source')='self_us_etf'

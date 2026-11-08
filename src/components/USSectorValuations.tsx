@@ -40,7 +40,7 @@ export default function USSectorValuations({ date }: { date: string }) {
     };
     const timer = setTimeout(() => { void (async () => {
       try {
-        const response = await fetch(`/api/valuations/US?date=${encodeURIComponent(date)}`, { signal: controller.signal });
+        const response = await fetch(`/api/valuations/US?date=${encodeURIComponent(date)}&format=event-equity-v2`, { signal: controller.signal });
         if (!response.ok) throw Error('ETF valuations unavailable');
         const { data } = await response.json() as { data: { date: string; rows: ETFValuation[] } };
         if (data?.date !== date || !Array.isArray(data.rows) || data.rows.length > 11 || new Set(data.rows.map(r => r.code)).size !== data.rows.length || data.rows.some(r => !validETFValuation(r, date))) throw Error('Invalid ETF valuations');
@@ -59,6 +59,8 @@ export default function USSectorValuations({ date }: { date: string }) {
     {result?.rows.some(r => r.code === 'XLC' && r.ps.value !== null && r.qualityFlags.comparableRevenue > 0) && <p className="valuation-adjustment">XLC 可比口径：已调整拆分前收入</p>}
     {result?.rows.some(r => r.code === 'XLF' && (r.pb.value !== null || r.ps.value !== null) && r.qualityFlags.eventReconstructedShares > 0) && <p className="valuation-adjustment">XLF 含股本事件估算</p>}
     {result?.rows.some(r => r.code === 'XLI' && (r.pb.value !== null || r.ps.value !== null) && r.qualityFlags.eventProForma > 0) && <p className="valuation-adjustment">XLI 含分拆财务估算</p>}
+    {result?.rows.some(r => r.code === 'XLE' && r.pb.value !== null && r.qualityFlags.eventProForma > 0) && <p className="valuation-adjustment">XLE 含合并财务估算</p>}
+    {result?.rows.some(r => r.code === 'XLB' && (r.pb.value !== null || r.ps.value !== null) && r.qualityFlags.eventReconstructedShares > 0) && <p className="valuation-adjustment">XLB 含拆股股本估算</p>}
     <table data-valuation-date={date} aria-label={`板块 ETF 估值，${displayDate(date, true)}`}>
       <colgroup><col className="valuation-name-column" /><col /><col /></colgroup>
       <thead><tr><th scope="col">板块 / ETF</th><th scope="col">PB <small>倍</small></th><th scope="col">PS <small>倍</small></th></tr></thead>
