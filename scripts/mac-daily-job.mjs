@@ -16,8 +16,45 @@ export function dailyJobPlan({at,skipQuarterly=false,output}){
 }
 export function observationLag(report){
  if(!report?.completedSession)return false;
- const dates=[report.sourceDate,...Object.values(report.sourceDates??{}).flatMap(value=>typeof value==='object'?Object.values(value):[value])].filter(value=>typeof value==='string');
+ const dates=[report.sourceDate,...Object.values(report.sourceDates??{}).flatMap(value=>value!==null&&typeof value==='object'?Object.values(value):[value])].filter(value=>typeof value==='string');
  return dates.some(date=>date<report.completedSession);
+}
+const count=value=>Number.isSafeInteger(value)&&value>=0;
+const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
+const date=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;
+const counters=(value,keys)=>keys.every(key=>count(value[key]));
+const valuationCodes=['000300','000905','000016','399001','399006','000922','000688','HSI','HSTECH','000906','000852','399005'];
+export function validateBusinessOutput(step,stdout,at){
+ const reports=[];let malformed=false;
+ for(const raw of stdout.split('\n')){
+  const line=raw.trim();if(!line)continue;
+  try{reports.push(JSON.parse(line));}catch{if(/^[{\[]/.test(line))malformed=true;}
+ }
+ const r=reports[0],fail=()=>({valid:false,reports});
+ if(malformed||reports.length!==1||!object(r))return fail();
+ const [market,kind]=step.id.split('-');
+ if(kind==='quarterly'){
+  if(step.id!=='US-quarterly')return fail();
+  const p=r.publication;
+  if(r.checkedAt!==at||!counters(r,['candidates','sourceCalls','sourceBytes'])||!object(p)||!counters(p,['writes','sourceCalls']))return fail();
+  if('skipped' in p){if(p.skipped!=='no_new_audited_quarter'||p.writes!==0||p.sourceCalls!==0)return fail();}
+  else if(p.dryRun!==false||!counters(p,['checkpointBytes'])||!Array.isArray(p.changedKeys)||!p.changedKeys.every(key=>typeof key==='string'&&key.startsWith('valuation/US/'))||!Array.isArray(p.corrections)||p.corrections.length!==p.changedKeys.length||p.writes!==p.changedKeys.length||p.sourceCalls!==0||p.writes>0&&(typeof p.publicationVersion!=='string'||!Number.isFinite(Date.parse(p.publicationVersion))))return fail();
+ }else{
+  const target=kind==='core'?r.date:r.completedSession;
+  if(r.market!==market||!date(target)||Date.parse(target)>Date.parse(at)||!count(r.dbWrites))return fail();
+  if('skipped' in r){
+   const keys=kind==='core'?['upstreamCalls']:['sourceCalls','sourceBytes','computedRows'];
+   if(r.skipped!=='already_settled'||r.dbWrites!==0||!keys.every(key=>r[key]===0))return fail();
+  }else if(kind==='core'){
+   const keys=market==='CN'?['CN/000300.SS']:['US/^IXIC','US/^GSPC','US/NVDA'];
+   if(r.source!==(market==='CN'?'baifenwei':'cnn_whit3rabbit')||r.dryRun!==false||!counters(r,['sentimentChanges','upstreamCalls'])||!Array.isArray(r.instruments)||r.instruments.length!==keys.length||!keys.every(key=>r.instruments.filter(i=>object(i)&&i.key===key&&count(i.computedRows)&&typeof i.snapshotChanged==='boolean').length===1))return fail();
+  }else if(kind==='overview'){
+   if(r.dryRun!==false||r.manualInitialization!==false||!counters(r,['sourceCalls','sourceBytes','computedRows','responseBytes','valuationRows'])||!date(r.sourceDate)||r.sourceDate>target||!Array.isArray(r.changedKeys)||!r.changedKeys.every(key=>typeof key==='string')||r.failures!==undefined&&(!Array.isArray(r.failures)||r.failures.length>0))return fail();
+   if(market==='CN'&&(!object(r.sourceDates)||!date(r.sourceDates.indices)||!date(r.sourceDates.activity)||!object(r.sourceDates.valuations)||r.valuationRows!==12||!valuationCodes.every(code=>date(r.sourceDates.valuations[code]))))return fail();
+   if(market==='US'&&r.valuationRows!==0)return fail();
+  }else return fail();
+ }
+ return {valid:true,reports};
 }
 export function executeStep(step,{cwd,env,timeoutMs=180000}){
  return new Promise(resolve=>{
@@ -45,13 +82,12 @@ export async function runMacDailyJob({at=new Date().toISOString(),skipQuarterly=
   delete env.CLOUDFLARE_API_TOKEN;delete env.CF_API_TOKEN;delete env.CLOUDFLARE_API_KEY;delete env.CF_API_KEY;
   const privateLog=await open(env.WRANGLER_LOG_PATH,'wx',0o600);await privateLog.close();
   // whoami may refresh the existing OAuth grant in place. It never requests
-  // login or a new grant; its account/email output stays in private logs.
+  // login or a new grant. Suppress Wrangler disk logging and discard identity output.
   let authorization;
-  try{authorization=await runStep({id:'authorization',args:['node_modules/wrangler/bin/wrangler.js','whoami']},{cwd:root,env,timeoutMs:60000});}
+  try{authorization=await runStep({id:'authorization',args:['node_modules/wrangler/bin/wrangler.js','whoami']},{cwd:root,env:{...env,WRANGLER_WRITE_LOGS:'false'},timeoutMs:60000});}
   catch{authorization={code:null,stdout:'',stderr:'Existing authorization check failed'};}
-  await writeFile(join(runDirectory,'authorization.stdout.log'),authorization.stdout??'',{mode:0o600,flag:'wx'});
-  await writeFile(join(runDirectory,'authorization.stderr.log'),authorization.stderr??'',{mode:0o600,flag:'wx'});
-  const identity=authorization.stdout??'',authorizationVerified=authorization.code===0&&!authorization.timedOut&&!authorization.overflow&&!authorization.error&&/logged in with an OAuth Token/i.test(identity)&&new RegExp(`(?<![a-f0-9])${ACCOUNT}(?![a-f0-9])`,'i').test(identity);
+  const identity=authorization.stdout??'',d1WriteAllowed=/(?:^|\n)\s*-\s*d1\s*\(write\)/i.test(identity),authorizationVerified=d1WriteAllowed&&authorization.code===0&&!authorization.timedOut&&!authorization.overflow&&!authorization.error&&/logged in with an OAuth Token/i.test(identity)&&new RegExp(`(?<![a-f0-9])${ACCOUNT}(?![a-f0-9])`,'i').test(identity);
+  await writeFile(join(runDirectory,'authorization.json'),JSON.stringify({authorizationVerified,d1WriteAllowed,reason:authorizationVerified?'Existing OAuth account verified':'Existing OAuth account could not be verified'})+'\n',{mode:0o600,flag:'wx'});
   if(!authorizationVerified){
    const summary={at,runDirectory,ok:false,authorizationVerified:false,reason:'Existing Wrangler OAuth login and expected account could not be verified; no writers started',results:[]};
    await writeFile(join(runDirectory,'summary.json'),JSON.stringify(summary,null,2)+'\n',{mode:0o600,flag:'wx'});
@@ -70,9 +106,9 @@ export async function runMacDailyJob({at=new Date().toISOString(),skipQuarterly=
    catch(error){result={code:null,error:error.message,stdout:'',stderr:''};}
    await writeFile(join(runDirectory,step.id+'.stdout.log'),result.stdout??'',{mode:0o600,flag:'wx'});
    await writeFile(join(runDirectory,step.id+'.stderr.log'),result.stderr??'',{mode:0o600,flag:'wx'});
-   const reports=(result.stdout??'').split('\n').flatMap(line=>{try{return [JSON.parse(line)];}catch{return [];}});
-   const lag=reports.some(observationLag),ok=result.code===0&&!result.timedOut&&!result.overflow&&!result.error&&!lag&&!reports.some(report=>report.failures?.length);
-   results.push({id:step.id,ok,status:ok?'completed':'failed',exitCode:result.code,signal:result.signal??null,timedOut:!!result.timedOut,outputLimitExceeded:!!result.overflow,observationLag:lag,...(result.error?{error:result.error}:{}),reports});
+   const {valid:reportValid,reports}=validateBusinessOutput(step,result.stdout??'',at);
+   const lag=reports.some(observationLag),ok=reportValid&&result.code===0&&!result.timedOut&&!result.overflow&&!result.error&&!lag&&!reports.some(report=>report.failures?.length);
+   results.push({id:step.id,ok,status:ok?'completed':'failed',exitCode:result.code,signal:result.signal??null,timedOut:!!result.timedOut,outputLimitExceeded:!!result.overflow,observationLag:lag,reportValid,...(result.error?{error:result.error}:{}),reports});
    if(marker)await writeFile(marker,JSON.stringify({at,status:ok?'completed':'failed',runDirectory})+'\n',{mode:0o600});
   }
   if(skipQuarterly)results.push({id:'US-quarterly',status:'skipped',reason:'explicit_skip',ok:true});

@@ -2,7 +2,7 @@
 
 Run `node scripts/mac-daily-job.mjs` in the dedicated checkout on the authorized Mac. The original developer checkout can contain unfinished work and must not be reset by a scheduled run.
 
-The runner uses only the existing Wrangler OAuth login and the original account/D1 binding. No credential is copied into the repository or scheduler. Existing login refresh is permitted; a missing or rejected login stops the run instead of creating a new grant.
+The runner uses only the existing Wrangler OAuth login and the original account/D1 binding. No credential is copied into the repository or scheduler. Existing login refresh is permitted; a missing or rejected login stops the run instead of creating a new grant. Authorization output is checked only in memory. Wrangler disk logging is disabled for that check; only verification booleans and fixed, sanitized failure categories are retained, never its full identity output.
 
 Each invocation freezes one UTC execution time, serializes CN and US bounded catch-up writers, and checks the existing reviewed quarterly releases. It does not initialize, rebuild, deploy, approve candidates, or restore the removed GitHub update workflow. Existing exchange-calendar logic selects the latest settled session and skips complete data. The separate manual US theme release workflow remains available.
 
@@ -10,7 +10,7 @@ A run-wide atomic `/tmp/trendbeak-mac-job.lock` prevents overlapping coordinator
 
 Private logs and quarterly audit files are stored under `~/Library/Logs/trendbeak-sync` with private directories and files. One persistent quarterly attempt marker per UTC date prevents repeated SEC requests after a failure. A failed or interrupted attempt stays visible; do not remove its marker to force an automatic retry. `--skip-quarterly` is only for an explicit controlled verification.
 
-The summary distinguishes job completion from source freshness. Reported source dates behind the settled session produce a nonzero result even if a writer completed. For example, a current CN close does not imply that all twelve valuation providers have published that date. No missing observation is synthesized. The summary is not a substitute for a separate bounded database and online date check.
+A zero exit code is insufficient: each writer must emit the expected, complete JSON report for its market and operation. Empty, malformed, mismatched, or incomplete reports fail closed. The summary distinguishes job completion from source freshness. Reported source dates behind the settled session produce a nonzero result even if a writer completed. For example, a current CN close does not imply that all twelve valuation providers have published that date. No missing observation is synthesized. The summary is not a substitute for a separate bounded database and online date check.
 
 ## Scheduling acceptance
 
