@@ -5,3 +5,6 @@
 
 # Reviewed literal snapshot-key comparison, not an authentication secret.
 87bd5d771f7b97ca3c3ad39c19c21db8138005ce:tests/us-etf-valuation-repair.test.mjs:generic-api-key:84
+
+# Reviewed historical fixture snapshot path, not an authentication secret.
+83c5713ae6c5f6f42c6df061e7ab2081e9edcb73:tests/mac-daily-job.test.mjs:generic-api-key:73

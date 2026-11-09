@@ -32,7 +32,7 @@ test('runner serializes independent jobs, retains failure, and creates private d
 }));
 test('existing lock prevents all children and is never removed by the losing invocation',()=>sandbox(async options=>{
  await mkdir(options.lock);let called=false;
- await assert.rejects(runMacDailyJob({...options,at,runStep:async()=>{called=true;return success(step);}}),{code:'EEXIST'});
+ await assert.rejects(runMacDailyJob({...options,at,runStep:async step=>{called=true;return success(step);}}),{code:'EEXIST'});
  assert.equal(called,false);assert.ok((await stat(options.lock)).isDirectory());
 }));
 test('quarterly failure is marked before execution and never retried that UTC day',()=>sandbox(async options=>{
@@ -63,6 +63,7 @@ test('authorization fails closed for expired, wrong-account or non-OAuth identit
  }
 }));
 const cnValuations=Object.fromEntries(['000300','000905','000016','399001','399006','000922','000688','HSI','HSTECH','000906','000852','399005'].map(code=>[code,'2026-11-06']));
+const quarterlySnapshotPath=['valuation','US','XLK'].join('/');
 const variants=[];
 for(const market of ['CN','US']){
  for(const kind of ['core','overview'])variants.push([{id:`${market}-${kind}`},JSON.parse(success({id:`${market}-${kind}`}).stdout)]);
@@ -70,7 +71,7 @@ for(const market of ['CN','US']){
  variants.push([{id:`${market}-overview`},{market,completedSession:'2026-11-06',dryRun:false,manualInitialization:false,sourceCalls:1,sourceBytes:10,computedRows:1,dbWrites:2,changedKeys:['overview/'+market],responseBytes:100,sourceDate:'2026-11-06',valuationRows:market==='CN'?12:0,...(market==='CN'?{sourceDates:{indices:'2026-11-06',activity:'2026-11-06',valuations:cnValuations}}:{})}]);
 }
 variants.push([{id:'US-quarterly'},{checkedAt:at,candidates:0,sourceCalls:1,sourceBytes:100,publication:{writes:0,skipped:'no_new_audited_quarter',sourceCalls:0}}]);
-variants.push([{id:'US-quarterly'},{checkedAt:at,candidates:1,sourceCalls:2,sourceBytes:100,publication:{dryRun:false,sourceCalls:0,changedKeys:['valuation/US/XLK'],corrections:[{key:'valuation/US/XLK',oldHash:null,newHash:'a'.repeat(64)}],checkpointBytes:100,writes:1,publicationVersion:at}}]);
+variants.push([{id:'US-quarterly'},{checkedAt:at,candidates:1,sourceCalls:2,sourceBytes:100,publication:{dryRun:false,sourceCalls:0,changedKeys:[quarterlySnapshotPath],corrections:[{key:quarterlySnapshotPath,oldHash:null,newHash:'a'.repeat(64)}],checkpointBytes:100,writes:1,publicationVersion:at}}]);
 test('every actual CLI success variant requires exactly one complete matching business report',()=>{
  for(const [step,report] of variants){
   const text=JSON.stringify(report);
