@@ -69,6 +69,8 @@ export function calculateETF(input, { researchOnly = false } = {}) {
   for (const holding of input.holdings) {
     if (!holding || typeof holding.symbol !== 'string' || !/^[A-Z0-9.\-]{1,20}$/.test(holding.symbol) || symbols.has(holding.symbol) || !positive(holding.weight) || holding.weight > 1) throw Error('Invalid or duplicate holding');
     symbols.add(holding.symbol); totalWeight += holding.weight;
+    if(input.code==='XLK'&&input.date==='2026-06-30'&&(holding.symbol==='ACN'||holding.securityId==='IE00B4BNMY34'||holding.issuerId==='SEC-CIK-1467373')&&(holding.shares!=null||holding.equity!=null||holding.revenue!=null||holding.capitalizationComponents?.length))throw Error('Unresolved ACN all-common capital scope requires missing inputs; parent-only scope is not this method');
+    if(input.code==='XLC'&&input.date==='2026-06-30'&&(['CHTR','TKO'].includes(holding.symbol)||['US16119P1084','US87256C1018'].includes(holding.securityId)||['SEC-CIK-1091667','SEC-CIK-1973266'].includes(holding.issuerId))&&holding.revenue!=null)throw Error('Unresolved CHTR/TKO parent-cap consolidated-revenue scope requires missing revenue; it is not this method');
     // Known May 7 merger: never let an older generic collector silently restore
     // standalone Devon capital or financials to this reviewed June snapshot.
     if (input.code === 'XLE' && input.date === '2026-06-30' && holding.symbol === 'DVN' && (holding.shares && (holding.shares.asOf < '2026-05-07' || holding.shares.basis !== 'actual_common_outstanding') || holding.equity && holding.equity.basis !== 'common_pro_forma_event_bridge' || holding.revenue != null)) throw Error('Reviewed post-merger Devon inputs required for 2026-06-30');

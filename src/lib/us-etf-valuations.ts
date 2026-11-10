@@ -56,6 +56,27 @@ export function validETFDate(v: unknown): v is string {
   return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && Number.isFinite(Date.parse(v)) && new Date(v).toISOString().slice(0, 10) === v;
 }
 const weight = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1.000001;
+/** June XLK counted parent-only ACN capital as all-common. Retain original
+ * audit metadata but suppress values and derivatives until separately repaired. */
+export function holdXLKCommonCapital(row: ETFValuation): ETFValuation {
+  if (row.code !== 'XLK' || row.date !== '2026-06-30' || row.methodVersion !== ETF_METHOD_VERSION) return row;
+  const result = { ...row, pb: { ...row.pb, value: null, percentile: null }, ps: { ...row.ps, value: null, percentile: null } };
+  for (const metric of [result.pb, result.ps]) { delete metric.estimate; delete metric.quarterlyHistory; }
+  delete result.sourceComparison;
+  return result;
+}
+/** June XLC paired parent-only CHTR/TKO capital with consolidated revenue.
+ * Parent common-book PB is independent; suppress only PS and its derivatives. */
+export function holdXLCParentCapitalPS(row: ETFValuation): ETFValuation {
+  if (row.code !== 'XLC' || row.date !== '2026-06-30' || row.methodVersion !== ETF_METHOD_VERSION) return row;
+  const ps = { ...row.ps, value: null, percentile: null };
+  delete ps.estimate; delete ps.quarterlyHistory;
+  return { ...row, ps, ...(row.sourceComparison ? { sourceComparison: {
+    ...row.sourceComparison,
+    alternateSourceValues: { ...row.sourceComparison.alternateSourceValues, ps: null },
+    deltaPercent: { ...row.sourceComparison.deltaPercent, ps: null }
+  } } : {}) };
+}
 const instant = (v: unknown): v is string => typeof v === 'string' && /(?:Z|[+-]\d{2}:\d{2})$/.test(v) && Number.isFinite(Date.parse(v));
 const eastern = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23', minute: '2-digit', second: '2-digit' });
 export function validETFValuation(row: any, selectedDate: string): row is ETFValuation {

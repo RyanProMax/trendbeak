@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import CollapsiblePanel, { usePanelVisible } from './CollapsiblePanel';
 import { autoUpdate, flip, FloatingPortal, offset, shift, useClick, useDismiss, useFloating, useFocus, useHover, useInteractions, useRole } from '@floating-ui/react';
 import { displayDate, number } from '../lib/market-format';
-import { US_SECTOR_ETFS, validETFValuation, type ETFValuation } from '../lib/us-etf-valuations';
+import { US_SECTOR_ETFS, validETFValuation, holdXLKCommonCapital, holdXLCParentCapitalPS, type ETFValuation } from '../lib/us-etf-valuations';
 import { currentBasketForView, type CurrentBasketReading } from '../lib/us-etf-current';
 import {XLP_CLASS_METHOD} from '../lib/us-etf-xlp-method';
 import './market-overview.css';
@@ -78,7 +78,7 @@ export default function USSectorETFValuations({ date, viewMode = 'historical', c
     const save = (rows: ETFValuation[], error: boolean, current: CurrentBasketReading | null = null) => {
       if (!active) return;
       setViewClock(Date.now());
-      const result = { date, viewMode, rows, current, error, expires: Date.now() + (error ? 30000 : 300000) };
+      const result = { date, viewMode, rows: rows.map(row => holdXLCParentCapitalPS(holdXLKCommonCapital(row))), current, error, expires: Date.now() + (error ? 30000 : 300000) };
       cache.current.delete(cacheKey); cache.current.set(cacheKey, result);
       while (cache.current.size > 366) cache.current.delete(cache.current.keys().next().value!);
       setLoaded(result);

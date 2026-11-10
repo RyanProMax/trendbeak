@@ -93,7 +93,7 @@ test('only exact verified version and prepared quarter reading release holds; sa
   save(row);for(const format of['','&format=event-equity-v2','&format=audited-events-v3']){
    const get=async d=>{const r=await respond(new URL('https://test/api/valuations/US?date='+d+format),f.db,entries);assert.equal(r.status,200);return(await r.json()).data.rows;};
    assert.deepEqual(await get('2026-08-27'),[]);const publicRow=(await get('2026-11-05'))[0];
-   if(format.includes('audited-events-v3'))assert.deepEqual(publicRow,row);else{assert.equal(publicRow.pb.value,null);assert.equal(publicRow.ps.value,null);assert.equal(publicRow.sourceComparison,undefined);assert.equal(publicRow.qualityFlags.eventReconstructedShares,0);}
+   if(format.includes('audited-events-v3')){const held=structuredClone(row);held.pb.value=null;held.pb.percentile=null;held.ps.value=null;held.ps.percentile=null;delete held.sourceComparison;assert.deepEqual(publicRow,held);}else{assert.equal(publicRow.pb.value,null);assert.equal(publicRow.ps.value,null);assert.equal(publicRow.sourceComparison,undefined);assert.equal(publicRow.qualityFlags.eventReconstructedShares,0);}
   }
   for(const mutate of [r=>r.pb.value++,r=>r.ps.value++,r=>r.sourceComparison.observedAt='2026-11-08T11:00:00Z',r=>r.qualityFlags.sharesOver90Days++]){
    const changed=structuredClone(row);mutate(changed);save(changed);
