@@ -1,0 +1,146 @@
+{
+  "methodVersion": "dram-conditional-equity-risk-v1.0.0",
+  "seriesId": "S000102337",
+  "datasetKind": "synthetic_algebra_only",
+  "economicAsOf": "2026-06-30",
+  "holdingsPublication": {
+    "date": "2026-08-26",
+    "precision": "date"
+  },
+  "accounting": {
+    "navUsd": "300",
+    "totalAssetsUsd": "310",
+    "totalLiabilitiesUsd": "10"
+  },
+  "positions": [
+    {
+      "id": "SYNTHETIC_A",
+      "sourceOrdinal": 1,
+      "isin": "SYNTHETIC_A",
+      "name": "SYNTHETIC_A",
+      "kind": "common_equity",
+      "reported": {
+        "valueUsd": "100",
+        "valueCurrency": "USD",
+        "balance": "10",
+        "unitsCode": "NS"
+      }
+    },
+    {
+      "id": "SYNTHETIC_B",
+      "sourceOrdinal": 2,
+      "isin": "SYNTHETIC_B",
+      "name": "SYNTHETIC_B",
+      "kind": "common_equity",
+      "reported": {
+        "valueUsd": "200",
+        "valueCurrency": "USD",
+        "balance": "10",
+        "unitsCode": "NS"
+      }
+    }
+  ],
+  "companies": [
+    {
+      "isin": "SYNTHETIC_A",
+      "name": "SYNTHETIC_A",
+      "marketBasis": {
+        "mode": "single_class_outstanding_shares_times_nport_mark",
+        "shares": "10",
+        "sharesAnchorDate": "2026-06-30",
+        "securityRatio": "1",
+        "shareQuantityNature": "actual_outstanding_anchor",
+        "publication": {
+          "date": "2026-08-26",
+          "precision": "date"
+        },
+        "basisCompatible": true,
+        "equityScope": "synthetic_common",
+        "source": "SYNTHETIC FIXTURE"
+      },
+      "book": {
+        "amount": "50",
+        "currency": "USD",
+        "unitMultiplier": "1",
+        "usdPerCurrencyUnit": "1",
+        "conversionBasis": "SYNTHETIC FIXTURE",
+        "periodEnd": "2026-06-30",
+        "periodStart": null,
+        "publication": {
+          "date": "2026-08-26",
+          "precision": "date"
+        },
+        "basisCompatible": true,
+        "equityScope": "synthetic_common",
+        "source": "SYNTHETIC FIXTURE"
+      },
+      "sales": {
+        "amount": "20",
+        "currency": "USD",
+        "unitMultiplier": "1",
+        "usdPerCurrencyUnit": "1",
+        "conversionBasis": "SYNTHETIC FIXTURE",
+        "periodEnd": "2026-06-30",
+        "periodStart": "2025-07-01",
+        "publication": {
+          "date": "2026-08-26",
+          "precision": "date"
+        },
+        "basisCompatible": true,
+        "equityScope": "synthetic_common",
+        "source": "SYNTHETIC FIXTURE"
+      }
+    },
+    {
+      "isin": "SYNTHETIC_B",
+      "name": "SYNTHETIC_B",
+      "marketBasis": {
+        "mode": "single_class_outstanding_shares_times_nport_mark",
+        "shares": "10",
+        "sharesAnchorDate": "2026-06-30",
+        "securityRatio": "1",
+        "shareQuantityNature": "actual_outstanding_anchor",
+        "publication": {
+          "date": "2026-08-26",
+          "precision": "date"
+        },
+        "basisCompatible": true,
+        "equityScope": "synthetic_common",
+        "source": "SYNTHETIC FIXTURE"
+      },
+      "book": {
+        "amount": "25",
+        "currency": "USD",
+        "unitMultiplier": "1",
+        "usdPerCurrencyUnit": "1",
+        "conversionBasis": "SYNTHETIC FIXTURE",
+        "periodEnd": "2026-06-30",
+        "periodStart": null,
+        "publication": {
+          "date": "2026-08-26",
+          "precision": "date"
+        },
+        "basisCompatible": true,
+        "equityScope": "synthetic_common",
+        "source": "SYNTHETIC FIXTURE"
+      },
+      "sales": {
+        "amount": "40",
+        "currency": "USD",
+        "unitMultiplier": "1",
+        "usdPerCurrencyUnit": "1",
+        "conversionBasis": "SYNTHETIC FIXTURE",
+        "periodEnd": "2026-06-30",
+        "periodStart": "2025-07-01",
+        "publication": {
+          "date": "2026-08-26",
+          "precision": "date"
+        },
+        "basisCompatible": true,
+        "equityScope": "synthetic_common",
+        "source": "SYNTHETIC FIXTURE"
+      }
+    }
+  ],
+  "conditionalCoefficients": {}
+}

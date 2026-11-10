@@ -1,0 +1,98 @@
+{
+  "conditional_trs_notional": {
+    "scope": "fund",
+    "text": "TRS 按名义额与系数 1 估算，实际敞口未经认证。"
+  },
+  "fund_reported_marks": {
+    "scope": "fund",
+    "text": "采用基金申报估值，不等同交易所收盘价。"
+  },
+  "shares_carried": {
+    "scope": "issuer",
+    "text": "股数沿用或按披露事件调整，其他股本变化未完全核实。"
+  },
+  "share_rounding_delivery": {
+    "scope": "issuer",
+    "text": "股数包含舍入及交付处理假设。"
+  },
+  "equal_common_preferred_participation": {
+    "scope": "issuer",
+    "text": "普通股与优先股按等经济单位分配。"
+  },
+  "preferred_liquidation_unverified": {
+    "scope": "issuer",
+    "text": "优先股清算权未独立核实。"
+  },
+  "extra_dividend_not_capitalized": {
+    "scope": "issuer",
+    "text": "额外优先股股息未资本化。"
+  },
+  "fund_fx_interpretation": {
+    "scope": "issuer",
+    "text": "汇率方向由基金披露佐证，并非认证定盘价。"
+  },
+  "fiscal_period_mismatch": {
+    "scope": "issuer",
+    "text": "财报期与持仓日不同，存在财务滞后。"
+  },
+  "fiscal_53_week_ttm": {
+    "scope": "issuer",
+    "text": "收入包含 53 周财年口径。"
+  },
+  "retrospective_date_only": {
+    "scope": "fund",
+    "text": "使用事后披露数据，披露日期不代表当日开盘已知。"
+  },
+  "proportional_a_h_participation": {
+    "scope": "issuer",
+    "text": "A/H 股按章程同比例分配，不假设两地同价。"
+  },
+  "pending_cancellation_economic_exclusion": {
+    "scope": "issuer",
+    "text": "基准剔除待注销受限股，经济股数仍为假设。"
+  },
+  "reported_crossholding_book": {
+    "scope": "issuer",
+    "text": "使用披露账面权益，保留交叉持股，未作当日重估。"
+  },
+  "reported_financial_precision": {
+    "scope": "fund",
+    "text": "财报存在原始舍入精度，计算小数不代表准确度。"
+  },
+  "reported_rounded_ordinary_quantity": {
+    "scope": "issuer",
+    "text": "Reported quantity types and scales form a conditional ordinary-unit estimate. Rounding envelopes exclude other unknown changes and do not certify exact outstanding."
+  },
+  "treasury_quantity_inference": {
+    "scope": "issuer",
+    "text": "Additional treasury is explicitly inferred as zero from specified evidence, not observed as an exact count. Issued and outstanding quantities remain distinct."
+  },
+  "locked_private_ordinary_mark": {
+    "scope": "issuer",
+    "text": "Transfer-restricted private ordinary units use the listed held-unit mark as an explicit assumption. Neither equal observed prices, zero discount nor certified residual-right equivalence is established."
+  },
+  "reported_parent_equity_convention": {
+    "scope": "issuer",
+    "text": "Reported parent accounting equity is allocated under an explicit ordinary-equity convention; reserves/OCI remain included and common-only liquidation entitlement is not certified."
+  },
+  "convertible_reserve_allocation": {
+    "scope": "issuer",
+    "text": "Baseline retains the supported convertible equity reserve. A distinct carrying-amount allocation sensitivity may deduct it once, without re-deducting liabilities or inferring an option price."
+  },
+  "qualified_interim_review": {
+    "scope": "issuer",
+    "text": "Material qualified interim review and its actual affected scope are retained. As-reported amounts are not silently corrected, and annual audit assurance does not remove the interim qualification."
+  },
+  "reported_consolidation_perimeter": {
+    "scope": "issuer",
+    "text": "Revenue spans the actual reported consolidation perimeter and changes. It is not constant-perimeter pro forma or legal-owner revenue, and non-operating associate earnings are not added to operating sales."
+  },
+  "external_reference_fx": {
+    "scope": "issuer",
+    "text": "Company local-currency financial amounts use the external Federal Reserve H.10 local-units-per-USD reference. It is not the fund actual FX, a recovered security-local price, or an exchange close."
+  },
+  "reference_fx_timing_mismatch": {
+    "scope": "fund",
+    "text": "June30 New York noon external FX, published in the July6 fixed vintage, normalizes financials against independently given N-CSRS USD marks. No common timestamp or matching fund fixing is certified."
+  }
+}

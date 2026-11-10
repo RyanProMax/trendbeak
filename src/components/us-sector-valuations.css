@@ -31,3 +31,5 @@
 .etf-valuation-reading b.is-missing { color:var(--muted); }
 
 .valuation-quarterly-rank { display: block; width: fit-content; border: 0; border-bottom: 1px dotted currentColor; padding: 0 0 1px; margin-top: 5px; background: none; color: var(--muted); font: inherit; font-size: 11px; line-height: 1.5; cursor: pointer; text-align: left; }
+
+.dram-estimate-tooltip { max-height:calc(100dvh - 24px); overflow-y:auto; }

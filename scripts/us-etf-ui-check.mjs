@@ -44,7 +44,7 @@ try {
     assert.deepEqual(await panel.locator('tbody tr').first().locator('td b').allTextContents(), ['0.0%', '100.0%']);
     assert.deepEqual(await panel.locator('.valuation-track i').evaluateAll(es => es.map(e => e.style.width)), ['0%', '100%']);
     assert.deepEqual(await panel.locator('tbody tr').nth(1).locator('td b').allTextContents(), ['—', '—']);
-    assert.deepEqual(await panel.locator('tbody tr').nth(1).locator('td small').allTextContents(), ['—', '—']);
+    assert.deepEqual(await panel.locator('tbody tr').nth(1).locator('td small').allTextContents(), []);
     assert.ok(!(await panel.innerText()).includes('持仓来源有差异'));
     await capture('fixture-ranks');
     for (const metric of ['PB', 'PS']) {

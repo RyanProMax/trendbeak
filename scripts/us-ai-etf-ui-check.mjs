@@ -33,8 +33,8 @@ try{
   }
   if(process.env.OFFICIAL_THEME_CANDIDATES==='1')for(const date of ['2026-08-31','2026-09-30','2026-11-05']){
    const cell=page.locator(`rect[role="button"][data-date="${date}"]`);await cell.focus();await cell.press('Enter');await panel().locator(`table[data-valuation-date="${date}"][aria-busy="false"]`).waitFor();
-   const memory=panel().locator('tbody tr').filter({hasText:'STXWSML'});assert.deepEqual(await memory.locator('td b').allTextContents(),['—','—']);
-   assert.deepEqual(await memory.locator('td small').allTextContents(),['—','—']);
+   const memory=panel().locator('tbody tr').filter({hasText:'DRAM'});assert.deepEqual(await memory.locator('td b').allTextContents(),['—','—']);
+   assert.deepEqual(await memory.locator('td small').allTextContents(),[]);
    assert.equal(await memory.locator('.valuation-track i').count(),0);const cloud=panel().locator('tbody tr').filter({hasText:'CPQ'});assert.deepEqual(await cloud.locator('td small').allTextContents(),date==='2026-09-30'?['11.15倍','—']:['—','—']);assert.deepEqual(await cloud.locator('td b').allTextContents(),['—','—']);assert.equal(await cloud.locator('.valuation-track i').count(),0);await capture('official-'+date);
   }
   assert(valuationRequests.length>0);assert(valuationRequests.every(u=>new URL(u).pathname==='/api/valuations/US/themes'));

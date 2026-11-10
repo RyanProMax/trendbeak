@@ -11,7 +11,7 @@ import { validChinaOverview, valuationRowsForDate, type IndexValuation } from '.
 export type { IndexValuation } from '../lib/china-overview';
 
 
-export function ValuationHelp({ metric }: { metric: 'pb' | 'ps' }) {
+export function ValuationHelp({ metric, mixed = false }: { metric: 'pb' | 'ps'; mixed?: boolean }) {
   const [open, setOpen] = useState(false);
   const panelVisible = usePanelVisible();
   useEffect(() => { if (!panelVisible) setOpen(false); }, [panelVisible]);
@@ -23,12 +23,13 @@ export function ValuationHelp({ metric }: { metric: 'pb' | 'ps' }) {
     useHover(context, { mouseOnly: true, handleClose: safePolygon() }), useFocus(context),
     useClick(context), useDismiss(context), useRole(context, { role: 'tooltip' }),
   ]);
-  return <span className="valuation-column-label">{metric.toUpperCase()} 分位
+  return <span className="valuation-column-label">{metric.toUpperCase()}{mixed ? '' : ' 分位'}
     <button type="button" className="valuation-help" aria-label={`了解 ${metric.toUpperCase()} 指标`}
       aria-expanded={open} ref={refs.setReference} {...getReferenceProps()}><span aria-hidden="true">?</span></button>
     {open && <FloatingPortal><div className="valuation-tooltip valuation-help-tooltip" ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()}>
       <strong>{metric === 'pb' ? 'PB · 市净率' : 'PS · 市销率'}</strong>
       <span>{metric === 'pb' ? '市值与净资产的比值。' : '市值与营业收入的比值。'}</span>
+      {mixed && <span>百分比为历史分位，倍数为估值。</span>}
     </div></FloatingPortal>}
   </span>;
 }

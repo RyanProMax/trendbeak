@@ -1,3 +1,4 @@
+import {readDRAMEstimate} from './us-dram-estimate';
 import officialPolicy from '../../data/us-theme-official-sources.json';
 import { US_THEME_METHOD, heldUSThemeSource, validValuationDate, validUSThemeValuation, type USThemeValuation } from '../lib/us-theme-valuations';
 
@@ -40,7 +41,8 @@ export async function usThemeValuationResponse(url: URL, db?: D1Database): Promi
       publisher: '股查查', url: `https://www.getstockcheck.com/zh/index/${row.code}.GI/`,
       series: 'published_pb_observations', method: US_THEME_METHOD,
     }]));
-    return Response.json({ data: { date, rows, provenance } }, { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=60' } });
+    const estimates = await readDRAMEstimate(date, db).catch(() => { console.error('DRAM prepared reading unavailable'); return []; });
+    return Response.json({ data: { date, rows, provenance, estimates } }, { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=60' } });
   } catch {
     return Response.json({ error: '估值数据暂不可用' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
   }
