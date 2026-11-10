@@ -1,6 +1,7 @@
 // Controlled-writer preparation only. Not wired to the historical importer or HTTP.
 // Never relabel stale holdings as a current observation or assume current cash/NAV.
 export const CURRENT_ESTIMATE_METHOD = 'latest-public-holdings-marked-equity-basket-v1';
+export const PRICE_ROLL_METHOD = 'dated-verified-fundamentals-basket-price-revaluation-v1';
 const day = x => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x) && Number.isFinite(Date.parse(x)) && new Date(x).toISOString().slice(0,10) === x;
 const instant = x => typeof x === 'string' && /(?:Z|[+-]\d{2}:\d{2})$/.test(x) && Number.isFinite(Date.parse(x));
 const positive = x => typeof x === 'number' && Number.isFinite(x) && x > 0;
@@ -11,7 +12,7 @@ const age = (a,b) => (Date.parse(a)-Date.parse(b))/86400000;
  * a missing price stops reweighting instead of silently deleting that holding.
  */
 export function prepareCurrentEstimateBasket(input) {
- if (!input || input.code !== 'XLI' || input.methodVersion !== CURRENT_ESTIMATE_METHOD || !day(input.priceDate) || !day(input.holdingsDate) || input.holdingsDate > input.priceDate || !instant(input.cutoff) || !instant(input.preparedAt) || Date.parse(input.preparedAt)<Date.parse(input.cutoff) || !instant(input.holdingsAvailableAt) || Date.parse(input.holdingsAvailableAt)>Date.parse(input.cutoff) || Date.parse(input.holdingsAvailableAt)<Date.parse(input.holdingsDate)) throw Error('Explicit current-estimate identity and available holdings required');
+ if (!input || input.code !== 'XLI' || ![CURRENT_ESTIMATE_METHOD,PRICE_ROLL_METHOD].includes(input.methodVersion) || !day(input.priceDate) || !day(input.holdingsDate) || input.holdingsDate > input.priceDate || !instant(input.cutoff) || !instant(input.preparedAt) || Date.parse(input.preparedAt)<Date.parse(input.cutoff) || !instant(input.holdingsAvailableAt) || Date.parse(input.holdingsAvailableAt)>Date.parse(input.cutoff) || Date.parse(input.holdingsAvailableAt)<Date.parse(input.holdingsDate)) throw Error('Explicit current-estimate identity and available holdings required');
  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(new Date(input.cutoff)).map(p=>[p.type,p.value]));
  if (`${parts.year}-${parts.month}-${parts.day}`!==input.priceDate || `${parts.hour}:${parts.minute}:${parts.second}`!=='16:00:00' || input.verifiedSettledSession!==input.priceDate || !sha(input.sessionEvidenceSha256) || [0,6].includes(new Date(input.priceDate+'T12:00:00Z').getUTCDay())) throw Error('Verified settled same-day close required');
  if (!sha(input.holdingsSourceSha256) || !sha(input.positionInventorySha256) || !Array.isArray(input.holdings) || !input.holdings.length || input.holdings.length>600 || input.expectedPositionCount!==input.holdings.length) throw Error('Complete bounded original position inventory required');
@@ -37,5 +38,5 @@ export function prepareCurrentEstimateBasket(input) {
   rows.push({...h,heldShares,valueUSD,missingFinancialFields:missing});
  }
  const total=rows.reduce((s,r)=>s+r.valueUSD,0);if(!positive(total))throw Error('Invalid marked basket total');
- return {status:'prepared_basket_not_publishable_valuation',code:input.code,methodVersion:CURRENT_ESTIMATE_METHOD,priceDate:input.priceDate,cutoff:input.cutoff,holdingsDate:input.holdingsDate,holdingsAvailableAt:input.holdingsAvailableAt,holdingsLagDays:age(input.priceDate,input.holdingsDate),scope:'marked_disclosed_equity_basket_excludes_unknown_current_cash_and_liabilities',markedEquityValueUSD:total,holdings:rows.map(r=>({...r,weight:r.valueUSD/total})),pb:null,ps:null,percentile:null};
+ return {status:'prepared_basket_not_publishable_valuation',code:input.code,methodVersion:input.methodVersion,priceDate:input.priceDate,cutoff:input.cutoff,holdingsDate:input.holdingsDate,holdingsAvailableAt:input.holdingsAvailableAt,holdingsLagDays:age(input.priceDate,input.holdingsDate),scope:'marked_disclosed_equity_basket_excludes_unknown_current_cash_and_liabilities',markedEquityValueUSD:total,holdings:rows.map(r=>({...r,weight:r.valueUSD/total})),pb:null,ps:null,percentile:null};
 }

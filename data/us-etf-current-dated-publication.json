@@ -1,0 +1,23 @@
+{
+  "schema": "verified-current-basket-dated-publication-v1",
+  "entries": [
+    {
+      "date": "2026-11-06",
+      "key": "current-observation/US/XLI/2026-11-06/8e6cb16561ce2f3b4923fa2575988f1fdbd43d98eebde85dd56b75db4ec41d4a",
+      "version": "2026-11-10T04:52:36.332Z",
+      "observationSha256": "4dfb40ee1894d08f18ad4143b4f5f33e5852d6b6ff07c16df07457a1d08ef90b",
+      "payloadSha256": "cbfcb0d94023e6cf4939cd1a7748656fd1c522eac4063f667f2e086165eb232a",
+      "preparedReading": "{\"code\":\"XLI\",\"methodVersion\":\"latest-public-holdings-marked-equity-basket-v1\",\"priceAsOf\":\"2026-11-06\",\"financialCutoff\":\"2026-11-06T21:00:00.000Z\",\"observedAt\":\"2026-11-10T03:51:27.611Z\",\"preparedAt\":\"2026-11-10T03:51:27.611Z\",\"holdingsAsOf\":\"2026-06-30\",\"holdingsAvailableAt\":\"2026-08-28T16:20:40.000Z\",\"holdingsLagDays\":129,\"scope\":\"marked_disclosed_equity_basket_excludes_unknown_current_cash_and_liabilities\",\"isCurrentFundNAV\":false,\"isCurrentFundHoldings\":false,\"historicalRankEligible\":false,\"metrics\":{\"pb\":{\"value\":6.20603506550608,\"estimated\":true,\"fieldExceptions\":[{\"symbol\":\"AOS\",\"definition\":\"one_for_one_conversion_value\",\"methodVersion\":\"current-one-for-one-conversion-value-estimate-v1\",\"weight\":0.001424771263281709}],\"unknownWeight\":0,\"verifiedCoverage\":1,\"excludedWeight\":0.039933370403534146,\"percentile\":null,\"rank\":null,\"sourceComparison\":null},\"ps\":{\"value\":2.7296283475928815,\"estimated\":true,\"fieldExceptions\":[{\"symbol\":\"DE\",\"definition\":\"segment_external_revenue_excluding_corporate_other\",\"methodVersion\":\"current-segment-external-revenue-estimate-v1\",\"weight\":0.03325608680612828},{\"symbol\":\"AOS\",\"definition\":\"one_for_one_conversion_value\",\"methodVersion\":\"current-one-for-one-conversion-value-estimate-v1\",\"weight\":0.001424771263281709}],\"unknownWeight\":0.013737130122458238,\"verifiedCoverage\":0.9862628698775417,\"excludedWeight\":0,\"percentile\":null,\"rank\":null,\"sourceComparison\":null}}}",
+      "verifiedAt": "2026-11-10T04:53:26.586Z"
+    },
+    {
+      "date": "2026-11-09",
+      "key": "current-observation/US/XLI/2026-11-09/916566dd9f64c21afd65e9e15e089e84a41c08015c21e18ee24ea155ce92c19a",
+      "version": "2026-11-10T04:53:49.869Z",
+      "observationSha256": "cc2eaaab61d39b6f70c1bf10553a7cd5b73b49d2ebaee6107d359b3b38fb7e4b",
+      "payloadSha256": "33d2a416fffab0c975850c44059e4b9a9d8ec25e06fdaed7dae696e45bca5736",
+      "preparedReading": "{\"code\":\"XLI\",\"methodVersion\":\"dated-verified-fundamentals-basket-price-revaluation-v1\",\"priceAsOf\":\"2026-11-09\",\"financialCutoff\":\"2026-11-06T21:00:00.000Z\",\"priceCloseAt\":\"2026-11-09T21:00:00.000Z\",\"financialAnchorExpiresOn\":\"2026-11-20\",\"sharesMeaning\":\"dated_actual_reported_shares_estimate_not_current_outstanding\",\"observedAt\":\"2026-11-10T04:32:55.997Z\",\"preparedAt\":\"2026-11-10T04:37:00.053Z\",\"holdingsAsOf\":\"2026-06-30\",\"holdingsAvailableAt\":\"2026-08-28T16:20:40.000Z\",\"holdingsLagDays\":132,\"scope\":\"marked_disclosed_equity_basket_excludes_unknown_current_cash_and_liabilities\",\"isCurrentFundNAV\":false,\"isCurrentFundHoldings\":false,\"historicalRankEligible\":false,\"metrics\":{\"pb\":{\"value\":6.432998234788868,\"estimated\":true,\"fieldExceptions\":[{\"symbol\":\"AOS\",\"definition\":\"one_for_one_conversion_value\",\"methodVersion\":\"current-one-for-one-conversion-value-estimate-v1\",\"weight\":0.0013887889980856863}],\"unknownWeight\":0,\"verifiedCoverage\":1,\"excludedWeight\":0.03962600064737789,\"percentile\":null,\"rank\":null,\"sourceComparison\":null},\"ps\":{\"value\":2.828380468501288,\"estimated\":true,\"fieldExceptions\":[{\"symbol\":\"DE\",\"definition\":\"segment_external_revenue_excluding_corporate_other\",\"methodVersion\":\"current-segment-external-revenue-estimate-v1\",\"weight\":0.033031016033255214},{\"symbol\":\"AOS\",\"definition\":\"one_for_one_conversion_value\",\"methodVersion\":\"current-one-for-one-conversion-value-estimate-v1\",\"weight\":0.0013887889980856863}],\"unknownWeight\":0.013795896498233349,\"verifiedCoverage\":0.9862041035017667,\"excludedWeight\":0,\"percentile\":null,\"rank\":null,\"sourceComparison\":null}}}",
+      "verifiedAt": "2026-11-10T04:54:31.175Z"
+    }
+  ]
+}

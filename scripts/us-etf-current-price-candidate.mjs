@@ -4,6 +4,7 @@
 import {createHash} from 'node:crypto';import {readFile,writeFile,mkdir,stat,rm} from 'node:fs/promises';import {pathToFileURL} from 'node:url';
 import calendar from '../data/us-exchange-calendar.json' with {type:'json'};
 import approved from '../data/us-etf-current-approved-inputs.json' with {type:'json'};
+import rollPolicy from '../data/us-etf-price-roll-policy.json' with {type:'json'};
 import {prepareCurrentSnapshot} from './us-etf-current-snapshot.mjs';
 const sha=x=>createHash('sha256').update(x).digest('hex');
 const day=x=>typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)&&Number.isFinite(Date.parse(x))&&new Date(x).toISOString().slice(0,10)===x;
@@ -14,6 +15,7 @@ async function boundedText(response){if(Number(response.headers.get('content-len
 export async function collectCurrentPriceCandidate({previousInput,previousRegistry,allowlist=approved,now=Date.now(),request=fetch,clock=Date.now,pause=()=>new Promise(r=>setTimeout(r,1100)),saveRaw=async()=>{}}){
  prepareCurrentSnapshot({input:previousInput,registry:previousRegistry,approved:allowlist,now});const date=latestCandidateSession(now);
  if(date<=previousInput.priceDate)return{status:'already_reviewed_settled_price_date',target:date,priorPriceDate:previousInput.priceDate,sourceCalls:0,publishable:false};
+ if(!rollPolicy.sessions.some(s=>s.date===date&&s.kind==='normal'))throw Error('Normal session has not been independently admitted; zero source requests');
  if(!day(date)||(Date.parse(date)-Date.parse(previousInput.priceDate))/86400000>14)throw Error('Gap exceeds controlled source window');
  const prices=[],events=[],sourceManifest=[];let calls=0;
  for(const h of previousInput.holdings){if(!/^[A-Z][A-Z0-9.-]{0,14}$/.test(h.symbol))throw Error('Invalid approved symbol');await pause();

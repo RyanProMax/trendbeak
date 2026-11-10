@@ -3,7 +3,7 @@ import CollapsiblePanel, { usePanelVisible } from './CollapsiblePanel';
 import { autoUpdate, flip, FloatingPortal, offset, shift, useClick, useDismiss, useFloating, useFocus, useHover, useInteractions, useRole } from '@floating-ui/react';
 import { displayDate, number } from '../lib/market-format';
 import { US_SECTOR_ETFS, validETFValuation, holdXLKCommonCapital, holdXLCParentCapitalPS, type ETFValuation } from '../lib/us-etf-valuations';
-import { currentBasketForView, type CurrentBasketReading } from '../lib/us-etf-current';
+import { currentBasketForView, DATED_PRICE_ROLL_METHOD, type CurrentBasketReading } from '../lib/us-etf-current';
 import {XLP_CLASS_METHOD} from '../lib/us-etf-xlp-method';
 import './market-overview.css';
 import './us-sector-valuations.css';
@@ -35,7 +35,7 @@ function CurrentBasketEstimate({row,metric}: {row:CurrentBasketReading;metric:'p
   useEffect(()=>setOpen(false),[visible,row.priceAsOf]);
   const {refs,floatingStyles,context}=useFloating({open,onOpenChange:setOpen,placement:'top',strategy:'fixed',whileElementsMounted:autoUpdate,middleware:[offset(8),flip(),shift({padding:12})]});
   const {getReferenceProps,getFloatingProps}=useInteractions([useHover(context,{mouseOnly:true}),useFocus(context),useClick(context),useDismiss(context),useRole(context,{role:'tooltip'})]);
-  return <><button type="button" className="valuation-quarterly-rank" aria-label={`XLI ${metric.toUpperCase()} 披露持仓重估说明`} aria-expanded={open} ref={refs.setReference} {...getReferenceProps()}>估算</button>{open&&<FloatingPortal><div className="valuation-tooltip" ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()}><strong>XLI {metric.toUpperCase()} · 持仓重估</strong><span>价格截至{displayDate(row.priceAsOf,true)}收盘，非实时行情。</span><span>按截至{displayDate(row.holdingsAsOf,true)}的已披露持仓重新计价，并非当前基金持仓或净值。</span><span>已核实覆盖{number(row.metrics[metric].verifiedCoverage*100,2)}%。{metric==='ps'?'少量收入采用分部口径估算。':''}少量股类按转换价值估算。</span><span>无同口径历史分位。</span></div></FloatingPortal>}</>;
+  return <><button type="button" className="valuation-quarterly-rank" aria-label={`XLI ${metric.toUpperCase()} 披露持仓重估说明`} aria-expanded={open} ref={refs.setReference} {...getReferenceProps()}>估算</button>{open&&<FloatingPortal><div className="valuation-tooltip" ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()}><strong>XLI {metric.toUpperCase()} · 持仓重估</strong><span>价格截至{displayDate(row.priceAsOf,true)}收盘，非实时行情。</span><span>按截至{displayDate(row.holdingsAsOf,true)}的已披露持仓重新计价，并非当前基金持仓或净值。</span>{row.methodVersion===DATED_PRICE_ROLL_METHOD&&<span>财务核验截至{displayDate(row.financialCutoff.slice(0,10),true)}；沿用各报表日期的实际股数估算，并非当前股数或最新基本面。</span>}<span>已核实覆盖{number(row.metrics[metric].verifiedCoverage*100,2)}%。{metric==='ps'?'少量收入采用分部口径估算。':''}少量股类按转换价值估算。</span><span>无同口径历史分位。</span></div></FloatingPortal>}</>;
 }
 function XLPMethodEstimate({row,metric}:{row:ETFValuation;metric:'pb'|'ps'}){
  const [open,setOpen]=useState(false),visible=usePanelVisible();useEffect(()=>setOpen(false),[visible,row.date]);
@@ -90,7 +90,7 @@ export default function USSectorETFValuations({ date, viewMode = 'historical', c
         const { data } = await response.json() as { data: { date: string; rows: ETFValuation[] } };
         if (data?.date !== date || !Array.isArray(data.rows) || data.rows.length > 11 || new Set(data.rows.map(r => r.code)).size !== data.rows.length || data.rows.some(r => !validETFValuation(r, date))) throw Error('Invalid ETF valuations');
         let current:CurrentBasketReading|null=null;
-        if(viewMode==='latest'||date==='2026-11-06')try{const c=await fetch('/api/valuations/US/current-estimate',{signal:controller.signal});if(c.ok){const body=await c.json() as {data:unknown};current=currentBasketForView(body.data,{mode:viewMode,date});}}catch{/* Independent current failure must not erase quarterly rows. */}
+        if(viewMode==='latest'||date>='2026-11-06'&&date<='2026-11-20')try{const c=await fetch('/api/valuations/US/current-estimate'+(viewMode==='historical'?'?date='+encodeURIComponent(date):''),{signal:controller.signal});if(c.ok){const body=await c.json() as {data:unknown};current=currentBasketForView(body.data,{mode:viewMode,date});}}catch{/* Independent current failure must not erase quarterly rows. */}
         save(data.rows, false,current);
       } catch { save([], true); }
     })(); }, 150);

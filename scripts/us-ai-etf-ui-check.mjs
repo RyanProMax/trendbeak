@@ -1,9 +1,9 @@
 // Read-only browser acceptance against a local or already-published review URL.
 import assert from 'node:assert/strict';
-import {writeFile} from 'node:fs/promises';
+import {writeFile,readFile} from 'node:fs/promises';
 import {launch,base,out} from './signal-check-utils.mjs';
 import publication from '../data/us-etf-current-publication.json' with {type:'json'};
-const currentReading=JSON.parse(publication.entry.preparedReading),format=new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const currentReading=process.env.CURRENT_READING_FILE?JSON.parse(await readFile(process.env.CURRENT_READING_FILE,'utf8')):JSON.parse(publication.entry.preparedReading),format=new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const browser=await launch(),results=[];
 try{
  for(const width of [1440,390])for(const scheme of ['light','dark']){
