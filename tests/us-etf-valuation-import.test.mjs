@@ -2,9 +2,10 @@ import { createHash } from 'node:crypto';
 import test from 'node:test'; import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile } from 'node:fs/promises'; import { join } from 'node:path'; import { tmpdir } from 'node:os';
 import { provenanceText } from '../scripts/us-etf-provenance.mjs';
-import { memoryDB } from './market-fixture.mjs'; import { etfInput, cutoff } from './us-etf-fixture.mjs'; import { importETFValuations, restoreETFValuations } from '../scripts/us-etf-valuation-import.mjs';
+import { memoryDB } from './market-fixture.mjs'; import { etfInput as originalETFInput, cutoff } from './us-etf-fixture.mjs'; import { importETFValuations, restoreETFValuations } from '../scripts/us-etf-valuation-import.mjs';
 const sha = text => createHash('sha256').update(text).digest('hex');
 const backupRow = (row,payload) => ({...row,payload,publication:{oldHash:sha(payload),newHash:sha(row.payload)}});
+const etfInput=()=>({...originalETFInput(),code:'XLU'});
 const now = Date.parse(cutoff) + 1000;
 test('dry run is read-only; atomic publication backs up; unchanged rerun does not write; gaps stay absent', async () => {
   const f = memoryDB(), dir = await mkdtemp(join(tmpdir(), 'etf-import-'));
@@ -14,7 +15,7 @@ test('dry run is read-only; atomic publication backs up; unchanged rerun does no
     assert.equal((await importETFValuations({ ...options, dryRun: false, backup: dir + '/backup.json' })).writes, 2);
     assert.equal(f.stats.writes, 1); assert.equal(JSON.parse(await readFile(dir + '/backup.json', 'utf8')).length, 2);
     assert.equal((await importETFValuations({ ...options, dryRun: false })).writes, 0);
-    const stored = JSON.parse(f.sqlite.prepare("SELECT payload FROM market_snapshot WHERE key=?").get("valuation/US/XLK").payload);
+    const stored = JSON.parse(f.sqlite.prepare("SELECT payload FROM market_snapshot WHERE key=?").get("valuation/US/XLU").payload);
     assert.deepEqual(Object.keys(stored.history), ['2026-11-05']); assert.equal(stored.latest.input.holdings.length, 2); assert.equal(stored.provenance['2026-11-05'][0].url,inputs[0].sources[0].url);
     inputs[0].holdings[0].price.value++;
     await assert.rejects(importETFValuations({ ...options, dryRun: false, backup: dir + '/other.json' }), /differs/);
@@ -24,10 +25,10 @@ test('dry run is read-only; atomic publication backs up; unchanged rerun does no
 test('concurrent insert blocks the entire batch without partial writes', async () => {
   const f = memoryDB(), dir = await mkdtemp(join(tmpdir(), 'etf-cas-'));
   try {
-    const db = { prepare(sql) { const statement = f.db.prepare(sql); return { bind(...values) { const bound = statement.bind(...values); return { ...bound, async run() { f.sqlite.prepare('INSERT INTO market_snapshot VALUES(?,?,?)').run('valuation/US/XLK', '{}', 'concurrent'); return bound.run(); } }; } }; } };
+    const db = { prepare(sql) { const statement = f.db.prepare(sql); return { bind(...values) { const bound = statement.bind(...values); return { ...bound, async run() { f.sqlite.prepare('INSERT INTO market_snapshot VALUES(?,?,?)').run('valuation/US/XLU', '{}', 'concurrent'); return bound.run(); } }; } }; } };
     await assert.rejects(importETFValuations({ db, inputs: [etfInput(), { ...etfInput(), code: 'XLF' }], now, dryRun: false, backup: dir + '/backup.json' }), /not confirmed/);
     assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS n FROM market_snapshot').get().n, 1);
-    assert.equal(f.sqlite.prepare("SELECT payload FROM market_snapshot WHERE key=?").get("valuation/US/XLK").payload, '{}');
+    assert.equal(f.sqlite.prepare("SELECT payload FROM market_snapshot WHERE key=?").get("valuation/US/XLU").payload, '{}');
   } finally { f.close(); await rm(dir, { recursive: true }); }
 });
 
@@ -40,7 +41,7 @@ test('explicit history backfill merges unordered quarters without moving latest,
     return x;
   };
   const latest=at('2026-09-30','2026-11-05T20:00:00Z'), first=at('2026-03-31','2026-05-28T20:00:00Z'),middle=at('2026-06-30','2026-08-28T20:00:00Z');
-  const load=()=>JSON.parse(f.sqlite.prepare('SELECT payload FROM market_snapshot WHERE key=?').get('valuation/US/XLK').payload);
+  const load=()=>JSON.parse(f.sqlite.prepare('SELECT payload FROM market_snapshot WHERE key=?').get('valuation/US/XLU').payload);
   try{
     await importETFValuations({db:f.db,inputs:[latest],now,dryRun:false,backup:dir+'/initial.json'});
     const priorLatest=load().latest,reads=f.stats.reads;
@@ -103,13 +104,13 @@ test('same-version concurrent payload change prevents the entire append or resto
   const rows=f.sqlite.prepare('SELECT key,payload,updated_at FROM market_snapshot ORDER BY key').all();const before=rows.map(r=>backupRow(r,JSON.stringify({...JSON.parse(r.payload),testPrior:true})));
   const db={prepare(sql){const stmt=f.db.prepare(sql);return{bind(...params){const bound=stmt.bind(...params);return{...bound,async run(){f.sqlite.prepare('UPDATE market_snapshot SET payload=? WHERE key=?').run('{}','valuation/US/XLF');return bound.run();}};}};}};
   await assert.rejects(restoreETFValuations({db,prior:before,expectedVersion:seed.publicationVersion,now:now+1000,dryRun:false,backup:dir+'/restore.json'}),/not confirmed/);
-  assert.equal(f.sqlite.prepare('SELECT payload FROM market_snapshot WHERE key=?').get('valuation/US/XLK').payload,rows.find(r=>r.key.endsWith('/XLK')).payload);
+  assert.equal(f.sqlite.prepare('SELECT payload FROM market_snapshot WHERE key=?').get('valuation/US/XLU').payload,rows.find(r=>r.key.endsWith('/XLU')).payload);
  }finally{f.close();await rm(dir,{recursive:true});}
 });
 test('ordinary appends validate retained compressed source SHA and declared expansion size',async()=>{
  const f=memoryDB(),dir=await mkdtemp(join(tmpdir(),'etf-source-integrity-'));try{
   const input=etfInput();await importETFValuations({db:f.db,inputs:[input],now,backfill:true,dryRun:false,backup:dir+'/seed.json'});
-  const row=f.sqlite.prepare('SELECT payload FROM market_snapshot WHERE key=?').get('valuation/US/XLK'),state=JSON.parse(row.payload);state.provenance[input.date].sha256='0'.repeat(64);f.sqlite.prepare('UPDATE market_snapshot SET payload=? WHERE key=?').run(JSON.stringify(state),'valuation/US/XLK');
+  const row=f.sqlite.prepare('SELECT payload FROM market_snapshot WHERE key=?').get('valuation/US/XLU'),state=JSON.parse(row.payload);state.provenance[input.date].sha256='0'.repeat(64);f.sqlite.prepare('UPDATE market_snapshot SET payload=? WHERE key=?').run(JSON.stringify(state),'valuation/US/XLU');
   const writes=f.stats.writes;await assert.rejects(importETFValuations({db:f.db,inputs:[input],now}),/integrity/);assert.equal(f.stats.writes,writes);
  }finally{f.close();await rm(dir,{recursive:true});}
 });

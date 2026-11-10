@@ -1,3 +1,4 @@
+import {assertActiveETFCodes} from './us-etf-retirement.mjs';
 // Explicit reviewed correction of one existing latest ETF observation. Never a
 // backfill, source acquisition, threshold override or unguarded replacement.
 import {readFile,writeFile,stat,mkdir,rm} from 'node:fs/promises';
@@ -35,6 +36,7 @@ async function prepareRepair({db,input,expectedOldHash,expectedNewHash,now,dryRu
 }
 export async function repairETFValuations({db,repairs,now=Date.now(),dryRun=true,backup}){
  if(!Array.isArray(repairs)||!repairs.length||repairs.length>11||new Set(repairs.map(r=>r.input?.code)).size!==repairs.length)throw Error('One to eleven distinct reviewed ETF repairs required');
+ assertActiveETFCodes(repairs.map(repair=>repair.input?.code));
  const all=[];for(const repair of repairs)all.push(await prepareRepair({db,...repair,now,dryRun}));
  const changed=all.filter(p=>p.report.oldHash!==p.report.newHash),report={dryRun,corrections:all.map(p=>p.report),sourceCalls:0,writes:0};
  if(dryRun||!changed.length)return report;
@@ -55,6 +57,7 @@ export async function repairETFValuation(options){
  * audited new SHA and the original publication version. Never delete or merge. */
 export async function restoreETFRepairs({db,prior,expectedVersion,now=Date.now(),dryRun=true,backup}){
  if(!Array.isArray(prior)||!prior.length||prior.length>11||new Set(prior.map(r=>r.key)).size!==prior.length||!Number.isFinite(now)||typeof expectedVersion!=='string'||!Number.isFinite(Date.parse(expectedVersion))||new Date(expectedVersion).toISOString()!==expectedVersion||Date.parse(expectedVersion)>now)throw Error('Exact repair backup and publication version required');
+ assertActiveETFCodes(prior.map(row=>row?.key?.split('/')[2]));
  const all=[];for(const before of prior){const code=before?.key?.split('/')[2];if(!Object.hasOwn(SECTORS,code)||before.key!=='valuation/US/'+code||typeof before.payload!=='string'||Buffer.byteLength(before.payload)>1_500_000||!/^[a-f0-9]{64}$/.test(before.repair?.newHash??'')||hash(before.payload)!==before.repair?.oldHash)throw Error('Invalid or changed pre-repair backup');
   const parsed=JSON.parse(before.payload);if(parsed.source!=='self_us_etf'||parsed.code!==code||valuationMethod(parsed)!==parsed.methodVersion)throw Error('Invalid pre-repair checkpoint identity');
   compactProvenance(parsed.provenance);

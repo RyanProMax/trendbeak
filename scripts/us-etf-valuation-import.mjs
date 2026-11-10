@@ -1,3 +1,4 @@
+import {assertActiveETFCodes} from './us-etf-retirement.mjs';
 // Reviewed local inputs only. This writer never contacts a market-data provider.
 import { readFile, writeFile, stat, mkdir, rm } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
@@ -13,6 +14,7 @@ export const MAX_HISTORY_INPUTS = 44, MAX_INPUT_BYTES = 12_000_000, MAX_OBSERVAT
 export async function importETFValuations({ db, inputs, now = Date.now(), dryRun = true, backup, backfill = false, quarterlyHistory = false, expectedCurrentHash, expectedNewHash }) {
   if (typeof backfill !== 'boolean' || !Number.isFinite(now)) throw Error('Invalid import options');
   if (!Array.isArray(inputs) || !inputs.length || inputs.length > (backfill ? MAX_HISTORY_INPUTS : 11)) throw Error(backfill ? 'One to 44 reviewed history inputs required' : 'One to eleven reviewed ETF inputs required');
+  assertActiveETFCodes(inputs.map(input=>input?.code));
   if (Buffer.byteLength(JSON.stringify(inputs)) > MAX_INPUT_BYTES) throw Error('Input byte budget exceeded');
   if (quarterlyHistory && (!backfill || !/^[a-f0-9]{64}$/.test(expectedCurrentHash ?? '') || new Set(inputs.map(x => x.code)).size !== 1 || inputs.some(x => !Object.hasOwn(SECTORS, x.code) || x.sourceSeriesId !== 'sec_nport_quarterly'))) throw Error('Explicit reviewed single-fund quarterly history and current checkpoint hash required');
   const groups = new Map(), seen = new Set(), prepared = [], prior = [];
@@ -85,6 +87,7 @@ async function publishPrepared({ db, prepared, prior, now, dryRun, backup }) {
  */
 export async function restoreETFValuations({ db, prior, expectedVersion, now = Date.now(), dryRun = true, backup }) {
   if (!Array.isArray(prior) || !prior.length || prior.length > 11 || !Number.isFinite(now) || typeof expectedVersion !== 'string' || !Number.isFinite(Date.parse(expectedVersion)) || new Date(expectedVersion).toISOString() !== expectedVersion || Date.parse(expectedVersion) > now) throw Error('Explicit prior checkpoints and publication version required');
+  assertActiveETFCodes(prior.map(row=>row?.key?.split('/')[2]));
   const prepared = [], current = [], seen = new Set();
   for (const before of prior) {
     const code = before?.key?.split('/')[2];

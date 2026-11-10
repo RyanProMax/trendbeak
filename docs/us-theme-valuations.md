@@ -75,3 +75,17 @@ Tests cover source identity and window disagreement, malformed/future dates, bou
 ## AI subtheme-only navigation (2026-11-10)
 
 The AI group now uses the nine existing subtheme benchmarks directly and is labeled AI 板块. The former broad-sector ETF group (XLK/XLC/XLI/XLU) is no longer imported or requested by the page. Traditional industry and broad index groups remain separate. This navigation change does not admit additional observations, replace index values with ETF estimates, enable a source job, or delete stored records. Existing ETF research and recovery evidence are retained outside the active page.
+
+## Sparse official observations under review (2026-11-10)
+
+The separate official-source preparation module admits only exact reviewed original hashes. STOXX USD Price STXWSML has PB 9.0 on August 31 and September 30, 2026, and PS 8.4 on September 30. The source's August PS 0.0 is retained as a rejected observation, never zero valuation. Source URL month labels are not observation dates; the current factsheet repeats September 30 and is not a third sample. All ranks stay null. Factsheet weighting descriptions conflict; these are publisher-reported ratios, not independently reconstructed values.
+
+The five CPQ PB observations from the single 2024 Nasdaq research report are staged with their original vintage and dates only. They are not in the runtime allowlist or database import; the preserved source package remains research evidence. Its EV/Sales chart is not PS. NQCYBR conflicting source vintages remain unadmitted.
+
+ProShares separately reports the CPQ underlying index PB 11.15 on September 30, 2026, with 65 index holdings. The labelled web Index section and independently inspected PDF agree; this is one observation, not two samples, and not the leveraged fund PB. CPQNTR appears only in the return comparison. The adapter requires the exact web bytes and corroborating PDF. PS and both ranks remain null; the old Nasdaq observations never join this provider series.
+
+The allowlist preserves source identity, exact digest, source vintage, reported precision, observation date, retrieval time, cadence and unknown original publication time. It never populates a historical `availableAt` from a filename or report timestamp. Reader dates remain exact, without carry. STOXX values display their original one-decimal precision, ProShares two decimals; default/CN two-decimal formatting is unchanged. No UI navigation window expansion or scheduled collection is added.
+
+`scripts/us-theme-official-import.mjs` accepts a bounded local source-file list, prepares offline, defaults to dry-run, and requires an exclusive recovery backup for a write. Existing observations cannot be deleted/revised implicitly, unchanged dates/values cannot be overwritten merely for a new retrieval, source identities cannot switch, and exact payload/version CAS plus byte readback protect publication. This is a separate path from StockCheck. SOX/SPX are untouched.
+
+XLK retirement is enforced in ordinary import, backfill, repair and rollback writers. Quarterly candidate collection and publication use the ten nonretired funds, not a mandatory missing XLK checkpoint. No scheduling changes are made. Existing exact recovery copies stay offline and require a separate reviewed restore rather than a generic import.

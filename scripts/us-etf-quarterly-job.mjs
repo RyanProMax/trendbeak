@@ -4,7 +4,7 @@ import {readFile,writeFile,mkdir,rm,stat,realpath} from 'node:fs/promises';
 import {resolve,dirname,sep,isAbsolute} from 'node:path';import {fileURLToPath,pathToFileURL} from 'node:url';
 import {createHash} from 'node:crypto';import {gunzipSync} from 'node:zlib';import {spawnSync} from 'node:child_process';
 import {connectD1} from './d1-client.mjs';import {importETFValuations} from './us-etf-valuation-import.mjs';
-export const NPORT_SERIES=Object.freeze({XLC:'S000062095',XLY:'S000006408',XLP:'S000006409',XLU:'S000006416',XLF:'S000006411',XLE:'S000006410',XLV:'S000006412',XLB:'S000006414',XLRE:'S000051152',XLI:'S000006413',XLK:'S000006415'});
+export const NPORT_SERIES=Object.freeze({XLC:'S000062095',XLY:'S000006408',XLP:'S000006409',XLU:'S000006416',XLF:'S000006411',XLE:'S000006410',XLV:'S000006412',XLB:'S000006414',XLRE:'S000051152',XLI:'S000006413'});
 export const NPORT_INDEX='https://data.sec.gov/submissions/CIK0001064641.json';
 const sha=v=>createHash('sha256').update(v).digest('hex'),date=v=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v;
 const instant=v=>typeof v==='string'&&/(Z|[+-]\d{2}:\d{2})$/.test(v)&&Number.isFinite(Date.parse(v));
@@ -41,7 +41,7 @@ async function readBounded(url,limit,read,userAgent){
  const reader=response.body?.getReader();if(!reader)throw Error('Missing SEC response body');let size=0;const chunks=[];try{while(true){const part=await reader.read();if(part.done)break;size+=part.value.byteLength;if(size>limit)throw Error('SEC response byte limit');chunks.push(Buffer.from(part.value));}}catch(e){await reader.cancel();throw e;}finally{reader.releaseLock();}return Buffer.concat(chunks);
 }
 export async function prepareNPORTCandidates({latestDates,now=Date.now(),read=fetch,save=async()=>{},pause=ms=>new Promise(r=>setTimeout(r,ms)),userAgent='Trendbeak research https://trendbeak.com'}){
- if(!Number.isFinite(now)||Object.keys(latestDates).length!==11||Object.keys(NPORT_SERIES).some(code=>!date(latestDates[code])))throw Error('Eleven existing dated ETF checkpoints required');
+ if(!Number.isFinite(now)||Object.keys(latestDates).length!==Object.keys(NPORT_SERIES).length||Object.keys(NPORT_SERIES).some(code=>!date(latestDates[code])))throw Error('All active existing dated ETF checkpoints required');
  let calls=0,bytes=0;const get=async(url,limit)=>{calls++;const raw=await readBounded(url,limit,read,userAgent);bytes+=raw.length;if(bytes>24_000_000)throw Error('SEC candidate aggregate byte limit');return raw;};
  const index=await get(NPORT_INDEX,2_000_000),all=nportIndexRows(JSON.parse(index.toString('utf8')),now),oldest=Object.values(latestDates).sort()[0],recent=all.filter(r=>r.reportDate>oldest);
  if(recent.length>44||recent.some(r=>Date.parse(r.reportDate)-Date.parse(oldest)>200*86400000))throw Error('NPORT gap exceeds two-quarter candidate window; explicit recovery required');
@@ -72,7 +72,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
  const args=process.argv.slice(2),option=k=>{const i=args.indexOf(k);if(i<0)return;const v=args[i+1];if(!v||v.startsWith('--'))throw Error('Missing '+k);args.splice(i,2);return v;},out=option('--output'),at=option('--at'),now=at?Date.parse(at):Date.now(),remote=args.includes('--remote'),dryRun=!args.includes('--write');
  if(!out||!isAbsolute(out)||!Number.isFinite(now)||at&&(!at.endsWith('Z')||now>Date.now()+60000)||args.some(a=>!['--remote','--write'].includes(a)))throw Error('Use --output PRIVATE_ABSOLUTE_DIRECTORY [--at UTC_TIME] [--remote] [--write]');
  const lock='/tmp/trendbeak-daily-writer.lock';await mkdir(lock,{mode:0o700});let connection;
- try{await mkdir(out,{mode:0o700});connection=await connectD1(remote);const keys=Object.keys(NPORT_SERIES).map(c=>'valuation/US/'+c),r=await connection.db.prepare(`SELECT key,json_extract(payload,'$.latest.input.date') AS date FROM market_snapshot WHERE key IN (${keys.map(()=>'?').join(',')})`).bind(...keys).all();if(!r.success||r.results.length!==11)throw Error('Existing quarterly checkpoints required');const latestDates=Object.fromEntries(r.results.map(x=>[x.key.slice(13),x.date]));
+ try{await mkdir(out,{mode:0o700});connection=await connectD1(remote);const keys=Object.keys(NPORT_SERIES).map(c=>'valuation/US/'+c),r=await connection.db.prepare(`SELECT key,json_extract(payload,'$.latest.input.date') AS date FROM market_snapshot WHERE key IN (${keys.map(()=>'?').join(',')})`).bind(...keys).all();if(!r.success||r.results.length!==keys.length)throw Error('Existing quarterly checkpoints required');const latestDates=Object.fromEntries(r.results.map(x=>[x.key.slice(13),x.date]));
   const manifest=JSON.parse(await readFile(new URL('../data/us-etf-approved-releases.json',import.meta.url),'utf8')),inputs=await readApprovedQuarterlyInputs(resolve(dirname(fileURLToPath(import.meta.url)),'..'),manifest);
   const report=await prepareNPORTCandidates({latestDates,now,save:(name,raw)=>writeFile(resolve(out,name),raw,{mode:0o600,flag:'wx'})});
   const publication=await appendApprovedQuarterlyInputs({db:connection.db,inputs,latestDates,now,dryRun,backup:resolve(out,'before-append.json')});console.log(JSON.stringify({checkedAt:report.checkedAt,candidates:report.candidates.length,sourceCalls:report.sourceCalls,sourceBytes:report.sourceBytes,publication}));

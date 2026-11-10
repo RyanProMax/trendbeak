@@ -51,7 +51,7 @@ export default function USThemeValuations({ date, group: selectedGroup, readout 
       <tbody>{themes.map(([code, name, kind]) => {
         const row = result?.rows.find(r => r.code === code) ?? { name, code, date, pb: { value: null, percentile: null }, ps: { value: null, percentile: null } };
         return <tr key={code}><th scope="row"><strong>{name}</strong><small>{code}{kind === '全球指数' ? ' · 全球' : ''}</small></th>
-          <td><ValuationReading row={row} metric="pb" /></td><td><ValuationReading row={row} metric="ps" /></td>
+          <td><ValuationReading row={row} metric="pb" precisionDecimals={row.provenance?.precisionDecimals === 1 ? 1 : 2} /></td><td><ValuationReading row={row} metric="ps" precisionDecimals={row.provenance?.precisionDecimals === 1 ? 1 : 2} /></td>
         </tr>;
       })}</tbody>
     </table>

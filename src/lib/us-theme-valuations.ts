@@ -30,7 +30,8 @@ export const US_VALUATION_THEMES = [
 ] as const;
 export const US_THEME_METHOD = 'prior-ten-years-midrank-v1';
 export const US_THEME_MIN_SAMPLES = 60;
-export type USThemeValuation = IndexValuation;
+export type USThemeSourceProvenance = {source: string; seriesId: string; publisher: string; url: string; sourceDigest: string; sourceVintage: string; sourcePage: number|null; observedAt: string; precisionDecimals: number; frequency: string; pointInTime: false; methodologyNote: string};
+export type USThemeValuation = IndexValuation & {provenance?: USThemeSourceProvenance};
 export function validValuationDate(value: unknown): value is string {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
     && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;

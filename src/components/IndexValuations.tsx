@@ -33,7 +33,7 @@ export function ValuationHelp({ metric }: { metric: 'pb' | 'ps' }) {
   </span>;
 }
 
-export function ValuationReading({ row, metric }: { row: IndexValuation; metric: 'pb' | 'ps' }) {
+export function ValuationReading({ row, metric, precisionDecimals }: { row: IndexValuation; metric: 'pb' | 'ps'; precisionDecimals?: 1|2 }) {
   const reading = row[metric], p = reading.percentile, coverage = valuationCoverage(reading);
   const valid = p !== null && Number.isFinite(p) && p >= 0 && p <= 100;
   const [open, setOpen] = useState(false);
@@ -46,7 +46,7 @@ export function ValuationReading({ row, metric }: { row: IndexValuation; metric:
     <button type="button" className="valuation-trigger" data-percentile-stage={percentileStage(p) ?? 'missing'} style={percentileColorStyle(p) as CSSProperties} ref={refs.setReference} {...getReferenceProps()} aria-label={`${row.name} ${metric.toUpperCase()} 分位，查看数据覆盖时长`}>
       <b>{valid ? `${number(p, 1)}%` : '—'}</b>
       <span className="valuation-track" aria-hidden="true">{valid && <i style={{ width: `${p}%` }} />}</span>
-      <small>{reading.value === null ? '—' : `${number(reading.value)}倍`}</small>
+      <small>{reading.value === null ? '—' : `${number(reading.value, precisionDecimals ?? 2)}倍`}</small>
     </button>
     {open && <FloatingPortal><div className="valuation-tooltip" ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()}>
       <strong>{row.name} · {metric.toUpperCase()} 分位</strong>

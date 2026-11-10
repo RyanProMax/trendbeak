@@ -1,0 +1,114 @@
+{
+  "schema": "reviewed-official-theme-sources-v1",
+  "series": [
+    {
+      "code": "STXWSML",
+      "name": "存储",
+      "publisher": "STOXX",
+      "source": "stoxx_factsheet_reported",
+      "seriesId": "STXWSML-USD-price-factsheet-v1",
+      "frequency": "monthly_snapshot",
+      "precisionDecimals": 1,
+      "pointInTime": false,
+      "definitionsResolved": false,
+      "sources": [
+        {
+          "sha256": "40551b1c789345f78bd42264a1876fb5d34e4c96118006a1c2ba65c831eeee8d",
+          "bytes": 819546,
+          "url": "https://stoxx.com/index/stxwsml/?d=2026-09&factsheet=true",
+          "vintage": "STXWSML_202609_factsheet",
+          "page": null,
+          "values": [
+            [
+              "2026-08-31",
+              9.0,
+              null
+            ]
+          ],
+          "rejections": [
+            {
+              "date": "2026-08-31",
+              "metric": "ps",
+              "raw": "0.0",
+              "reason": "nonpositive-or-invalid-source-value"
+            }
+          ]
+        },
+        {
+          "sha256": "b59900bdc0c895036789f04eaf96ee444515f198a96c2bf0e5411667c5e014be",
+          "bytes": 824916,
+          "url": "https://stoxx.com/index/stxwsml/?d=2026-10&factsheet=true",
+          "vintage": "STXWSML_202610_factsheet",
+          "page": null,
+          "values": [
+            [
+              "2026-09-30",
+              9.0,
+              8.4
+            ]
+          ],
+          "rejections": []
+        },
+        {
+          "sha256": "c41caae9d04b25bc3e1e1e60cd74b240dca2c1012c87628c8d54c3902f8439c5",
+          "bytes": 830256,
+          "url": "https://stoxx.com/index/stxwsml/?factsheet=true",
+          "vintage": "STXWSML_current_factsheet",
+          "page": null,
+          "values": [
+            [
+              "2026-09-30",
+              9,
+              8.4
+            ]
+          ],
+          "rejections": []
+        }
+      ],
+      "methodologyNote": "Publisher-reported ratios; factsheet weighting descriptions conflict, not independently reconstructed.",
+      "storageAdmission": true,
+      "reviewSha256": "76321e1a04951fe4220f6e96bcfdbe6cd812c8d0213469c40c73a3e406538e6b"
+    },
+    {
+      "code": "CPQ",
+      "name": "云计算",
+      "publisher": "ProShares",
+      "source": "proshares_index_characteristics",
+      "seriesId": "CPQ/proshares_index_characteristics/v1",
+      "frequency": "quarter_end_snapshot",
+      "precisionDecimals": 2,
+      "pointInTime": false,
+      "definitionsResolved": false,
+      "reviewSha256": "7dd2dc0ffac6a295ce5ca77f6804341487826b72a214a6c4e24dc6a62b56066b",
+      "storageAdmission": true,
+      "methodologyNote": "Publisher-reported underlying index PB; aggregation unspecified, separate from Nasdaq research observations. CPQ is the document index ticker; CPQNTR appears only as a performance comparator.",
+      "sources": [
+        {
+          "sha256": "573666dc4609a35372787a30c70633c03a786aa5cbe6a8358556e72cd27b4fd9",
+          "bytes": 307057,
+          "url": "https://www.proshares.com/our-etfs/leveraged-and-inverse/skyu",
+          "vintage": "ProShares_CPQ_2026Q3",
+          "page": null,
+          "values": [
+            [
+              "2026-09-30",
+              11.15,
+              null
+            ]
+          ],
+          "rejections": [],
+          "numberOfIndexHoldings": 65,
+          "corroboratingEvidence": [
+            {
+              "sha256": "71c55e1b070225cee8abfb25dc576c6a60872c060790fcb9f00e56a3e68f752d",
+              "bytes": 758575,
+              "url": "https://www.proshares.com/globalassets/proshares/fact-sheet/prosharesfactsheetskyu.pdf",
+              "metricPage": 2,
+              "tickerEvidencePage": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
