@@ -2,6 +2,8 @@
 import assert from 'node:assert/strict';
 import {writeFile} from 'node:fs/promises';
 import {launch,base,out} from './signal-check-utils.mjs';
+import publication from '../data/us-etf-current-publication.json' with {type:'json'};
+const currentReading=JSON.parse(publication.entry.preparedReading),format=new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const browser=await launch(),results=[];
 try{
  for(const width of [1440,390])for(const scheme of ['light','dark']){
@@ -17,7 +19,7 @@ try{
   };
   assert.deepEqual(await panel().locator('tbody th strong').allTextContents(),['信息技术','通信服务','工业','公用事业']);
   const rows=panel().locator('tbody tr'),xli=rows.filter({hasText:'XLI'});
-  assert.deepEqual(await xli.locator('td b').allTextContents(),['6.20','2.72']);
+  assert.deepEqual(await xli.locator('td b').allTextContents(),['pb','ps'].map(metric=>format.format(currentReading.metrics[metric].value)));
   for(const code of ['XLK','XLC','XLU'])assert.match(await rows.filter({hasText:code}).locator('th').innerText(),/2026.*6.*30/);
   await capture('ai-latest');
   for(const metric of ['PB','PS']){await panel().getByRole('button',{name:`XLI ${metric} 披露持仓重估说明`,exact:true}).click();await page.locator('.valuation-tooltip').waitFor();assert.match(await page.locator('.valuation-tooltip').innerText(),/并非当前基金持仓或净值/);await capture('xli-'+metric);await page.keyboard.press('Escape');await page.mouse.move(0,0);}
