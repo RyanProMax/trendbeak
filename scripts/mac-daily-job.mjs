@@ -4,14 +4,19 @@ import {join,dirname} from 'node:path';
 import {homedir} from 'node:os';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {spawn} from 'node:child_process';
+import {validCandidateReport} from './us-theme-candidate-job.mjs';
+// Reviewed candidate-only checks reuse this existing schedule; no production source admission.
+const THEME_CANDIDATE_CHECKS_ENABLED=true;
 
 const root=dirname(dirname(fileURLToPath(import.meta.url)));
 export const ACCOUNT='fa5320378df19eb4201884ba77768cf1';
-export function dailyJobPlan({at,skipQuarterly=false,output}){
+export function dailyJobPlan({at,skipQuarterly=false,output,themeCandidates=THEME_CANDIDATE_CHECKS_ENABLED,candidateOutput}){
  if(typeof at!=='string'||!at.endsWith('Z')||!Number.isFinite(Date.parse(at)))throw Error('A frozen UTC execution time is required');
  const steps=[];
  for(const market of ['CN','US'])for(const [kind,script] of [['core','daily-sync.mjs'],['overview','overview-job.mjs']])steps.push({id:`${market}-${kind}`,args:[`scripts/${script}`,'--market',market,'--remote','--catch-up','--at',at]});
  if(!skipQuarterly){if(!output?.startsWith('/'))throw Error('Private absolute quarterly output required');steps.push({id:'US-quarterly',args:['scripts/us-etf-quarterly-job.mjs','--remote','--write','--at',at,'--output',output]});}
+ if(typeof themeCandidates!=='boolean')throw Error('Explicit candidate mode required');
+ if(themeCandidates){if(!candidateOutput?.startsWith('/'))throw Error('Private absolute candidate output required');steps.push({id:'US-theme-candidates',args:['scripts/us-theme-candidate-job.mjs','--collect','--at',at,'--output',candidateOutput]});}
  return steps;
 }
 export function observationLag(report){
@@ -33,7 +38,8 @@ export function validateBusinessOutput(step,stdout,at){
  const r=reports[0],fail=()=>({valid:false,reports});
  if(malformed||reports.length!==1||!object(r))return fail();
  const [market,kind]=step.id.split('-');
- if(kind==='quarterly'){
+ if(step.id==='US-theme-candidates'){if(!validCandidateReport(r,at))return fail();}
+ else if(kind==='quarterly'){
   if(step.id!=='US-quarterly')return fail();
   const p=r.publication;
   if(r.checkedAt!==at||!counters(r,['candidates','sourceCalls','sourceBytes'])||!object(p)||!counters(p,['writes','sourceCalls']))return fail();
@@ -68,10 +74,10 @@ export function executeStep(step,{cwd,env,timeoutMs=180000}){
   child.on('close',(code,signal)=>{clearTimeout(timer);resolve({code,signal,timedOut,overflow,...(error?{error}:{}),stdout,stderr});});
  });
 }
-export async function runMacDailyJob({at=new Date().toISOString(),skipQuarterly=false,logs=join(homedir(),'Library','Logs','trendbeak-sync'),lock='/tmp/trendbeak-mac-job.lock',runStep=executeStep}={}){
+export async function runMacDailyJob({at=new Date().toISOString(),skipQuarterly=false,themeCandidates=THEME_CANDIDATE_CHECKS_ENABLED,logs=join(homedir(),'Library','Logs','trendbeak-sync'),lock='/tmp/trendbeak-mac-job.lock',runStep=executeStep}={}){
  // Validate before creating directories or invoking any child. CLI never accepts
  // historical clocks: catch-up chooses the latest settled session itself.
- dailyJobPlan({at,skipQuarterly:true});
+ dailyJobPlan({at,skipQuarterly:true,themeCandidates,candidateOutput:join(logs,'theme-candidates')});
  await mkdir(lock,{mode:0o700});
  let runDirectory;
  try{
@@ -94,7 +100,7 @@ export async function runMacDailyJob({at=new Date().toISOString(),skipQuarterly=
    return summary;
   }
   const results=[];
-  for(const step of dailyJobPlan({at,skipQuarterly,output:join(runDirectory,'quarterly')})){
+  for(const step of dailyJobPlan({at,skipQuarterly,output:join(runDirectory,'quarterly'),themeCandidates,candidateOutput:join(logs,'theme-candidates')})){
    let marker;
    if(step.id==='US-quarterly'){
     marker=join(logs,`quarterly-attempt-${at.slice(0,10)}.json`);

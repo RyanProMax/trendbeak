@@ -3,7 +3,9 @@ import test from 'node:test';
 import {mkdtemp,mkdir,readFile,stat,rm,readdir} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
-import {dailyJobPlan,runMacDailyJob,observationLag,executeStep,ACCOUNT,validateBusinessOutput} from '../scripts/mac-daily-job.mjs';
+import {dailyJobPlan as actualDailyJobPlan,runMacDailyJob as actualRunMacDailyJob,observationLag,executeStep,ACCOUNT,validateBusinessOutput} from '../scripts/mac-daily-job.mjs';
+// Existing CN/US/quarterly cases isolate their prior scope; enabled-theme default has its own full-run test.
+const dailyJobPlan=o=>actualDailyJobPlan({themeCandidates:false,...o}),runMacDailyJob=o=>actualRunMacDailyJob({themeCandidates:false,...o});
 const at='2026-11-09T13:00:00.000Z';
 const success=step=>({code:0,stdout:JSON.stringify({market:step.id.split('-')[0],...(step.id.endsWith('core')?{date:'2026-11-06',upstreamCalls:0}:{completedSession:'2026-11-06',sourceCalls:0,sourceBytes:0,computedRows:0}),skipped:'already_settled',dbWrites:0}),stderr:''});
 const oauth={code:0,stdout:`You are logged in with an OAuth Token, associated with private@example.com.\nAccount ${ACCOUNT}\n- d1 (write)`,stderr:''};
