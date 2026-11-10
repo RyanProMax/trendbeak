@@ -1,6 +1,6 @@
 import type { IndexValuation } from './china-overview';
 
-export const US_VALUATION_GROUPS = [['ai', 'AI 产业链'], ['traditional', '传统行业'], ['broad', '宽基']] as const;
+export const US_VALUATION_GROUPS = [['ai', 'AI 板块'], ['traditional', '传统行业'], ['broad', '宽基']] as const;
 export type USValuationGroup = typeof US_VALUATION_GROUPS[number][0];
 // Published benchmarks, not ETF aliases or bespoke stock baskets. Official
 // definitions and scope are recorded in docs/us-theme-valuations.md.

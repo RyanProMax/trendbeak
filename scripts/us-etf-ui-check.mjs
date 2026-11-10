@@ -18,7 +18,7 @@ try {
       return date === '2026-11-03' ? route.fulfill({ status: 503, json: { error: 'test only' } }) : route.fulfill({ json: { data: { date, rows } } });
     });
     await page.goto(base + '?market=US', { waitUntil: 'networkidle' });
-    await page.getByRole('button', { name: '细分主题', exact: true }).click();
+    await page.getByRole('button', { name: 'AI 板块', exact: true }).click();
     const panel = page.locator('.us-theme-valuations'); await panel.waitFor();
     await page.evaluate(() => document.fonts.ready);
     const select = async date => { const cell = page.locator(`rect[role="button"][data-date="${date}"]`); await cell.focus(); await cell.press('Enter'); };
@@ -63,7 +63,7 @@ try {
     await panel.getByRole('button', { name: '宽基', exact: true }).focus(); await page.keyboard.press('Enter');
     assert.deepEqual(await panel.locator('tbody th strong').allTextContents(), ['标普500', '纳斯达克100']);
     await capture('fixture-broad');
-    await panel.getByRole('button', { name: '细分主题', exact: true }).click();
+    await panel.getByRole('button', { name: 'AI 板块', exact: true }).click();
     const toggle = panel.locator('.panel-heading button').first();
     await toggle.focus(); await toggle.press('Enter'); await page.locator('.valuation-tooltip').waitFor({ state: 'hidden' });
     assert.equal(await toggle.getAttribute('aria-expanded'), 'false'); await toggle.press('Enter'); await capture('fixture-reopened');

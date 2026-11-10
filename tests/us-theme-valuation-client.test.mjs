@@ -40,7 +40,7 @@ test('US date changes abort, ignore late responses and distinguish absent histor
     assert.equal(document.querySelector('.valuation-status'), null);
     await choose('宽基'); assert.deepEqual(names(), ['标普500', '纳斯达克100']);
     await render('2026-11-03'); await tick(); assert.deepEqual(names(), ['标普500', '纳斯达克100']);
-    await choose('AI 产业链'); await render('2026-11-05'); await tick();
+    await choose('AI 板块'); await render('2026-11-05'); await tick();
     assert.equal(document.querySelector('tbody td b').textContent, '25.0%');
     assert.equal(requests.length, 4, 'category switches reuse exact-date results without new requests');
   } finally { if (root) await act(async () => root.unmount()); for (const key of keys) globalThis[key] = saved[key]; dom.window.close(); await vite.close(); }

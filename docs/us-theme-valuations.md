@@ -71,3 +71,7 @@ The [publisher's terms](https://www.getstockcheck.com/terms.html) restrict high-
 Readers never fetch a source, scan historical observations, calculate ranks, initialize a record or fall back to legacy sector values. Frontend date caches are isolated, requests abort on date changes, late responses are ignored, refresh is bounded to five minutes and cache entries to 366 visited dates.
 
 Tests cover source identity and window disagreement, malformed/future dates, bounds, ties, minimum samples, current exclusion, ten-year expiry, missing PS, controlled writes/no-ops, revisions, exact-date isolation and late responses. Screenshots at 1440px/390px include both themes, all core expanded signals and valuation popups. Synthetic edge-case captures are separate from screenshots of the real local preview.
+
+## AI subtheme-only navigation (2026-11-10)
+
+The AI group now uses the nine existing subtheme benchmarks directly and is labeled AI 板块. The former broad-sector ETF group (XLK/XLC/XLI/XLU) is no longer imported or requested by the page. Traditional industry and broad index groups remain separate. This navigation change does not admit additional observations, replace index values with ETF estimates, enable a source job, or delete stored records. Existing ETF research and recovery evidence are retained outside the active page.
