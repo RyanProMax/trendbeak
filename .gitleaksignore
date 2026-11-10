@@ -8,3 +8,6 @@
 
 # Reviewed historical fixture snapshot path, not an authentication secret.
 83c5713ae6c5f6f42c6df061e7ab2081e9edcb73:tests/mac-daily-job.test.mjs:generic-api-key:73
+
+# Reviewed literal XLE snapshot path in the restored historical repair, not a credential.
+4b0f9bc881f7c766bb9820a01ed48a5492423db8:scripts/us-etf-named-revenue-repair.mjs:generic-api-key:8
