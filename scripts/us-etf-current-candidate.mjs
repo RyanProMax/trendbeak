@@ -2,6 +2,7 @@
 import {currentBasketHash as hash} from './us-etf-current-basket.mjs';
 import {prepareCurrentSnapshot} from './us-etf-current-snapshot.mjs';
 import {prepareCurrentEstimateBasket} from './us-etf-current-estimate.mjs';
+import axonNov6 from '../data/us-etf-axon-nov6-admission.json' with {type:'json'};
 const H=x=>typeof x==='string'&&/^[a-f0-9]{64}$/.test(x);
 const instant=x=>typeof x==='string'&&Number.isFinite(Date.parse(x))&&new Date(x).toISOString()===x;
 const fields=['shares','equity','revenue'];
@@ -25,6 +26,9 @@ export function buildCurrentCandidate({previousInput,previousRegistry,approvedPr
   if(Date.parse(p.availableAt)>Date.parse(observedAt))throw Error('Price unavailable at actual observation');
   for(const field of fields){
    const check=c[field],fact=old[field];
+   if(h.securityId===axonNov6.eventAdmission.securityId||h.symbol==='AXON'){
+    h[field]=null;pending.push({securityId:h.securityId,field,reason:fact===null?'previously_missing':'new_date_capital_event_requires_independent_review'});continue;
+   }
    const unchanged=check?.status==='unchanged'&&check.checkedThrough===session.cutoff&&H(check.sourceSha256)&&H(check.reviewSha256)&&instant(check.reviewedAt)&&check.reviewedAt<=preparedAt&&Date.parse(check.reviewedAt)>=Date.parse(session.cutoff)&&check.factSha256===(fact===null?null:hash(fact));
    const fresh=fact!==null&&Date.parse(fact.availableAt)<=Date.parse(session.cutoff)&&(Date.parse(session.date)-Date.parse(fact.asOf))/86400000<=180;
    if(!unchanged||!fresh){h[field]=null;pending.push({securityId:h.securityId,field,reason:fact===null?'previously_missing':!unchanged?'changed_or_unresolved_source':'stale_fact'});continue;}

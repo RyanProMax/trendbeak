@@ -5,9 +5,17 @@ This is a separate current estimate, not a quarterly backfill or the fund's actu
 - Storage key: `current-estimate/US/XLI`. Never write `valuation/US/*`.
 - Prices retain actual collection timestamps; financial sources must be available by November 6 at 16:00 New York time. Observation and preparation use real UTC instants, distinct from price date.
 - Positive PB/PS reciprocal aggregation is independently weighted by the repriced original equity basket. Known nonpositive common equity is excluded, not unknown. Unknown weight of 2% or more hides that metric.
-- AXON both metrics and HON PS remain missing. DE PS uses an explicitly approved segment-external-revenue estimate. AOS capitalization uses an explicitly approved one-for-one conversion-value estimate. Neither exception is relabelled as the ordinary reported method.
+- AXON was missing in the first release; its separately reviewed November 6 completion is described below. HON PS remains missing. DE PS uses an explicitly approved segment-external-revenue estimate. AOS capitalization uses an explicitly approved one-for-one conversion-value estimate. Neither exception is relabelled as the ordinary reported method.
 - Every included financial field is bound to exact fact, candidate, raw-source and independent-review hashes. Fixed approved-input hashes come from repository configuration, never the submitted input.
-- No rank, percentile, source comparison, or historical-series membership. The client displays the first release only when the selected date is its exact verified price date, not another day.
+- No rank, percentile, source comparison, or historical-series membership. Historical selection requires the exact price date. The latest view can retain the actual reviewed price date for at most seven calendar days; it does not relabel it to the selected market date.
+
+## Dated AXON completion
+
+The separate offline adapter verifies all 22 fixed R2 source and audit files before constructing a candidate. Only AXON's actual October 30 common shares, September 30 common equity and reported TTM operating revenue change. All other 80 holdings, every price, fund-held quantity and original field-review timestamp stay unchanged. New observation/preparation timestamps describe this later completion, not a fresh review of the entire basket.
+
+Class-scope proof comes from the original full 10-Q common-capital audit. The Skydio contract audit separately establishes that the announced stock consideration was not issued at the November 5 cash closing. The fixed event admission binds that finding to the exact typed shares fact and November 6 cutoff. Neither proof substitutes for the other. The 10-Q's `availableAtType=policyDerived10QavailableAt` marks the November 6 06:00 New York EDGAR policy boundary, not an observed exact dissemination timestamp; its evidence hash remains attached to each fact.
+
+Any nonempty AXON financial field requires the complete exact admission, whether identified by ticker or security ID. It cannot be reused for another day with a generic new registry. The research next-day adapter clears all three fields and requests fresh capital-event review. The original all-empty baseline remains valid. An offline candidate and its preparation-record hash are not publication approval: independent review, the fixed release allowlist, exact CAS, readback proof and deployment are still required.
 
 ## Controlled release
 

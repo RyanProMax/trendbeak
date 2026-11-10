@@ -1,0 +1,164 @@
+{
+  "schema": "reviewed-axon-nov6-financial-completion-v1",
+  "baselineInputSha256": "88cf6c95a5d6c3491abf41e9d0f5ce318f63fd6675cd020ac6a1b9f45f6df8c1",
+  "baselineRegistrySha256": "1ed6c8075f084f16b7a7d0d7f736ab63fbbb5cfb95a72d06114a0003918f0a33",
+  "baselineCheckpointSha256": "e9d8925225cb5d0d67c7a77196561ce98113073eed0d1c9f99a0ec1ef4844e5b",
+  "bundleSha256": "66a7d21975c72fbc7f7d592e082b020774d0e08ed4f657b2a37ebc721e6ee88b",
+  "manifestSha256": "4cb62edbcb79997e6ddcef59697b1f02bb2047a643dafa2e3f3ebf5fe721c472",
+  "files": [
+    {
+      "path": "historical-xlk-expansion/axon-gap-review/nov6-single-security-r2/all-input-field-diffs.json",
+      "sha256": "4e29c3a8d9c94b499eb393c7e354522ee9c5b40e7cd6ac946cf605289c6cfa8a"
+    },
+    {
+      "path": "historical-xlk-expansion/axon-gap-review/nov6-single-security-r2/axon-holding-candidate.json",
+      "sha256": "f25318bc6867991e3db7d57b770bd5f8e653ea88434b2d548128a66de180a13c"
+    },
+    {
+      "path": "historical-xlk-expansion/axon-gap-review/nov6-single-security-r2/basket-delta-decimal.json",
+      "sha256": "70e988ca5bbe055d6ca09e5e161d066669eb18d8c52e70893db77b5b96cc2419"
+    },
+    {
+      "path": "historical-xlk-expansion/axon-gap-review/nov6-single-security-r2/class-scope-binding.json",
+      "sha256": "de9ccb98f7c14ba94578eecd2539fabe08e47b415e9dff3813ce0f67526ecf13"
+    },
+    {
+      "path": "historical-xlk-expansion/axon-gap-review/nov6-single-security-r2/input-axon-only.patch.json",
+      "sha256": "d624172904f92eac7f2d15ec3e70903b699e20aa8f024a47fc5c704da20ee370"
+    },
+    {
+      "path": "historical-xlk-expansion/axon-gap-review/nov6-single-security-r2/integration-boundary.json",
+      "sha256": "d367b9f1325239f9c8030ba71d46dc09734ea86dd00b31f924632a85d957bb05"
+    },
+    {
+      "path": "historical-xlk-expansion/axon-gap-review/nov6-single-security-r2/nov6-event-admission-binding.json",
+      "sha256": "ebd13fad94c5f8c9fac98fd16916557f80d8e69f4c748878e8cbd07abe1a76e7"
+    },
+    {
+      "path": "historical-xlk-expansion/axon-gap-review/nov6-single-security-r2/r1-to-r2-exact-changes.json",
+      "sha256": "8c72f081c5dc08d185c6beb7c0a8df060d291095203004c9cd4f5f4d79cf2fff"
+    },
+    {
+      "path": "historical-xlk-expansion/axon-gap-review/nov6-single-security-r2/registry-axon-only.patch.json",
+      "sha256": "4d019e2985453b6feae766473fdd8df59919f86d6f0e793f863ec7f4bb9d6ff6"
+    },
+    {
+      "path": "historical-xlk-expansion/axon-gap-review/nov6-single-security-r2/runtime-fact-hash-check.json",
+      "sha256": "d4e409457fdb16110b9521904da4cdb57a473dd70b2a96035fbb07c9314c1280"
+    },
+    {
+      "path": "historical-xlk-expansion/axon-gap-review/nov6-single-security-r2/source-bundle-manifest.json",
+      "sha256": "c7f0095fd5b2cbb1662c1c4e8188bec7e6f0d61a71272dea801a050c51b10c69"
+    },
+    {
+      "path": "historical-xlk-expansion/axon-gap-review/nov6-single-security-r2/ttm-source-proof.json",
+      "sha256": "0b3383b18f194bdaa6999ac1c03d1b19783ae4f1e352f638708b1d94bc13a220"
+    },
+    {
+      "path": "current-xli-financial-preparation/axon_review/source_bundle/AXON-20260930.htm",
+      "sha256": "68d655562532a2fbba10f2987a67514e15b5510434735ea73acdd66abb741711"
+    },
+    {
+      "path": "current-xli-financial-preparation/annual_originals/AXON_filing.html",
+      "sha256": "970d1d2b9e6518659dee8d43fce6cd7f71f43bb926910c8c895acf87134178ae"
+    },
+    {
+      "path": "current-xli-financial-preparation/annual_originals/AXON_index.html",
+      "sha256": "9722682b25c19c1ff35fcc28093a9e16f8bdb02e261eef52d0302bea6c029e3f"
+    },
+    {
+      "path": "current-xli-financial-preparation/axon_review/source_bundle/AXON-20261106-index.htm",
+      "sha256": "270cc37570c2adb6bfa8bf62fc2ba99324284db1f2a458762555ece9d3bf7c08"
+    },
+    {
+      "path": "current-xli-financial-preparation/axon_review/independent_audit_and_ttm_candidate.json",
+      "sha256": "4d76d331dd40b7ff52ee9fcd72bfd6f50505e697d918bc0df48fcb9987be2176"
+    },
+    {
+      "path": "current-xli-financial-preparation/axon_review/sec_late_acceptance_policy_evidence.json",
+      "sha256": "3b6b0c77a7f467cd0a0e0b560a3eac2af8716f039840d4dbc2cbee341b969b96"
+    },
+    {
+      "path": "parent-ai-algorithm-status-20261110/axon-contract-audit.json",
+      "sha256": "ca345b7a08609022c59c5ede17ac631c0bd4980d9de15b61bdae3ffa138901c3"
+    },
+    {
+      "path": "historical-xlk-expansion/axon-gap-review/0001628280-26-071150-index.htm",
+      "sha256": "0d050d403094dbf287580c5200e872b1624519574bfebefc684dae24594eee9a"
+    },
+    {
+      "path": "historical-xlk-expansion/axon-gap-review/skydio-seriesgpreferreds.htm",
+      "sha256": "045225ac7c88f5eff86cf5a3df495d9ddb2914f5e3d38a45c057cb2009353030"
+    },
+    {
+      "path": "historical-xlk-expansion/axon-gap-review/axon-20261105.htm",
+      "sha256": "94ffd39231d99fc6924e7d76ae2a0e096906f3a329f3a946e3a01efb6d025fb7"
+    }
+  ],
+  "facts": {
+    "shares": {
+      "availableAt": "2026-11-06T11:00:00.000Z",
+      "sourceSha256": "68d655562532a2fbba10f2987a67514e15b5510434735ea73acdd66abb741711",
+      "sourceURL": "https://www.sec.gov/Archives/edgar/data/1069183/000162828026071242/axon-20260930.htm",
+      "candidateSha256": "4d76d331dd40b7ff52ee9fcd72bfd6f50505e697d918bc0df48fcb9987be2176",
+      "value": 81432712,
+      "asOf": "2026-10-30",
+      "basis": "actual_common_outstanding",
+      "scope": "single_common",
+      "reportedPrecision": "1",
+      "classRightsProofSha256": "4d76d331dd40b7ff52ee9fcd72bfd6f50505e697d918bc0df48fcb9987be2176",
+      "availableAtType": "policyDerived10QavailableAt",
+      "availabilityEvidenceSha256": "3b6b0c77a7f467cd0a0e0b560a3eac2af8716f039840d4dbc2cbee341b969b96"
+    },
+    "equity": {
+      "availableAt": "2026-11-06T11:00:00.000Z",
+      "sourceSha256": "68d655562532a2fbba10f2987a67514e15b5510434735ea73acdd66abb741711",
+      "sourceURL": "https://www.sec.gov/Archives/edgar/data/1069183/000162828026071242/axon-20260930.htm",
+      "candidateSha256": "4d76d331dd40b7ff52ee9fcd72bfd6f50505e697d918bc0df48fcb9987be2176",
+      "value": 3762928000,
+      "asOf": "2026-09-30",
+      "basis": "common",
+      "availableAtType": "policyDerived10QavailableAt",
+      "availabilityEvidenceSha256": "3b6b0c77a7f467cd0a0e0b560a3eac2af8716f039840d4dbc2cbee341b969b96"
+    },
+    "revenue": {
+      "availableAt": "2026-11-06T11:00:00.000Z",
+      "sourceSha256": "68d655562532a2fbba10f2987a67514e15b5510434735ea73acdd66abb741711",
+      "sourceURL": "https://www.sec.gov/Archives/edgar/data/1069183/000162828026071242/axon-20260930.htm",
+      "candidateSha256": "0b3383b18f194bdaa6999ac1c03d1b19783ae4f1e352f638708b1d94bc13a220",
+      "value": 3417012000,
+      "asOf": "2026-09-30",
+      "basis": "ttm",
+      "definition": "operating_revenue_v2",
+      "availableAtType": "policyDerived10QavailableAt",
+      "availabilityEvidenceSha256": "3b6b0c77a7f467cd0a0e0b560a3eac2af8716f039840d4dbc2cbee341b969b96"
+    }
+  },
+  "financialProofs": {
+    "shares": {
+      "factSha256": "8bbbcfb5a3802ee5908be60db5342b66e33519f9b8c594da649fd0bd1f60a9fa",
+      "reviewSha256": "4d76d331dd40b7ff52ee9fcd72bfd6f50505e697d918bc0df48fcb9987be2176"
+    },
+    "equity": {
+      "factSha256": "77a32415835d249788d9bb6a34acba039daeeb1a1e514abd9996327d8372495d",
+      "reviewSha256": "4d76d331dd40b7ff52ee9fcd72bfd6f50505e697d918bc0df48fcb9987be2176"
+    },
+    "revenue": {
+      "factSha256": "6a382113b17377d04e6c71714d4e8330c27c1fc397eacac7cc354557b3b35ad7",
+      "reviewSha256": "0b3383b18f194bdaa6999ac1c03d1b19783ae4f1e352f638708b1d94bc13a220"
+    }
+  },
+  "eventAdmission": {
+    "securityId": "US05464C1018",
+    "symbol": "AXON",
+    "issuerCIK": "0001069183",
+    "priceDate": "2026-11-06",
+    "cutoff": "2026-11-06T21:00:00.000Z",
+    "sharesAsOf": "2026-10-30",
+    "sharesFactSha256": "8bbbcfb5a3802ee5908be60db5342b66e33519f9b8c594da649fd0bd1f60a9fa",
+    "classRightsProofSha256": "4d76d331dd40b7ff52ee9fcd72bfd6f50505e697d918bc0df48fcb9987be2176",
+    "eventReviewSha256": "ca345b7a08609022c59c5ede17ac631c0bd4980d9de15b61bdae3ffa138901c3",
+    "eventBindingSourceSha256": "ebd13fad94c5f8c9fac98fd16916557f80d8e69f4c748878e8cbd07abe1a76e7",
+    "scope": "nov6_only_dated_reported_shares_carry_skydio_stock_not_issued"
+  }
+}

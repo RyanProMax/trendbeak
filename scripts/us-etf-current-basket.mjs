@@ -2,6 +2,7 @@
 // `approval` must come from an independently reviewed deployment allowlist, never input JSON.
 import {createHash} from 'node:crypto';
 import {prepareCurrentEstimateBasket, CURRENT_ESTIMATE_METHOD} from './us-etf-current-estimate.mjs';
+import axonNov6 from '../data/us-etf-axon-nov6-admission.json' with {type:'json'};
 const canonical=x=>Array.isArray(x)?`[${x.map(canonical).join(',')}]`:x&&typeof x==='object'?`{${Object.keys(x).sort().map(k=>JSON.stringify(k)+':'+canonical(x[k])).join(',')}}`:JSON.stringify(x);
 export const currentBasketHash=x=>createHash('sha256').update(canonical(x)).digest('hex');
 const validHash=x=>typeof x==='string'&&/^[a-f0-9]{64}$/.test(x);
@@ -40,7 +41,14 @@ export function calculateCurrentBasket(input, approval) {
    const e=approval.revenueExceptions?.find(e=>e.securityId===h.securityId&&e.symbol===h.symbol);
    if(input.priceDate!=='2026-11-06'||h.symbol!=='DE'||h.revenue.value!==47_720_000_000||h.revenue.definition!=='segment_external_revenue_excluding_corporate_other'||h.revenue.methodVersion!=='current-segment-external-revenue-estimate-v1'||!e||e.priceDate!==input.priceDate||e.definition!==h.revenue.definition||e.methodVersion!==h.revenue.methodVersion||e.factSha256!==currentBasketHash(h.revenue)||!validHash(e.reviewSha256))throw Error('Exact current-only segment revenue exception required');
   }
-  if(input.priceDate==='2026-11-06'&&((h.symbol==='AXON'&&h.shares!==null)||(h.symbol==='HON'&&h.revenue!==null)))throw Error('Known unresolved November capital/revenue scope cannot be silently restored');
+  if((h.symbol==='AXON'||h.securityId===axonNov6.eventAdmission.securityId)&&['shares','equity','revenue'].some(field=>h[field]!==null)){
+   // This admission clears one dated capital question, not future event windows.
+   // Class rights, financial facts and Skydio issuance timing have separate proofs.
+   const fixed=axonNov6.eventAdmission,entries=approval.capitalEventAdmissions;
+   if(input.priceDate!==fixed.priceDate||input.cutoff!==fixed.cutoff||h.securityId!==fixed.securityId||h.symbol!==fixed.symbol||!Array.isArray(entries)||entries.length!==1||currentBasketHash(entries[0])!==currentBasketHash(fixed)||h.shares?.classRightsProofSha256!==fixed.classRightsProofSha256)throw Error('Exact November 6 AXON event admission required');
+   for(const field of ['shares','equity','revenue'])if(currentBasketHash(h[field])!==axonNov6.financialProofs[field].factSha256||currentBasketHash(approved.financialProofs[field])!==currentBasketHash(axonNov6.financialProofs[field]))throw Error('AXON typed original financial fact or review changed');
+  }
+  if(h.symbol==='HON'&&h.revenue!==null)throw Error('Known unresolved HON revenue scope cannot be silently restored');
   const status={securityId:h.securityId,symbol:h.symbol,weight:h.weight};
   for(const [metric,field] of [['pb','equity'],['ps','revenue']]){
    const t=tallies[metric],f=h[field];
