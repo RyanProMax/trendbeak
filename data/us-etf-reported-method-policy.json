@@ -1,0 +1,18 @@
+{
+  "schema": "reported-common-offline-method-policy-v2",
+  "methodVersion": "reported_ttm_total_market_cap_v1",
+  "scopeRevision": "actual_issued_common_dated_carry_explicit_2026q2_v1",
+  "methodReviewSha256": "fc0ed843442244bfa05452e8d3b0628d9b32ee9a718810de7f47a0c3f2aae05c",
+  "computationContractSha256": "ae600be16bfaae93ec8cc8ba5c83d58576fd2a1a3ac9825621d27e45162d1661",
+  "componentInterfaceSha256": "410a5624bb6a35d5ead703107b8f9fbb222647cd3c8592bbd81dd5df2335ae54",
+  "coverageFixtureSha256": "ebfe0e29ea7b7eab11cb3462c71873b70502f4dc345a79056af54c7a610e8cba",
+  "minimumVerifiedCoverage": {"numerator": "98", "denominator": "100"},
+  "coverageGate": "positive_plus_verified_nonpositive_over_full_original_stock_weight",
+  "ratio": "positive_weight_over_positive_weighted_reciprocal",
+  "capitalQuantity": "actualCommonSharesOutstandingNetTreasury",
+  "bookConvention": "source_verified_historical_carrying_common_equity",
+  "financialCutoffRequired": true,
+  "retrospectiveHoldingsRequired": true,
+  "rankEligible": false,
+  "productionAdmitted": false
+}

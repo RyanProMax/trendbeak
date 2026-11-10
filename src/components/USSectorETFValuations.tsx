@@ -4,10 +4,11 @@ import { autoUpdate, flip, FloatingPortal, offset, shift, useClick, useDismiss, 
 import { displayDate, number } from '../lib/market-format';
 import { US_SECTOR_ETFS, validETFValuation, holdXLKCommonCapital, holdXLCParentCapitalPS, type ETFValuation } from '../lib/us-etf-valuations';
 import { currentBasketForView, DATED_PRICE_ROLL_METHOD, type CurrentBasketReading } from '../lib/us-etf-current';
+import {reportedETFForView,type ReportedETFReading}from'../lib/us-etf-reported';
 import {XLP_CLASS_METHOD} from '../lib/us-etf-xlp-method';
 import './market-overview.css';
 import './us-sector-valuations.css';
-type Result = { date: string; viewMode: string; rows: ETFValuation[]; current: CurrentBasketReading | null; error: boolean; expires: number };
+type Result = { date: string; viewMode: string; rows: ETFValuation[]; current: CurrentBasketReading | null; reported: ReportedETFReading | null; error: boolean; expires: number };
 function SourceComparison({ row }: { row: ETFValuation }) {
   const [open,setOpen]=useState(false),visible=usePanelVisible(),c=row.sourceComparison!;
   useEffect(()=>{setOpen(false);},[visible,row.date]);
@@ -37,6 +38,13 @@ function CurrentBasketEstimate({row,metric}: {row:CurrentBasketReading;metric:'p
   const {getReferenceProps,getFloatingProps}=useInteractions([useHover(context,{mouseOnly:true}),useFocus(context),useClick(context),useDismiss(context),useRole(context,{role:'tooltip'})]);
   return <><button type="button" className="valuation-quarterly-rank" aria-label={`XLI ${metric.toUpperCase()} 披露持仓重估说明`} aria-expanded={open} ref={refs.setReference} {...getReferenceProps()}>估算</button>{open&&<FloatingPortal><div className="valuation-tooltip" ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()}><strong>XLI {metric.toUpperCase()} · 持仓重估</strong><span>价格截至{displayDate(row.priceAsOf,true)}收盘，非实时行情。</span><span>按截至{displayDate(row.holdingsAsOf,true)}的已披露持仓重新计价，并非当前基金持仓或净值。</span>{row.methodVersion===DATED_PRICE_ROLL_METHOD&&<span>财务核验截至{displayDate(row.financialCutoff.slice(0,10),true)}；沿用各报表日期的实际股数估算，并非当前股数或最新基本面。</span>}<span>已核实覆盖{number(row.metrics[metric].verifiedCoverage*100,2)}%。{metric==='ps'?'少量收入采用分部口径估算。':''}少量股类按转换价值估算。</span><span>无同口径历史分位。</span></div></FloatingPortal>}</>;
 }
+function ReportedCommonEstimate({row,metric}:{row:ReportedETFReading;metric:'pb'|'ps'}){
+ const [open,setOpen]=useState(false),visible=usePanelVisible();useEffect(()=>setOpen(false),[visible,row.economicDate]);
+ const {refs,floatingStyles,context}=useFloating({open,onOpenChange:setOpen,placement:'top',strategy:'fixed',whileElementsMounted:autoUpdate,middleware:[offset(8),flip(),shift({padding:12})]});
+ const {getReferenceProps,getFloatingProps}=useInteractions([useHover(context,{mouseOnly:true}),useFocus(context),useClick(context),useDismiss(context),useRole(context,{role:'tooltip'})]);
+ const m=row.metrics[metric];
+ return <><button type="button" className="valuation-quarterly-rank" aria-label={`XLK ${metric.toUpperCase()} 披露持仓估算说明`} aria-expanded={open} ref={refs.setReference} {...getReferenceProps()}>估算</button>{open&&<FloatingPortal><div className="valuation-tooltip" ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()}><strong>XLK {metric.toUpperCase()} · 披露持仓估算</strong><span>持仓与期末价格截至{displayDate(row.economicDate,true)}，持仓于{displayDate(row.publicAvailableAt.slice(0,10),true)}公开。</span><span>已核实覆盖{number(m.verifiedCoverage*100,2)}%。{m.nonpositiveCoverage>0?`其中非正${metric==='pb'?'净资产':'收入'}占${number(m.nonpositiveCoverage*100,2)}%，不计入正倍数。`:''}</span><span>沿用披露日期的股数和报表，非当前基金净值。</span><span>历史样本不足，暂无同口径分位。</span></div></FloatingPortal>}</>;
+}
 function XLPMethodEstimate({row,metric}:{row:ETFValuation;metric:'pb'|'ps'}){
  const [open,setOpen]=useState(false),visible=usePanelVisible();useEffect(()=>setOpen(false),[visible,row.date]);
  const {refs,floatingStyles,context}=useFloating({open,onOpenChange:setOpen,placement:'top',strategy:'fixed',whileElementsMounted:autoUpdate,middleware:[offset(8),flip(),shift({padding:12})]});
@@ -65,7 +73,7 @@ export default function USSectorETFValuations({ date, viewMode = 'historical', c
   // Expiry is a display-clock condition, not a successful-network condition.
   const [viewClock,setViewClock]=useState(()=>Date.now());
   useEffect(()=>{let timer:ReturnType<typeof setTimeout>;const tick=()=>{const now=Date.now();setViewClock(now);clearTimeout(timer);timer=setTimeout(tick,86400000-now%86400000+5);};const visible=()=>{if(document.visibilityState==='visible')tick();};tick();document.addEventListener('visibilitychange',visible);return()=>{clearTimeout(timer);document.removeEventListener('visibilitychange',visible);};},[]);
-  const cacheKey = `${viewMode}:${date}`;
+  const cacheKey = `reported-common-v1:${viewMode}:${date}`;
   const cache = useRef(new Map<string, Result>()), [loaded, setLoaded] = useState<Result | null>(null), [refresh, setRefresh] = useState(0);
   useEffect(() => {
     const timer = setInterval(() => { if (document.visibilityState === 'visible') setRefresh(n => n + 1); }, 300000);
@@ -75,30 +83,41 @@ export default function USSectorETFValuations({ date, viewMode = 'historical', c
     const cached = cache.current.get(cacheKey);
     if (cached && cached.expires > Date.now()) { setLoaded(cached); return; }
     const controller = new AbortController(); let active = true;
-    const save = (rows: ETFValuation[], error: boolean, current: CurrentBasketReading | null = null) => {
+    const save = (rows: ETFValuation[], error: boolean, current: CurrentBasketReading | null = null, reported: ReportedETFReading | null = null) => {
       if (!active) return;
       setViewClock(Date.now());
-      const result = { date, viewMode, rows: rows.map(row => holdXLCParentCapitalPS(holdXLKCommonCapital(row))), current, error, expires: Date.now() + (error ? 30000 : 300000) };
+      const result = { date, viewMode, rows: rows.map(row => holdXLCParentCapitalPS(holdXLKCommonCapital(row))), current, reported, error, expires: Date.now() + (error ? 30000 : 300000) };
       cache.current.delete(cacheKey); cache.current.set(cacheKey, result);
       while (cache.current.size > 366) cache.current.delete(cache.current.keys().next().value!);
       setLoaded(result);
     };
     const timer = setTimeout(() => { void (async () => {
-      try {
-        const response = await fetch(`/api/valuations/US?date=${encodeURIComponent(date)}&format=sector-methods-v7`, { signal: controller.signal });
-        if (!response.ok) throw Error('ETF valuations unavailable');
-        const { data } = await response.json() as { data: { date: string; rows: ETFValuation[] } };
-        if (data?.date !== date || !Array.isArray(data.rows) || data.rows.length > 11 || new Set(data.rows.map(r => r.code)).size !== data.rows.length || data.rows.some(r => !validETFValuation(r, date))) throw Error('Invalid ETF valuations');
-        let current:CurrentBasketReading|null=null;
-        if(viewMode==='latest'||date>='2026-11-06'&&date<='2026-11-20')try{const c=await fetch('/api/valuations/US/current-estimate'+(viewMode==='historical'?'?date='+encodeURIComponent(date):''),{signal:controller.signal});if(c.ok){const body=await c.json() as {data:unknown};current=currentBasketForView(body.data,{mode:viewMode,date});}}catch{/* Independent current failure must not erase quarterly rows. */}
-        save(data.rows, false,current);
-      } catch { save([], true); }
+      const legacy=async()=>{
+        const response=await fetch(`/api/valuations/US?date=${encodeURIComponent(date)}&format=sector-methods-v7`,{signal:controller.signal});
+        if(!response.ok)throw Error('ETF valuations unavailable');
+        const {data}=await response.json() as {data:{date:string;rows:ETFValuation[]}};
+        if(data?.date!==date||!Array.isArray(data.rows)||data.rows.length>11||new Set(data.rows.map(r=>r.code)).size!==data.rows.length||data.rows.some(r=>!validETFValuation(r,date)))throw Error('Invalid ETF valuations');
+        return data.rows;
+      };
+      const current=async()=>{
+        if(!(viewMode==='latest'||date>='2026-11-06'&&date<='2026-11-20'))return null;
+        const r=await fetch('/api/valuations/US/current-estimate'+(viewMode==='historical'?'?date='+encodeURIComponent(date):''),{signal:controller.signal});if(!r.ok)throw Error('Current estimate unavailable');
+        const body=await r.json() as {data:unknown};return currentBasketForView(body.data,{mode:viewMode,date});
+      };
+      const reported=async()=>{
+        if(viewMode!=='latest'&&date!=='2026-06-30')return null;
+        const r=await fetch('/api/valuations/US/reported-estimate'+(viewMode==='historical'?'?date='+encodeURIComponent(date):''),{signal:controller.signal});if(!r.ok)throw Error('Reported estimate unavailable');
+        const body=await r.json() as {data:unknown};return reportedETFForView(body.data,{mode:viewMode,date});
+      };
+      // Failure in one independently prepared method does not erase another.
+      const [a,b,c]=await Promise.allSettled([legacy(),current(),reported()]);
+      save(a.status==='fulfilled'?a.value:[],a.status==='rejected',b.status==='fulfilled'?b.value:null,c.status==='fulfilled'?c.value:null);
     })(); }, 150);
     return () => { active = false; clearTimeout(timer); controller.abort(); };
   }, [date, viewMode, cacheKey, refresh]);
   const cachedResult = cache.current.get(cacheKey) ?? (loaded?.date === date && loaded.viewMode === viewMode ? loaded : null);
-  const result = cachedResult ? {...cachedResult,current:currentBasketForView(cachedResult.current,{mode:viewMode,date},viewClock)} : null;
-  const status = !result ? '正在读取估值数据' : result.error ? '估值数据暂不可用' : !result.rows.some(r => r.pb.value !== null || r.ps.value !== null) ? '该日期暂无估值数据' : '持仓估算';
+  const result = cachedResult ? {...cachedResult,current:currentBasketForView(cachedResult.current,{mode:viewMode,date},viewClock),reported:reportedETFForView(cachedResult.reported,{mode:viewMode,date},viewClock)} : null;
+  const status = !result ? '正在读取估值数据' : result.reported||result.current ? '持仓估算' : result.error ? '估值数据暂不可用' : !result.rows.some(r => r.pb.value !== null || r.ps.value !== null) ? '该日期暂无估值数据' : '持仓估算';
   const quarterDates = [...new Set(result?.rows.filter(r => r.pricingBasis === 'portfolio_fair_value_per_share').map(r => r.date))];
   const quarter = quarterDates.length === 1 && result?.rows.every(r => r.pricingBasis === 'portfolio_fair_value_per_share');
   const stateLabel = result?.current ? `披露持仓估算 · XLI价格截至${displayDate(result.current.priceAsOf, true)}` : status === '持仓估算' && quarter ? `季度持仓估算 · ${displayDate(quarterDates[0], true)}` : status;
@@ -115,9 +134,9 @@ export default function USSectorETFValuations({ date, viewMode = 'historical', c
       <colgroup><col className="valuation-name-column" /><col /><col /></colgroup>
       <thead><tr><th scope="col">板块 / ETF</th><th scope="col">PB <small>倍</small></th><th scope="col">PS <small>倍</small></th></tr></thead>
       <tbody>{US_SECTOR_ETFS.filter(([code]) => !codes || codes.includes(code)).map(([code, name]) => {
-        const row = result?.rows.find(r => r.code === code), current = code==='XLI' ? result?.current : null;
-        return <tr key={code}><th scope="row"><strong>{name}</strong><small>{code}</small>{row?.pricingBasis === 'portfolio_fair_value_per_share'&&(!quarter || result?.current && !current)&&<small>{displayDate(row.date, true)}</small>}{!current&&row?.sourceComparison?.sourceConflict&&<SourceComparison row={row}/>}</th>
-          {(['pb', 'ps'] as const).map(metric => current ? <td key={metric}><div className="etf-valuation-reading"><b className={current.metrics[metric].value===null?'is-missing':undefined}>{current.metrics[metric].value===null?'—':number(current.metrics[metric].value!)}</b><CurrentBasketEstimate row={current} metric={metric}/></div></td> : <td key={metric}><div className="etf-valuation-reading"><b className={(row?.[metric].estimate?.value ?? row?.[metric].value) == null ? "is-missing" : undefined}>{(row?.[metric].estimate?.value ?? row?.[metric].value) != null ? number((row?.[metric].estimate?.value ?? row?.[metric].value)!) : '—'}</b>{row?.methodVersion===XLP_CLASS_METHOD && row[metric].value!==null && <XLPMethodEstimate row={row} metric={metric}/>} {row?.[metric].estimate && <MetricEstimate row={row} metric={metric}/>}{row?.[metric].percentile != null && row[metric].quarterlyHistory && <HistoricalRank row={row} metric={metric}/>}</div></td>)}
+        const row = result?.rows.find(r => r.code === code), current = code==='XLI' ? result?.current : null, reported = code==='XLK' ? result?.reported : null;
+        return <tr key={code} data-reported-economic-date={reported?.economicDate}><th scope="row"><strong>{name}</strong><small>{code}</small>{reported?<small>披露持仓 · {displayDate(reported.economicDate,true)}</small>:row?.pricingBasis === 'portfolio_fair_value_per_share'&&(!quarter || result?.current && !current)&&<small>{displayDate(row.date, true)}</small>}{!current&&!reported&&row?.sourceComparison?.sourceConflict&&<SourceComparison row={row}/>}</th>
+          {(['pb', 'ps'] as const).map(metric => reported ? <td key={metric}><div className="etf-valuation-reading"><b className={reported.metrics[metric].value===null?'is-missing':undefined}>{reported.metrics[metric].value===null?'—':number(reported.metrics[metric].value!)}</b><ReportedCommonEstimate row={reported} metric={metric}/></div></td> : current ? <td key={metric}><div className="etf-valuation-reading"><b className={current.metrics[metric].value===null?'is-missing':undefined}>{current.metrics[metric].value===null?'—':number(current.metrics[metric].value!)}</b><CurrentBasketEstimate row={current} metric={metric}/></div></td> : <td key={metric}><div className="etf-valuation-reading"><b className={(row?.[metric].estimate?.value ?? row?.[metric].value) == null ? "is-missing" : undefined}>{(row?.[metric].estimate?.value ?? row?.[metric].value) != null ? number((row?.[metric].estimate?.value ?? row?.[metric].value)!) : '—'}</b>{row?.methodVersion===XLP_CLASS_METHOD && row[metric].value!==null && <XLPMethodEstimate row={row} metric={metric}/>} {row?.[metric].estimate && <MetricEstimate row={row} metric={metric}/>}{row?.[metric].percentile != null && row[metric].quarterlyHistory && <HistoricalRank row={row} metric={metric}/>}</div></td>)}
         </tr>;
       })}</tbody>
     </table>

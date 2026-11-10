@@ -1,0 +1,65 @@
+{
+  "schema": "coverage-classification-fixtures-v2",
+  "fixtures": [
+    {
+      "name": "known_negative_subset",
+      "positiveWeight": "0.9604",
+      "verifiedNonpositiveWeight": "0.0396",
+      "fullStockWeight": "1",
+      "positiveCoverage": "0.9604",
+      "verifiedNonpositiveCoverage": "0.0396",
+      "verifiedInputCoverage": "1.0000",
+      "expectedDataCoverageGate": true,
+      "expectedMayHaveFinitePositiveValue": true,
+      "ratioAssumption": "Finitepositiveindividualratios forpositiveweight; ifpositiveweightzero no value."
+    },
+    {
+      "name": "unknown_three_percent",
+      "positiveWeight": "0.97",
+      "verifiedNonpositiveWeight": "0",
+      "fullStockWeight": "1",
+      "positiveCoverage": "0.97",
+      "verifiedNonpositiveCoverage": "0",
+      "verifiedInputCoverage": "0.97",
+      "expectedDataCoverageGate": false,
+      "expectedMayHaveFinitePositiveValue": false,
+      "ratioAssumption": "Finitepositiveindividualratios forpositiveweight; ifpositiveweightzero no value."
+    },
+    {
+      "name": "all_verified_nonpositive",
+      "positiveWeight": "0",
+      "verifiedNonpositiveWeight": "1",
+      "fullStockWeight": "1",
+      "positiveCoverage": "0",
+      "verifiedNonpositiveCoverage": "1",
+      "verifiedInputCoverage": "1",
+      "expectedDataCoverageGate": true,
+      "expectedMayHaveFinitePositiveValue": false,
+      "ratioAssumption": "Finitepositiveindividualratios forpositiveweight; ifpositiveweightzero no value."
+    },
+    {
+      "name": "exact_threshold_with_exclusion",
+      "positiveWeight": "0.95",
+      "verifiedNonpositiveWeight": "0.03",
+      "fullStockWeight": "1",
+      "positiveCoverage": "0.95",
+      "verifiedNonpositiveCoverage": "0.03",
+      "verifiedInputCoverage": "0.98",
+      "expectedDataCoverageGate": true,
+      "expectedMayHaveFinitePositiveValue": true,
+      "ratioAssumption": "Finitepositiveindividualratios forpositiveweight; ifpositiveweightzero no value."
+    },
+    {
+      "name": "fund_weight_units",
+      "positiveWeight": "0.95",
+      "verifiedNonpositiveWeight": "0.03",
+      "fullStockWeight": "0.99",
+      "positiveCoverage": "0.9595959595959595959595959596",
+      "verifiedNonpositiveCoverage": "0.03030303030303030303030303030",
+      "verifiedInputCoverage": "0.9898989898989898989898989899",
+      "expectedDataCoverageGate": true,
+      "expectedMayHaveFinitePositiveValue": true,
+      "ratioAssumption": "Finitepositiveindividualratios forpositiveweight; ifpositiveweightzero no value."
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "schema": "reviewed-reported-common-points-v1",
+  "entries": [
+    {
+      "candidateSha256": "8054d9b01499e912e9f9ec19b009955928afff018ee447cd02388b1d0b33abb7",
+      "registrySha256": "47f28405f9bc08a911b93a12e48b074724da90aab1128709c9edb303240fce08",
+      "reviewSha256": "decac535846c55da0237bb216cc728fc57895a761383397316f1455931d7b30d"
+    }
+  ]
+}

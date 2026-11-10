@@ -1,3 +1,4 @@
+import {usETFReportedResponse} from './server/us-etf-reported-response';
 import {usETFCurrentRoute} from './server/us-etf-current-dated-response';
 import {usETFValuationResponse} from './server/us-etf-valuation-response';
 import {valuationResponse} from './server/valuation-response';
@@ -37,6 +38,7 @@ app.get("/api/sentiment/:market", async (c) => {
   }
 });
 
+app.get("/api/valuations/US/reported-estimate",c=>usETFReportedResponse(new URL(c.req.url),c.env?.SENTIMENT_DB));
 app.get("/api/valuations/US/current-estimate",c=>usETFCurrentRoute(new URL(c.req.url),c.env?.SENTIMENT_DB));
 app.get("/api/valuations/US",c=>usETFValuationResponse(new URL(c.req.url),c.env?.SENTIMENT_DB));
 app.get("/api/valuations/US/themes",c=>usThemeValuationResponse(new URL(c.req.url),c.env?.SENTIMENT_DB));

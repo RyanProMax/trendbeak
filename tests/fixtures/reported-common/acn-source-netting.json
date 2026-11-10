@@ -1,0 +1,70 @@
+{
+  "symbol": "ACN",
+  "issuerId": "1467373",
+  "capitalization": {
+    "sourceNetting": {
+      "grossReportedCover": "667510210",
+      "lessIssuerHeldSameDate": "55568101",
+      "netExternalCommon": "611942109",
+      "asOf": "2026-06-04",
+      "proof": {
+        "source": {
+          "url": "https://www.sec.gov/Archives/edgar/data/1467373/000146737326000032/acn-20260531.htm",
+          "path": "historical-xlk-expansion/recent-pilot-2026q2/acn-current/ACN_0001467373-26-000032_primary.htm",
+          "sha256": "400f4b401d9fe639101d426c93fc0d75087f267c6b02b5e255f4a642c628cc8a",
+          "bytes": 1672673
+        },
+        "xpath": "/html/body/div[32]",
+        "text": "The number of shares of the registrant’s Class A ordinary shares, par value $0.0000225 per share, outstanding as of June 4, 2026 was 667,510,210 (which number includes 55,568,101 issued shares held by the registrant). The number of shares of the registrant’s Class X ordinary shares, par value $0.0000225 per share, outstanding as of June 4, 2026 was 300,673."
+      },
+      "issuerHeldNumberIsPlainTextNotInlineXbrl": true
+    },
+    "narrativeApproximate": false,
+    "capitalBasis": "reported_parent_external_class_A_common_net_issuer_held",
+    "originalReportedShares": "667510210",
+    "shares": "611942109",
+    "asOf": "2026-06-04",
+    "price": "124.44",
+    "capitalEstimate": "76150076043.96",
+    "netTreasuryOutstanding": true,
+    "precisionByClass": [
+      {
+        "decimals": "INF",
+        "scale": "0",
+        "quantumShares": null,
+        "sourceDeclaredExact": true
+      }
+    ],
+    "classFacts": [
+      {
+        "value": "667510210",
+        "asOf": "2026-06-04",
+        "members": [
+          {
+            "axis": "us-gaap:StatementClassOfStockAxis",
+            "member": "us-gaap:CommonClassAMember"
+          }
+        ],
+        "source": {
+          "url": "https://www.sec.gov/Archives/edgar/data/1467373/000146737326000032/acn-20260531.htm",
+          "path": "historical-xlk-expansion/recent-pilot-2026q2/acn-current/ACN_0001467373-26-000032_primary.htm",
+          "sha256": "400f4b401d9fe639101d426c93fc0d75087f267c6b02b5e255f4a642c628cc8a",
+          "bytes": 1672673
+        },
+        "factXPath": "/html/body/div[32]/span/ix:nonfraction[1]"
+      }
+    ],
+    "eventBridge": null,
+    "knownCapitalLag": null,
+    "knownCapitalLagBasis": null,
+    "unlistedClassPriceProxy": false,
+    "unitScopePending": false,
+    "notCurrentShareRegister": true,
+    "rightsEvidenceRef": {
+      "path": "/workspace/scratch/b94750488aeb/historical-xlk-expansion/recent-pilot-2026q2/acn-current/acn_source_candidate_v2.json",
+      "sha256": "aefc70a1fb307cbe2fc0b881ba0c6624789ac87c135019b58cdf58506271d8cd",
+      "bytes": 45109,
+      "jsonPointer": "/0/capitalization"
+    }
+  }
+}
