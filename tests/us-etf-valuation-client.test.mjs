@@ -8,7 +8,7 @@ test('US date changes abort, ignore late responses and distinguish absent histor
   for (const k of ['Element', 'HTMLElement', 'Node']) globalThis[k] = dom.window[k];
   const requests = []; globalThis.fetch = (url, options) => new Promise(resolve => requests.push({ url, options, resolve })); let root;
   try {
-    const Component = (await vite.ssrLoadModule('/src/components/USSectorValuations.tsx')).default;
+    const Component = (await vite.ssrLoadModule('/src/components/USSectorETFValuations.tsx')).default;
     root = createRoot(document.querySelector('#root'));
     const render = async date => act(async () => root.render(React.createElement(Component, { date })));
     const tick = () => act(async () => new Promise(r => setTimeout(r, 170)));

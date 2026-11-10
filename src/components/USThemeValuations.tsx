@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import CollapsiblePanel from './CollapsiblePanel';
 import { ValuationHelp, ValuationReading } from './IndexValuations';
 import { displayDate } from '../lib/market-format';
@@ -7,8 +7,9 @@ import './market-overview.css';
 import './us-sector-valuations.css';
 
 type Result = { date: string; rows: USThemeValuation[]; error: boolean; expires: number };
-export default function USSectorValuations({ date }: { date: string }) {
-  const [group, setGroup] = useState<USValuationGroup>('ai');
+export default function USThemeValuations({ date, group: selectedGroup, readout }: { date: string; group?: USValuationGroup; readout?: ReactNode }) {
+  const [localGroup, setGroup] = useState<USValuationGroup>('ai');
+  const group = selectedGroup ?? localGroup;
   const cache = useRef(new Map<string, Result>()), [loaded, setLoaded] = useState<Result | null>(null), [refresh, setRefresh] = useState(0);
   useEffect(() => {
     const timer = setInterval(() => { if (document.visibilityState === 'visible') setRefresh(n => n + 1); }, 300000);
@@ -43,7 +44,7 @@ export default function USSectorValuations({ date }: { date: string }) {
     <div className="valuation-groups" role="group" aria-label="估值指数分类">
       {US_VALUATION_GROUPS.map(([id, label]) => <button key={id} type="button" aria-pressed={group === id} onClick={() => setGroup(id)}>{label}</button>)}
     </div>;
-  return <CollapsiblePanel panelKey="us-valuations" title="指数与主题估值" className="index-valuations us-theme-valuations" readout={categories}>
+  return <CollapsiblePanel panelKey="us-valuations" title="指数与主题估值" className="index-valuations us-theme-valuations us-valuation-groups" readout={readout ?? categories}>
     <table key={group} data-valuation-date={date} aria-busy={!result} aria-label={`${groupLabel}估值，${displayDate(date, true)}`}>
       <colgroup><col className="valuation-name-column" /><col /><col /></colgroup>
       <thead><tr><th scope="col">指数 / 主题</th><th scope="col"><ValuationHelp metric="pb" /></th><th scope="col"><ValuationHelp metric="ps" /></th></tr></thead>
