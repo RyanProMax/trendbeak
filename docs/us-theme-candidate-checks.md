@@ -6,7 +6,7 @@ This reviewed candidate-only implementation is enabled in the existing coordinat
 
 The existing Mac coordinator can append one serial `US-theme-candidates` child. There is no new scheduled task, daemon, timer service or database schema. Existing CN/US core, overview, quarterly behavior, authorization checks, locks and attempt markers are untouched. The integration constant is enabled after independent review. The runner preflight passes the actual enablement flag and candidate output directory, so enabling the constant cannot fail before starting the existing jobs. A test changes the constant to true in a temporary copy of the real coordinator and runs the full mocked CN/US/quarterly sequence plus a zero-network seeded candidate step without an explicit enablement override. Activation uses the existing entry and does not create another schedule or expand source access.
 
-The child uses only three previously visible URLs:
+The collector is restricted to three previously visible URLs. The STOXX URL below is currently held and must not be requested:
 
 - STOXX: https://stoxx.com/index/stxwsml/?factsheet=true
 - ProShares index page: https://www.proshares.com/our-etfs/leveraged-and-inverse/skyu
@@ -23,7 +23,7 @@ If the source still reports an old date, the period is NOT marked complete:
 - STOXX: at most one attempt in days 1–15 and one in days 16–month-end. Thus an October observation still absent in early November may be checked once more in the second November window, then in later monthly windows.
 - ProShares: at most one attempt per calendar month after a new quarter has closed. A January check still showing September does not prevent a February or March check for the December quarter.
 
-Existing four daily invocations evaluate these rules; they do not create four daily network calls. UTC calendar windows avoid DST drift. One request maximum per STOXX attempt; two maximum per ProShares attempt. Total upper bounds while successful stale responses continue are **4 HTTP requests/calendar month, 12/calendar quarter, 48/year**. A full-year pure planning test simulates four invocations/day and verifies these limits. A missed window is not replayed repeatedly; the next existing invocation uses its actual window.
+Existing four daily invocations evaluate these rules; they do not create four daily network calls. UTC calendar windows avoid DST drift. One request maximum per STOXX attempt; two maximum per ProShares attempt. Generic upper bounds before any rights hold, while successful stale responses continue, are **4 HTTP requests/calendar month, 12/calendar quarter, 48/year**. With the current STOXX rights hold, STOXX makes zero requests; CPQ permits at most two requests/month, six/quarter and 24/year. A full-year pure planning test simulates four invocations/day and verifies these limits. A missed window is not replayed repeatedly; the next existing invocation uses its actual window.
 
 Same-date/same-values is unchanged, not another sample. A changed PDF with the same HTML value can still create a document-review requirement, but not a new valuation observation. `candidates` counts only new observation dates; `reviewItems` separately counts pending point/document reviews. No history is merged across source series. Quarterly CPQ observations cannot promise 60 prior samples within a ten-year window (about 40 quarter ends at most).
 
@@ -49,7 +49,7 @@ Unknown PDF bytes are saved but cannot receive an automatic cross-check PASS. Th
 
 ## Existing job results
 
-The child emits one validated JSON report with its frozen clock, source calls/bytes, two family dispositions, actual source dates, pending review count, zero production writes and zero added approvals. Blocked families remain explicit failures with a nonzero CLI exit; the existing coordinator retains those reports while continuing independent jobs. A successful candidate collection means evidence is available for review, not market data is published or all monthly/quarterly sources are current. Unchanged/not-due results make no publication claims.
+The child emits one validated JSON report with its frozen clock, source calls/bytes, two family dispositions, actual source dates, pending review count, zero production writes and zero added approvals. Actual failed/blocked families remain explicit failures with a nonzero CLI exit; expected source-permission holds have status `held` and do not make the job fail. the existing coordinator retains those reports while continuing independent jobs. A successful candidate collection means evidence is available for review, not market data is published or all monthly/quarterly sources are current. Unchanged/not-due results make no publication claims.
 
 ## Protect the actual Mac checkout
 
@@ -59,8 +59,12 @@ Future installation needs a fresh exact-file comparison, backup and no active jo
 
 ## Reviewed initial-state proposal
 
-The already-held current STOXX factsheet was successfully retrieved from the exact fixed URL at `2026-11-10T08:30:53.075395+00:00` according to the original source manifest. Its 830256 bytes have SHA-256 `c41caae9d04b25bc3e1e1e60cd74b240dca2c1012c87628c8d54c3902f8439c5` and report September 30 PB9.0/PS8.4. This can count as the November first window's existing manual evidence, avoiding another request merely to verify installation.
+The already-held current STOXX factsheet was successfully retrieved from the exact fixed URL at `2026-11-10T08:30:53.075395+00:00` according to the original source manifest. Its 830256 bytes have SHA-256 `c41caae9d04b25bc3e1e1e60cd74b240dca2c1012c87628c8d54c3902f8439c5` and retains its original observed date and values privately. This can count as the November first window's existing manual evidence, avoiding another request merely to verify installation.
 
-The review bundle proposes one exact initial state labelled `manual-evidence-bootstrap`, preserving that original timestamp, exact URL, bytes, source digest, manifest digest and reviewed-policy identity. The state's window time is the same instant normalized to JavaScript millisecond precision; it is not a claimed collector execution. CPQ needs no synthetic entry because its already-reviewed September 30 point is the latest closed quarter. The November first-window replay performs zero source requests and zero waits; the November second window remains eligible for STOXX if no later evidence exists.
+The review bundle proposes one exact initial state labelled `manual-evidence-bootstrap`, preserving that original timestamp, exact URL, bytes, source digest, manifest digest and reviewed-policy identity. The state's window time is the same instant normalized to JavaScript millisecond precision; it is not a claimed collector execution. CPQ needs no synthetic entry because its already-reviewed September 30 point is the latest closed quarter. The November first-window replay performs zero source requests and zero waits; STOXX remains ineligible in every later window while the separate rights hold exists.
 
 This is a reviewed one-time seed artifact, not an automatic source-approval or bootstrap API. Future authorized installation must verify its exact bytes and the active checkout/locks, exclusively create the state with mode0600 only if absent, and preserve the seed plus original manifest as evidence. An existing state, even empty or blocked, must never be overwritten. The installation record must distinguish copying this reviewed evidence from performing a fresh source acquisition.
+
+## Source-permission hold
+
+STOXX/STXWSML automated collection and public valuation display are paused while source-permission conditions remain unmet. See data/us-theme-rights.json for the specific terms link and date. This is an expected rights hold, not an HTTP error. It creates no new sample, does not erase original evidence, does not expire automatically, and does not prevent CPQ or core jobs. Real HTTP/access/network failures remain failures. Public runtime configuration and fixtures no longer contain the held publisher observations; private audit copies and existing stored data remain preserved.

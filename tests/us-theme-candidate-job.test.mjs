@@ -1,5 +1,10 @@
-import test from'node:test';import assert from'node:assert/strict';import{mkdtemp,rm,readFile,writeFile,stat,mkdir,readdir,copyFile}from'node:fs/promises';import{tmpdir}from'node:os';import{join}from'node:path';
-import{CANDIDATE_SCHEMA,SOURCES,MAX_CLOCK_AGE_MS,MIN_REQUEST_GAP_MS,planThemeCandidates,runThemeCandidateJob,validCandidateReport,assessCPQPDF}from'../scripts/us-theme-candidate-job.mjs';
+import test,{after}from'node:test';import assert from'node:assert/strict';import{mkdtemp,rm,readFile,writeFile,stat,mkdir,readdir,copyFile}from'node:fs/promises';import{tmpdir}from'node:os';import{join}from'node:path';
+// Generic collector behavior uses an isolated, entirely synthetic permission/data fixture.
+// This never changes the real rights policy, invokes the CLI, or makes network requests.
+const fixtureRoot=await mkdtemp(join(tmpdir(),'collector-unit-fixture-'));after(()=>rm(fixtureRoot,{recursive:true,force:true}));await mkdir(join(fixtureRoot,'scripts'));await mkdir(join(fixtureRoot,'data'));
+for(const name of ['us-theme-candidate-job.mjs','us-theme-official-valuations.mjs'])await copyFile(new URL('../scripts/'+name,import.meta.url),join(fixtureRoot,'scripts',name));
+const fixturePolicy=JSON.parse(await readFile(new URL('../data/us-theme-official-sources.json',import.meta.url),'utf8'));fixturePolicy.series.push({code:'STXWSML',sources:[{values:[['2026-09-30',7.6,4.3]]}]});await writeFile(join(fixtureRoot,'data/us-theme-official-sources.json'),JSON.stringify(fixturePolicy));await writeFile(join(fixtureRoot,'data/us-theme-rights.json'),JSON.stringify({schema:'synthetic-offline-test-only',holds:{}}));
+const{CANDIDATE_SCHEMA,SOURCES,MAX_CLOCK_AGE_MS,MIN_REQUEST_GAP_MS,planThemeCandidates,runThemeCandidateJob,validCandidateReport,assessCPQPDF}=await import(pathToFileURL(join(fixtureRoot,'scripts/us-theme-candidate-job.mjs')).href);
 import{pathToFileURL}from'node:url';
 import{dailyJobPlan,validateBusinessOutput}from'../scripts/mac-daily-job.mjs';
 const at='2027-01-05T10:00:00.000Z',empty=()=>({schema:CANDIDATE_SCHEMA,families:{}}),url=SOURCES.STXWSML.html;
@@ -25,7 +30,7 @@ test('unknown source evidence is saved privately as unapproved candidates, with 
  const next=await run(root,async()=>{throw Error('must not request');},'2027-01-20T10:00:00.000Z');assert.equal(next.sourceCalls,0);assert.equal(next.candidates,0);assert(next.families.every(f=>f.status==='not_due'));
 }));
 test('late publications get bounded later windows, same-date unchanged values create no sample',()=>box(async root=>{
- const stale=async u=>response(u===url?stx('September 30, 2026','9.0','8.4'):u===SOURCES.CPQ.html?cpq('9/30/2026','11.15'):pdf);
+ const stale=async u=>response(u===url?stx('September 30, 2026','7.6','4.3'):u===SOURCES.CPQ.html?cpq('9/30/2026','11.15'):pdf);
  const a=await run(root,stale);assert.equal(a.candidates,0);assert(a.families.every(f=>f.status==='unchanged'));
  const b=await run(root,async()=>{throw Error('no request');},'2027-01-06T10:00:00.000Z');assert.equal(b.sourceCalls,0);
  const c=await run(root,stale,'2027-01-16T10:00:00.000Z');assert.equal(c.sourceCalls,1);assert.equal(c.candidates,0);
@@ -41,7 +46,7 @@ test('one failed family never prevents the other independent source candidate',(
  const r=await run(root,async u=>u===url?new Response('',{status:403}):fullRead(u));assert.equal(r.sourceCalls,3);assert.equal(r.failures.length,1);assert.equal(r.candidates,1);assert.equal(r.families.find(x=>x.code==='CPQ').status,'pending_review');
 }));
 test('field/variant drift, nonpositive values, regression and future dates retain originals and hold source',()=>box(async root=>{
- const cases=[stx().replace('USD, Price','EUR, Price'),stx().replace('Price/sales','EV/Sales'),stx('December 31, 2026','0.0'),stx('December 31, 2026','9'.repeat(400)+'.0'),stx('August 31, 2026','9.0','8.4'),stx('September 30, 2026','9.1','8.4'),stx('February 28, 2027')];
+ const cases=[stx().replace('USD, Price','EUR, Price'),stx().replace('Price/sales','EV/Sales'),stx('December 31, 2026','0.0'),stx('December 31, 2026','9'.repeat(400)+'.0'),stx('August 31, 2026','7.6','4.3'),stx('September 30, 2026','7.7','4.3'),stx('February 28, 2027')];
  for(let i=0;i<cases.length;i++){const dir=join(root,String(i)),r=await run(dir,async u=>u===url?response(cases[i]):fullRead(u));assert.equal(r.families[0].status,'blocked');assert.equal((await readFile(join(r.runDirectory,'STXWSML.html'),'utf8')),cases[i]);assert.equal(r.candidates,1);}
 }));
 test('oversized, streaming, network, content and malformed PDF failures are bounded and held',()=>box(async root=>{
@@ -50,7 +55,7 @@ test('oversized, streaming, network, content and malformed PDF failures are boun
  assert.throws(()=>assessCPQPDF(Buffer.from('%PDF-1.7 no eof'),{date:'2026-12-31',pb:12.15,ps:null}),/pdf/);
 }));
 test('interrupted attempt and malformed/future local state never trigger new requests',()=>box(async root=>{
- const state=empty();state.families.STXWSML={attemptAt:at,slot:'2027-01-first',status:'started',lastObservation:{date:'2026-09-30',pb:9,ps:8.4},reason:null};await writeFile(join(root,'official-theme-candidates-state.json'),JSON.stringify(state));
+ const state=empty();state.families.STXWSML={attemptAt:at,slot:'2027-01-first',status:'started',lastObservation:{date:'2026-09-30',pb:7.6,ps:4.3},reason:null};await writeFile(join(root,'official-theme-candidates-state.json'),JSON.stringify(state));
  const r=await run(root,async u=>{assert.notEqual(u,url);return fullRead(u);});assert.equal(r.families[0].reason,'interrupted_attempt_requires_review');assert.equal(r.sourceCalls,2);
  state.families.STXWSML.attemptAt='2028-01-01T00:00:00.000Z';await writeFile(join(root,'official-theme-candidates-state.json'),JSON.stringify(state));let calls=0;await assert.rejects(()=>run(root,async()=>{calls++;}),/state/);assert.equal(calls,0);
 }));
@@ -114,9 +119,9 @@ test('an injected pause that does not advance time cannot bypass the minimum req
 
 test('actual enabled coordinator constant preserves all existing jobs and reaches zero-network candidate bootstrap',()=>box(async root=>{
  const target=join(root,'enabled-copy');await mkdir(join(target,'scripts'),{recursive:true});await mkdir(join(target,'data'),{recursive:true});
- for(const name of ['scripts/us-theme-candidate-job.mjs','scripts/us-theme-official-valuations.mjs','data/us-theme-official-sources.json'])await copyFile(new URL('../'+name,import.meta.url),join(target,name));
+ for(const name of ['scripts/us-theme-candidate-job.mjs','scripts/us-theme-official-valuations.mjs','data/us-theme-official-sources.json','data/us-theme-rights.json'])await copyFile(new URL('../'+name,import.meta.url),join(target,name));
  const original=await readFile(new URL('../scripts/mac-daily-job.mjs',import.meta.url),'utf8');assert.equal([...original.matchAll(/const THEME_CANDIDATE_CHECKS_ENABLED=(?:false|true);/g)].length,1);const enabled=original.replace(/const THEME_CANDIDATE_CHECKS_ENABLED=(?:false|true);/,'const THEME_CANDIDATE_CHECKS_ENABLED=true;');await writeFile(join(target,'scripts/mac-daily-job.mjs'),enabled);const module=await import(pathToFileURL(join(target,'scripts/mac-daily-job.mjs')).href);
- const time='2026-11-10T10:00:00.000Z',logs=join(root,'logs'),candidateRoot=join(logs,'theme-candidates');await mkdir(candidateRoot,{recursive:true});await writeFile(join(candidateRoot,'official-theme-candidates-state.json'),JSON.stringify({schema:CANDIDATE_SCHEMA,families:{STXWSML:{attemptAt:'2026-11-10T08:30:53.075Z',slot:'2026-11-first',status:'complete',lastObservation:{date:'2026-09-30',pb:9,ps:8.4},reason:null}}}));
+ const time='2026-11-10T10:00:00.000Z',logs=join(root,'logs'),candidateRoot=join(logs,'theme-candidates');await mkdir(candidateRoot,{recursive:true});await writeFile(join(candidateRoot,'official-theme-candidates-state.json'),JSON.stringify({schema:CANDIDATE_SCHEMA,families:{STXWSML:{attemptAt:'2026-11-10T08:30:53.075Z',slot:'2026-11-first',status:'complete',lastObservation:{date:'2026-09-30',pb:7.6,ps:4.3},reason:null}}}));
  const calls=[];const summary=await module.runMacDailyJob({at:time,logs,lock:join(root,'job.lock'),runStep:async step=>{calls.push(step.id);let r;
   if(step.id==='authorization')return{code:0,stdout:`You are logged in with an OAuth Token.\nAccount ${module.ACCOUNT}\n- d1 (write)`,stderr:''};
   if(step.id==='US-theme-candidates'){assert.equal(step.args[step.args.indexOf('--output')+1],candidateRoot);r=await runThemeCandidateJob({at:time,root:candidateRoot,clock:()=>Date.parse(time),pause:async()=>assert.fail('seeded no-op must not wait'),read:async()=>assert.fail('seeded no-op must not request')});assert.equal(r.sourceCalls,0);}
@@ -124,4 +129,12 @@ test('actual enabled coordinator constant preserves all existing jobs and reache
   else r={market:step.id.split('-')[0],...(step.id.endsWith('core')?{date:'2026-11-09',upstreamCalls:0}:{completedSession:'2026-11-09',sourceCalls:0,sourceBytes:0,computedRows:0}),skipped:'already_settled',dbWrites:0};
   return{code:0,stdout:JSON.stringify(r),stderr:''};
  }});assert.equal(summary.ok,true);assert.deepEqual(calls,['authorization','CN-core','CN-overview','US-core','US-overview','US-quarterly','US-theme-candidates']);assert(summary.results.every(r=>r.ok));assert.equal(summary.results.at(-1).reports[0].sourceCalls,0);
+}));
+
+
+test('real rights policy is an expected hold, never queries STOXX and leaves CPQ due with strict HTTP failures',()=>box(async root=>{
+ const real=await import('../scripts/us-theme-candidate-job.mjs');
+ for(const status of [200,401,403,429]){let now=Date.parse(at);const calls=[];const r=await real.runThemeCandidateJob({root:join(root,String(status)),at,clock:()=>now,pause:async ms=>{now+=ms;},read:async u=>{assert.notEqual(u,SOURCES.STXWSML.html);calls.push(u);return status===200?fullRead(u):new Response('not retained',{status});}});assert(real.validCandidateReport(r,at));const held=r.families.find(f=>f.code==='STXWSML');assert.equal(held.status,'held');assert.equal(held.reason,'source_permission_pending');assert.equal(held.sourceDate,null);assert.equal(held.rightsHold.termsUrl,'https://stoxx.com/legal/stoxx-conditions-of-use/');assert.equal(held.httpStatus,undefined);
+  assert.deepEqual(calls,status===200?[SOURCES.CPQ.html,SOURCES.CPQ.pdf]:[SOURCES.CPQ.html]);assert.equal(r.failures.length,status===200?0:1);if(status!==200)assert.equal(r.failures[0].reason,'access_'+status);assert.equal(r.productionWrites,0);
+ }
 }));

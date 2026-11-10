@@ -1,3 +1,5 @@
+import rights from '../../data/us-theme-rights.json';
+export const heldUSThemeSource = (code: unknown): boolean => typeof code === 'string' && Object.hasOwn(rights.holds, code);
 import type { IndexValuation } from './china-overview';
 
 export const US_VALUATION_GROUPS = [['ai', 'AI 板块'], ['traditional', '传统行业'], ['broad', '宽基']] as const;
@@ -38,7 +40,7 @@ export function validValuationDate(value: unknown): value is string {
 }
 export function validUSThemeValuation(row: any, selected: string): row is USThemeValuation {
   const theme = US_VALUATION_THEMES.find(([code]) => code === row?.code);
-  if (!theme || row.name !== theme[1] || !validValuationDate(row.date) || row.date !== selected) return false;
+  if (heldUSThemeSource(row?.code) || !theme || row.name !== theme[1] || !validValuationDate(row.date) || row.date !== selected) return false;
   const cutoff = new Date(selected); cutoff.setUTCFullYear(cutoff.getUTCFullYear() - 10);
   for (const metric of [row.pb, row.ps]) {
     if (!metric || !(metric.value === null || typeof metric.value === 'number' && Number.isFinite(metric.value) && metric.value > 0)

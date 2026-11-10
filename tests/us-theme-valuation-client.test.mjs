@@ -14,8 +14,10 @@ test('US date changes abort, ignore late responses and distinguish absent histor
     await render('2026-11-04'); await tick(); await render('2026-11-05'); await tick();
     assert.equal(requests[0].options.signal.aborted, true);
     const row = { name: '半导体', code: 'SOX', date: '2026-11-05', availableDate: '2026-11-05', pb: { value: 12.5, percentile: 25, from: '2026-01-02', through: '2026-11-04', samples: 200 }, ps: { value: null, percentile: null, samples: 0 } };
-    await act(async () => requests[1].resolve(Response.json({ data: { date: '2026-11-05', rows: [row] } })));
+    await act(async () => requests[1].resolve(Response.json({ data: { date: '2026-11-05', rows: [row, { ...row, code: 'STXWSML', name: '存储', pb: { ...row.pb, value: 765.43, percentile: 99 } }, { ...row, code: 'CPQ', name: '云计算', pb: { value: 12.34, percentile: null, samples: 0 } }] } })));
     assert.equal(document.querySelector('tbody td b').textContent, '25.0%');
+    const heldBlank = () => { const trs = [...document.querySelectorAll('tbody tr')], held = trs.find(tr => tr.textContent.includes('STXWSML')); assert.deepEqual([...held.querySelectorAll('td b,td small')].map(e => e.textContent), ['—', '—', '—', '—']); assert.equal(held.querySelectorAll('.valuation-track i').length, 0); assert(trs.find(tr => tr.textContent.includes('CPQ')).textContent.includes('12.34倍')); };
+    heldBlank(); assert(requests[1].url.endsWith('&rights=2026-11-10'));
     assert.equal(document.querySelector('tbody td small').textContent, '12.50倍');
     assert.equal(document.querySelector('tbody td .valuation-track i').style.width, '25%');
     await act(async () => requests[0].resolve(Response.json({ data: { date: '2026-11-04', rows: [] } })));
@@ -42,6 +44,20 @@ test('US date changes abort, ignore late responses and distinguish absent histor
     await render('2026-11-03'); await tick(); assert.deepEqual(names(), ['标普500', '纳斯达克100']);
     await choose('AI 板块'); await render('2026-11-05'); await tick();
     assert.equal(document.querySelector('tbody td b').textContent, '25.0%');
+    heldBlank(); assert(!document.body.textContent.includes('765.43'));
     assert.equal(requests.length, 4, 'category switches reuse exact-date results without new requests');
   } finally { if (root) await act(async () => root.unmount()); for (const key of keys) globalThis[key] = saved[key]; dom.window.close(); await vite.close(); }
+});
+
+test('new renderer masks held rows already present in loaded state, without hiding allowed rows', async () => {
+  const selected='2026-09-30',row=(code,name,value)=>({code,name,date:selected,pb:{value,percentile:null,samples:0},ps:{value:null,percentile:null,samples:0}});
+  const prior={date:selected,rows:[row('STXWSML','存储',765.43),row('CPQ','云计算',12.34)],error:false,expires:Date.now()+300000};
+  let injected=false;
+  // Test-only initialization seam: production component code is otherwise unchanged.
+  const vite=await createServer({configFile:false,appType:'custom',plugins:[{name:'loaded-state-test-only',enforce:'pre',transform(code,id){if(!id.endsWith('/src/components/USThemeValuations.tsx'))return;const needle='useState<Result | null>(null)';assert(code.includes(needle));injected=true;return code.replace(needle,`useState<Result | null>(${JSON.stringify(prior)})`);}}],server:{middlewareMode:true,hmr:false,ws:false}});
+  const dom=new JSDOM('<div id="root"></div>',{url:'https://test/'}),keys=['window','document','fetch','IS_REACT_ACT_ENVIRONMENT','Element','HTMLElement','Node'],saved=Object.fromEntries(keys.map(k=>[k,globalThis[k]]));let root;
+  try{globalThis.window=dom.window;globalThis.document=dom.window.document;globalThis.IS_REACT_ACT_ENVIRONMENT=true;for(const k of ['Element','HTMLElement','Node'])globalThis[k]=dom.window[k];globalThis.fetch=async()=>Response.json({data:{date:selected,rows:prior.rows}});
+    const Component=(await vite.ssrLoadModule('/src/components/USThemeValuations.tsx')).default;root=createRoot(document.querySelector('#root'));await act(async()=>root.render(React.createElement(Component,{date:selected})));assert(injected);
+    const check=()=>{const rows=[...document.querySelectorAll('tbody tr')],held=rows.find(r=>r.textContent.includes('STXWSML'));assert.deepEqual([...held.querySelectorAll('td b,td small')].map(e=>e.textContent),['—','—','—','—']);assert.equal(held.querySelectorAll('.valuation-track i').length,0);assert(rows.find(r=>r.textContent.includes('CPQ')).textContent.includes('12.34倍'));assert(!document.body.textContent.includes('765.43'));};check();await act(async()=>new Promise(r=>setTimeout(r,180)));check();
+  }finally{if(root)await act(async()=>root.unmount());for(const k of keys)globalThis[k]=saved[k];dom.window.close();await vite.close();}
 });

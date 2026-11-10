@@ -1,6 +1,8 @@
 // Reviewed, sparse publisher observations only. No network or D1 in preparation.
 import {createHash} from 'node:crypto';
 import policy from '../data/us-theme-official-sources.json' with {type:'json'};
+import rights from '../data/us-theme-rights.json' with {type:'json'};
+export const officialThemeRights=rights.holds;
 export const OFFICIAL_THEME_METHOD='prior-ten-years-midrank-v1';
 export const officialThemePolicies=policy.series;
 export const sha256=x=>createHash('sha256').update(x).digest('hex');
@@ -40,7 +42,7 @@ export function parseCPQIndex(raw,url,observedAt,now=Date.now()){
  const pb=pairs.filter(r=>r[0]==='Price/Book Ratio'),counts=pairs.filter(r=>r[0]==='Total Number of Holdings');if(pb.length!==1||!/^\d+\.\d{2}$/.test(pb[0][1])||!Number.isFinite(Number(pb[0][1]))||Number(pb[0][1])<=0||counts.length!==1||!/^\d+$/.test(counts[0][1])||!Number.isSafeInteger(Number(counts[0][1]))||Number(counts[0][1])<1)throw Error('Invalid positive index PB or holding count');
  return{date:asOf,pb:Number(pb[0][1]),ps:null,numberOfIndexHoldings:Number(counts[0][1])};
 }
-function seriesFor(code){const p=officialThemePolicies.find(p=>p.code===code);if(!p)throw Error('Unapproved theme');return p;}
+function seriesFor(code){if(officialThemeRights[code])throw Error('Source permission pending');const p=officialThemePolicies.find(p=>p.code===code);if(!p)throw Error('Unapproved theme');return p;}
 function sourceFor(p,o){const s=p.sources.find(s=>s.sha256===o.sourceDigest);if(!s||s.url!==o.sourceUrl||s.vintage!==o.sourceVintage||s.page!==o.sourcePage)throw Error('Unreviewed source identity');return s;}
 function readings(p,observations){
  const history={};for(const o of observations){const prior=observations.filter(x=>x.date<o.date&&x.date>=`${Number(o.date.slice(0,4))-10}${o.date.slice(4)}`);

@@ -25,7 +25,7 @@ test('US themes project one exact date, isolate legacy ETF values, and preserve 
     assert.equal(response.status, 200);
     assert.deepEqual((await response.json()).data.rows, [reading()]);
     assert.equal(f.stats.reads, 1); assert.equal(f.stats.writes, 0);
-    assert.match(f.stats.sql[0], /LIMIT 4/); assert.doesNotMatch(f.stats.sql[0], /SELECT payload|json_each/);
+    assert.match(f.stats.sql[0], /LIMIT 3/); assert.doesNotMatch(f.stats.sql[0], /SELECT payload|json_each/);
     const missing = await respond(new URL('https://test/api/valuations/US/themes?date=2026-11-05'), f.db);
     assert.deepEqual((await missing.json()).data.rows, []);
   } finally { f.close(); }

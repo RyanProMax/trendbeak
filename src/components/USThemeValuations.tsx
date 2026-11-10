@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import CollapsiblePanel from './CollapsiblePanel';
 import { ValuationHelp, ValuationReading } from './IndexValuations';
 import { displayDate } from '../lib/market-format';
-import { US_VALUATION_GROUPS, US_VALUATION_THEMES, validUSThemeValuation, type USThemeValuation, type USValuationGroup } from '../lib/us-theme-valuations';
+import { US_VALUATION_GROUPS, US_VALUATION_THEMES, heldUSThemeSource, validUSThemeValuation, type USThemeValuation, type USValuationGroup } from '../lib/us-theme-valuations';
 import './market-overview.css';
 import './us-sector-valuations.css';
 
@@ -28,11 +28,11 @@ export default function USThemeValuations({ date, group: selectedGroup, readout 
     };
     const timer = setTimeout(() => { void (async () => {
       try {
-        const response = await fetch(`/api/valuations/US/themes?date=${encodeURIComponent(date)}`, { signal: controller.signal });
+        const response = await fetch(`/api/valuations/US/themes?date=${encodeURIComponent(date)}&rights=2026-11-10`, { signal: controller.signal });
         if (!response.ok) throw Error('Theme valuations unavailable');
         const { data } = await response.json() as { data: { date: string; rows: USThemeValuation[] } };
-        if (data?.date !== date || !Array.isArray(data.rows) || data.rows.length > US_VALUATION_THEMES.length || new Set(data.rows.map(r => r?.code)).size !== data.rows.length || data.rows.some(r => !validUSThemeValuation(r, date))) throw Error('Invalid theme valuations');
-        save(data.rows, false);
+        if (data?.date !== date || !Array.isArray(data.rows) || data.rows.length > US_VALUATION_THEMES.length || new Set(data.rows.map(r => r?.code)).size !== data.rows.length || data.rows.some(r => !heldUSThemeSource(r?.code) && !validUSThemeValuation(r, date))) throw Error('Invalid theme valuations');
+        save(data.rows.filter(r => !heldUSThemeSource(r.code)), false);
       } catch { save([], true); }
     })(); }, 150);
     return () => { active = false; clearTimeout(timer); controller.abort(); };
@@ -49,7 +49,7 @@ export default function USThemeValuations({ date, group: selectedGroup, readout 
       <colgroup><col className="valuation-name-column" /><col /><col /></colgroup>
       <thead><tr><th scope="col">指数 / 主题</th><th scope="col"><ValuationHelp metric="pb" /></th><th scope="col"><ValuationHelp metric="ps" /></th></tr></thead>
       <tbody>{themes.map(([code, name, kind]) => {
-        const row = result?.rows.find(r => r.code === code) ?? { name, code, date, pb: { value: null, percentile: null }, ps: { value: null, percentile: null } };
+        const row = (!heldUSThemeSource(code) ? result?.rows.find(r => r.code === code) : null) ?? { name, code, date, pb: { value: null, percentile: null }, ps: { value: null, percentile: null } };
         return <tr key={code}><th scope="row"><strong>{name}</strong><small>{code}{kind === '全球指数' ? ' · 全球' : ''}</small></th>
           <td><ValuationReading row={row} metric="pb" precisionDecimals={row.provenance?.precisionDecimals === 1 ? 1 : 2} /></td><td><ValuationReading row={row} metric="ps" precisionDecimals={row.provenance?.precisionDecimals === 1 ? 1 : 2} /></td>
         </tr>;

@@ -1,0 +1,12 @@
+{
+  "schema": "theme-source-rights-holds-v1",
+  "holds": {
+    "STXWSML": {
+      "reason": "source_permission_pending",
+      "termsUrl": "https://stoxx.com/legal/stoxx-conditions-of-use/",
+      "termsUpdatedDate": "2026-07-07",
+      "scope": "automated collection and public display",
+      "resume": "Requires separately reviewed permission; no automatic expiry"
+    }
+  }
+}

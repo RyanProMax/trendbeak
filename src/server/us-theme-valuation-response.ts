@@ -1,9 +1,9 @@
 import officialPolicy from '../../data/us-theme-official-sources.json';
-import { US_THEME_METHOD, validValuationDate, validUSThemeValuation, type USThemeValuation } from '../lib/us-theme-valuations';
+import { US_THEME_METHOD, heldUSThemeSource, validValuationDate, validUSThemeValuation, type USThemeValuation } from '../lib/us-theme-valuations';
 
 // Expanding the displayed index catalog does not admit new valuation sources.
 const PREPARED_CODES = ['SOX', 'SPX'] as const;
-const official = officialPolicy.series.filter(p => p.storageAdmission);
+const official = officialPolicy.series.filter(p => p.storageAdmission && !heldUSThemeSource(p.code));
 const MAX_READINGS = PREPARED_CODES.length + official.length;
 /** Fixed admitted series, one exact prepared date. No source fetches or rank rebuilds. */
 export async function usThemeValuationResponse(url: URL, db?: D1Database): Promise<Response> {
